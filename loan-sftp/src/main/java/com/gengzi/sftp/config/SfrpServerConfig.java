@@ -1,13 +1,14 @@
-package com.gengzi.sfpt.config;
+package com.gengzi.sftp.config;
 
 
-import com.gengzi.sfpt.listener.FileWriteListener;
+import com.gengzi.sftp.filter.CustomSftpSubsystemFactory;
+import com.gengzi.sftp.handle.MySftpFileSystemAccessor;
+import com.gengzi.sftp.listener.FileWriteListener;
 import org.apache.sshd.common.file.virtualfs.VirtualFileSystemFactory;
 import org.apache.sshd.common.keyprovider.FileKeyPairProvider;
 import org.apache.sshd.server.SshServer;
 import org.apache.sshd.server.auth.password.PasswordAuthenticator;
 import org.apache.sshd.server.auth.password.PasswordChangeRequiredException;
-import org.apache.sshd.server.keyprovider.SimpleGeneratorHostKeyProvider;
 import org.apache.sshd.server.session.ServerSession;
 import org.apache.sshd.sftp.server.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,11 +50,12 @@ public class SfrpServerConfig {
         SshServer server = SshServer.setUpDefaultServer();
         server.setHost("0.0.0.0");
         server.setPort(sftpPort);
-        // 配置主机密钥（首次启动会自动生成）
-
+        // 配置主机密钥
         server.setKeyPairProvider(new FileKeyPairProvider(Paths.get(new File("D:\\work\\loans\\loan-sfpt\\hostkey.ser").getAbsolutePath())));
 
-        SftpSubsystemFactory factory = new SftpSubsystemFactory();
+        CustomSftpSubsystemFactory factory = new CustomSftpSubsystemFactory();
+        factory.setFileSystemAccessor(new MySftpFileSystemAccessor());
+
         server.setSubsystemFactories(Collections.singletonList(factory));
 
         factory.addSftpEventListener(new SftpEventListener() {

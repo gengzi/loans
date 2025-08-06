@@ -1,4 +1,4 @@
-package com.gengzi.sfpt;
+package com.gengzi.sftp;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

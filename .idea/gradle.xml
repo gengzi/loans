@@ -10,7 +10,7 @@
           <set>
             <option value="$PROJECT_DIR$" />
             <option value="$PROJECT_DIR$/loan-center" />
-            <option value="$PROJECT_DIR$/loan-sfpt" />
+            <option value="$PROJECT_DIR$/loan-sftp" />
             <option value="$PROJECT_DIR$/pay-center" />
           </set>
         </option>

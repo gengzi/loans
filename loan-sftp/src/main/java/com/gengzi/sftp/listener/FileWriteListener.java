@@ -1,4 +1,4 @@
-package com.gengzi.sfpt.listener;
+package com.gengzi.sftp.listener;
 
 import org.apache.sshd.server.session.ServerSession;
 import org.apache.sshd.sftp.server.FileHandle;
