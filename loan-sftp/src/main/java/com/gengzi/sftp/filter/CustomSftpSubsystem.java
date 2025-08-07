@@ -1,5 +1,6 @@
 package com.gengzi.sftp.filter;
 
+import com.gengzi.sftp.handle.S3DoStat;
 import com.gengzi.sftp.handle.S3FileHandle;
 import org.apache.sshd.common.util.ValidateUtils;
 import org.apache.sshd.common.util.buffer.Buffer;
@@ -14,25 +15,21 @@ import org.apache.sshd.sftp.common.SftpHelper;
 import org.apache.sshd.sftp.server.*;
 
 import java.io.IOException;
-import java.nio.file.*;
-import java.nio.file.attribute.FileTime;
-import java.nio.file.attribute.PosixFilePermission;
-import java.util.*;
+import java.nio.file.LinkOption;
+import java.nio.file.Path;
+import java.util.Map;
+import java.util.NavigableMap;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * 自定义SFTP文件系统视图，修改文件读取逻辑
- *
- *
- *
- *
  */
-public class CustomSftpSubsystem extends SftpSubsystem{
+public class CustomSftpSubsystem extends SftpSubsystem {
 
 
-
+    // 存储s3文件句柄对应的处理类
     protected final Map<String, Handle> s3FileHandles = new ConcurrentHashMap<>();
 
     /**
@@ -50,7 +47,8 @@ public class CustomSftpSubsystem extends SftpSubsystem{
 
     @Override
     protected void doProcess(Buffer buffer, int length, int type, int id) throws IOException {
-        log.info("doProcess :type={} [id={}][length={}][buffer={}] ", type, id, length, buffer);
+        String statusName = SftpConstants.getCommandMessageName(type);
+        log.info("doProcess :type={} typeName={} [id={}][length={}][buffer={}] ", type, statusName, id, length, buffer);
         super.doProcess(buffer, length, type, id);
     }
 
@@ -59,30 +57,13 @@ public class CustomSftpSubsystem extends SftpSubsystem{
     protected Map<String, Object> doLStat(int id, String path, int flags) throws IOException {
         // 根据路径获取对应目录下的 文件
         // 获取根据路径+文件名称 获取文件句柄
-        System.out.println(id+","+path+","+flags);
-        if( path !=null && path.startsWith("/s3")){
-            // 查询对象存储中的路径 假定返回 /s3/home/dir/
-            NavigableMap<String, Object> attrs
-                    = new TreeMap<>();
-            ArrayList<PosixFilePermission> posixFilePermissions = new ArrayList<>();
-            posixFilePermissions.add(PosixFilePermission.OWNER_READ);
-            posixFilePermissions.add(PosixFilePermission.OWNER_WRITE);
-            posixFilePermissions.add(PosixFilePermission.OWNER_EXECUTE);
-            posixFilePermissions.add(PosixFilePermission.OTHERS_READ);
-            posixFilePermissions.add(PosixFilePermission.OTHERS_WRITE);
-
-            attrs.put("isDirectory", false);                 // 标记为目录
-            attrs.put("isRegularFile", true);                          // S3目录本身无大小，模拟为0
-            attrs.put("isSymbolicLink", false);       // 目录修改时间可自定义（如取最新子对象时间）
-            attrs.put("size", 1024L);
-            attrs.put("lastModifiedTime", FileTime.from(System.currentTimeMillis(), TimeUnit.MILLISECONDS));
-            attrs.put("permissions", posixFilePermissions);
-            attrs.put("owner", "admin");
-            return attrs;
+        log.info("doLStat :path={} [id={}][flags={}] ", path, id, flags);
+        if (path != null && path.startsWith("/s3")) {
+            return S3DoStat.doStat(id, path, flags);
         }
         Map<String, Object> stringObjectMap = super.doLStat(id, path, flags);
         for (Map.Entry<String, Object> stringObjectEntry : stringObjectMap.entrySet()) {
-            System.out.println(stringObjectEntry.getKey()+","+stringObjectEntry.getValue());
+            System.out.println(stringObjectEntry.getKey() + "," + stringObjectEntry.getValue());
         }
         return stringObjectMap;
     }
@@ -90,63 +71,20 @@ public class CustomSftpSubsystem extends SftpSubsystem{
 
     @Override
     protected Map<String, Object> doStat(int id, String path, int flags) throws IOException {
-        System.out.println(id+","+path+","+flags);
-        if( path !=null && path.startsWith("/s3")){
-            // 查询对象存储中的路径 假定返回 /s3/home/dir/
-            NavigableMap<String, Object> attrs
-                    = new TreeMap<>();
-            ArrayList<PosixFilePermission> posixFilePermissions = new ArrayList<>();
-            posixFilePermissions.add(PosixFilePermission.OWNER_READ);
-            posixFilePermissions.add(PosixFilePermission.OWNER_WRITE);
-            posixFilePermissions.add(PosixFilePermission.OWNER_EXECUTE);
-            posixFilePermissions.add(PosixFilePermission.OTHERS_READ);
-            posixFilePermissions.add(PosixFilePermission.OTHERS_WRITE);
-
-            attrs.put("isDirectory", false);                 // 标记为目录
-            attrs.put("isRegularFile", true);                          // S3目录本身无大小，模拟为0
-            attrs.put("isSymbolicLink", false);       // 目录修改时间可自定义（如取最新子对象时间）
-            attrs.put("size", 1024L);
-            attrs.put("lastModifiedTime", FileTime.from(System.currentTimeMillis(), TimeUnit.MILLISECONDS));
-            attrs.put("permissions", posixFilePermissions);
-            attrs.put("owner", "admin");
-            return attrs;
+        System.out.println(id + "," + path + "," + flags);
+        if (path != null && path.startsWith("/s3")) {
+            return S3DoStat.doStat(id, path, flags);
         }
         return super.doStat(id, path, flags);
     }
 
     @Override
     protected String doOpenDir(int id, String path, Path dir, LinkOption... options) throws IOException {
-
-
-
-
-
         return super.doOpenDir(id, path, dir, options);
     }
 
     @Override
     protected void doLStat(Buffer buffer, int id) throws IOException {
-//        String path = buffer.getString();
-//        // 请求获取文件的所有可用属性
-//        int flags = SftpConstants.SSH_FILEXFER_ATTR_ALL;
-//        int version = getVersion();
-//        if (version >= SftpConstants.SFTP_V4) {
-//            flags = buffer.getInt();
-//        }
-//
-//        Map<String, ?> attrs;
-//        try {
-//            attrs = doLStat(id, path, flags);
-//        } catch (IOException | RuntimeException e) {
-//            sendStatus(prepareReply(buffer), id, e, SftpConstants.SSH_FXP_LSTAT, path, flags);
-//            return;
-//        }
-//
-//        sendAttrs(prepareReply(buffer), id, attrs);
-
-
-
-
         super.doLStat(buffer, id);
     }
 
@@ -154,7 +92,7 @@ public class CustomSftpSubsystem extends SftpSubsystem{
     protected String doOpen(int id, String path, int pflags, int access, Map<String, Object> attrs) throws IOException {
         // 打开文件，并返回文件句柄
         // 当前磁盘不存在该文件，从对象存储中获取文件
-        if(path.toString().startsWith("/s3")){
+        if (path.toString().startsWith("/s3")) {
             ServerSession session = getServerSession();
             if (log.isInfoEnabled()) {
                 log.info("doOpen({})[id={}] SSH_FXP_OPEN (path={}, access=0x{}, pflags=0x{}, attrs={})",
@@ -192,7 +130,7 @@ public class CustomSftpSubsystem extends SftpSubsystem{
     protected int doRead(int id, String handle, long offset, int length, byte[] data, int doff, AtomicReference<Boolean> eof) throws IOException {
         System.out.println(handle);
         S3FileHandle s3FileHandle = (S3FileHandle) s3FileHandles.get(handle);
-        if(s3FileHandle != null){
+        if (s3FileHandle != null) {
 
             ServerSession session = getServerSession();
             if (log.isInfoEnabled()) {
@@ -311,7 +249,6 @@ public class CustomSftpSubsystem extends SftpSubsystem{
         send(reply);
 
 
-
         super.doReadDir(buffer, id);
     }
 
@@ -323,8 +260,69 @@ public class CustomSftpSubsystem extends SftpSubsystem{
     @Override
     protected NavigableMap<String, Object> resolveFileAttributes(Path path, int flags, boolean neverFollowSymLinks, LinkOption... options) throws IOException {
         return SftpPathImpl.withAttributeCache(path, file -> {
-                return getAttributes(file, flags, options);
+            return getAttributes(file, flags, options);
         });
+    }
+
+
+    @Override
+    protected void doClose(int id, String handle) throws IOException {
+        if (s3FileHandles.containsKey(handle)) {
+            Handle nodeHandle = s3FileHandles.remove(handle);
+            ServerSession session = getServerSession();
+            SftpEventListener listener = getSftpEventListenerProxy();
+            try {
+                listener.closing(session, handle, nodeHandle);
+                nodeHandle.close();
+                listener.closed(session, handle, nodeHandle, null);
+            } catch (IOException | RuntimeException | Error e) {
+                listener.closed(session, handle, nodeHandle, e);
+                throw e;
+            } finally {
+                nodeHandle.clearAttributes();
+            }
+            return;
+        }
+        super.doClose(id, handle);
+    }
+
+
+    @Override
+    protected void doWrite(int id, String handle, long offset, int length, byte[] data, int doff, int remaining) throws IOException {
+
+        S3FileHandle s3FileHandle = (S3FileHandle) s3FileHandles.get(handle);
+        ServerSession session = getServerSession();
+        int maxAllowed = SftpModuleProperties.MAX_WRITEDATA_PACKET_LENGTH.getRequired(session);
+        if (log.isTraceEnabled()) {
+            log.trace("doWrite({})[id={}] SSH_FXP_WRITE (handle={}[{}], offset={}, length={}, maxAllowed={})",
+                    session, id, handle, s3FileHandle, offset, length, maxAllowed);
+        }
+
+        if (length < 0) {
+            throw new IllegalStateException("Bad length (" + length + ") for writing to " + s3FileHandle);
+        }
+
+        if (remaining < length) {
+            throw new IllegalStateException("Not enough buffer data for writing to " + s3FileHandle
+                    + ": required=" + length + ", available=" + remaining);
+        }
+
+        if (length > maxAllowed) {
+            throw new IOException("Reuested write size (" + length + ") exceeds max. allowed (" + maxAllowed + ")");
+        }
+        try {
+            if (s3FileHandle.isOpenAppend()) {
+                s3FileHandle.append(data, doff, length);
+            } else {
+                s3FileHandle.write(data, doff, length, offset);
+            }
+        } catch (RuntimeException | Error e) {
+            throw e;
+        }
+
+
+
+         super.doWrite(id, handle, offset, length, data, doff, remaining);
     }
 }
     

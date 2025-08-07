@@ -2,10 +2,7 @@ package com.gengzi.sftp.handle;
 
 import com.gengzi.sftp.config.MinIoClientConfig;
 import com.gengzi.sftp.util.SpringContextUtil;
-import io.minio.GetObjectArgs;
-import io.minio.MinioClient;
-import io.minio.StatObjectArgs;
-import io.minio.StatObjectResponse;
+import io.minio.*;
 import io.minio.errors.*;
 import org.apache.sshd.sftp.server.Handle;
 import org.apache.sshd.sftp.server.SftpSubsystem;
@@ -16,6 +13,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
@@ -93,6 +91,10 @@ public class S3FileHandle extends Handle {
 
     }
 
+    /**
+     *  获取objectargs 对象的属性信息
+     * @return
+     */
     private StatObjectResponse ObjectArgs()  {
         StatObjectResponse statObjectResponse = null;
         try {
@@ -123,4 +125,45 @@ public class S3FileHandle extends Handle {
         return statObjectResponse;
     }
 
+    public boolean isOpenAppend() {
+        // 判断当前版本控制是否打开
+
+        return true;
+    }
+
+    public void append(byte[] data, int doff, int length)  {
+        InputStream inputStream = new ByteArrayInputStream(data);
+        try {
+
+            ObjectWriteResponse objectWriteResponse = s3Client.putObject(
+                    PutObjectArgs.builder().bucket(defaultBucketName).object(objectName).stream(
+                                    inputStream, -1, 10 * 1024 * 1024)
+                            .contentType("video/mp4")
+                            .build());
+
+
+        } catch (ErrorResponseException e) {
+            throw new RuntimeException(e);
+        } catch (InsufficientDataException e) {
+            throw new RuntimeException(e);
+        } catch (InternalException e) {
+            throw new RuntimeException(e);
+        } catch (InvalidKeyException e) {
+            throw new RuntimeException(e);
+        } catch (InvalidResponseException e) {
+            throw new RuntimeException(e);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        } catch (ServerException e) {
+            throw new RuntimeException(e);
+        } catch (XmlParserException e) {
+            throw new RuntimeException(e);
+        }
+
+    }
+
+    public void write(byte[] data, int doff, int length, long offset) {
+    }
 }

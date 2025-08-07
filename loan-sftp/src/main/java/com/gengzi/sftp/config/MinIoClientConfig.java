@@ -34,7 +34,6 @@ public class MinIoClientConfig {
         return minioClient;
     }
 
-
     public String getDefaultBucketName() {
         return defaultBucketName;
     }

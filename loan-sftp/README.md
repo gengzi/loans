@@ -27,7 +27,14 @@ ls
 type:11(SSH_FXP_OPENDIR)  type:12(SSH_FXP_READDIR)  type:4(SSH_FXP_CLOSE)
 
 
+get /s3/file/1.txt
 
+
+put ./2.txt /s3/file/
+type=17 
+
+put ./2.txt
+type=3 typeName= open
 
 
 
