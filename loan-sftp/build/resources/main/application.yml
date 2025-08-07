@@ -2,10 +2,12 @@ sftp:
   server:
     port: 2222
 
+
 ## minio 对象存储
 s3:
   endpoint: http://127.0.0.1:9000
   accessKey: minioadmin
   secretKey: minioadmin
   defaultBucketName: image
+  localPath: D:\work\sso_tmp\
 

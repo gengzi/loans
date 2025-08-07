@@ -29,8 +29,20 @@ public class AmazonS3Config {
     @Value("${s3.defaultBucketName}")
     private String defaultBucketName;
 
+    @Value("${s3.localPath}")
+    private String localPath;
+
     // 区域（MinIO可任意指定，如"us-east-1"）
     private static final String REGION = "us-east-1";
+
+    public String getLocalPath() {
+        return localPath;
+    }
+
+    public String getDefaultBucketName() {
+        return defaultBucketName;
+    }
+
     /**
      * 创建MinIO的S3客户端
      */
@@ -51,6 +63,7 @@ public class AmazonS3Config {
                 .withClientConfiguration(clientConfig)
                 .enablePathStyleAccess() // 启用路径风格访问（MinIO推荐）
                 .build();
+        // 默认开启版本控制
         setBucketVersioning(client, defaultBucketName);
         return client;
     }

@@ -112,7 +112,7 @@ public class CustomSftpSubsystem extends SftpSubsystem {
             try {
                 synchronized (s3FileHandles) {
                     handle = generateFileHandle(file);
-                    S3FileHandle fileHandle = new S3FileHandle(this, file, handle);
+                    S3FileHandle fileHandle = new S3FileHandle(this, file, pflags, handle, access);
                     s3FileHandles.put(handle, fileHandle);
                 }
             } catch (IOException e) {
@@ -268,6 +268,13 @@ public class CustomSftpSubsystem extends SftpSubsystem {
     @Override
     protected void doClose(int id, String handle) throws IOException {
         if (s3FileHandles.containsKey(handle)) {
+            S3FileHandle s3FileHandle = (S3FileHandle) s3FileHandles.get(handle);
+            Boolean fileIsUploaded = s3FileHandle.getFileIsUploaded();
+            if(!fileIsUploaded){
+                // 异步上传
+                s3FileHandle.asyncPut();
+                // 写数据库操作，如果上传失败或者其他的信息
+            }
             Handle nodeHandle = s3FileHandles.remove(handle);
             ServerSession session = getServerSession();
             SftpEventListener listener = getSftpEventListenerProxy();
@@ -312,8 +319,10 @@ public class CustomSftpSubsystem extends SftpSubsystem {
         }
         try {
             if (s3FileHandle.isOpenAppend()) {
+                // 使用临时文件，存入部分数据后，开始往s3写入
                 s3FileHandle.append(data, doff, length);
             } else {
+                // 使用临时文件目录下载文件后，随机写入，在colse 时，将整个文件上传到s3 存储覆盖原文件
                 s3FileHandle.write(data, doff, length, offset);
             }
         } catch (RuntimeException | Error e) {
@@ -321,8 +330,7 @@ public class CustomSftpSubsystem extends SftpSubsystem {
         }
 
 
-
-         super.doWrite(id, handle, offset, length, data, doff, remaining);
+        //super.doWrite(id, handle, offset, length, data, doff, remaining);
     }
 }
     
