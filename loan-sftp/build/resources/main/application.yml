@@ -10,4 +10,24 @@ s3:
   secretKey: minioadmin
   defaultBucketName: image
   localPath: D:\work\sso_tmp\
+  async-netty-pool:
+    coreThreads: 10
+    maxThreads: 50
+    connectionTimeout: 10
+    maxPendingConnectionAcquires: 1000
 
+
+
+
+logging:
+  # 日志文件配置（可选）
+  file:
+    name: logs/sftp-server.log  # 日志文件路径和名称
+
+  # 滚动日志配置（按大小分割）
+  logback:
+    rollingpolicy:
+      file-name-pattern: logs/spring-boot-demo.%d{yyyy-MM-dd}.%i.log  # 滚动文件命名格式
+      max-file-size: 10MB  # 触发滚动的文件大小
+      total-size-cap: 100MB  # 日志文件总大小上限
+      max-history: 7

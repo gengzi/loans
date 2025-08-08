@@ -290,6 +290,8 @@ public class CustomSftpSubsystem extends SftpSubsystem {
             }
             return;
         }
+
+        // 执行既往逻辑
         super.doClose(id, handle);
     }
 
