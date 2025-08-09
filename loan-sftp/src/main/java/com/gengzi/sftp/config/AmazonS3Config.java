@@ -1,7 +1,7 @@
 package com.gengzi.sftp.config;
 
 
-import io.minio.MinioClient;
+import com.gengzi.sftp.util.SpringContextUtil;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,9 +15,13 @@ import software.amazon.awssdk.http.nio.netty.SdkEventLoopGroup;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.nio.spi.s3.S3FileSystemProvider;
 
+import java.io.IOException;
 import java.net.URI;
+import java.nio.file.FileSystem;
 import java.time.Duration;
+import java.util.HashMap;
 
 @Configuration
 public class AmazonS3Config {
@@ -37,6 +41,10 @@ public class AmazonS3Config {
     @Autowired
     private AsyncNettyPoolConfig asyncNettyPoolConfig;
 
+    public static S3Client getS3Client() {
+        return (S3Client) SpringContextUtil.getBean("AmazonS3Client");
+    }
+
     public String getLocalPath() {
         return localPath;
     }
@@ -49,7 +57,7 @@ public class AmazonS3Config {
      * 创建MinIO的S3客户端
      */
     @Bean("AmazonS3Client")
-    public S3Client minioClient(MinioClient s3Client) {
+    public S3Client minioClient() {
         // 配置访问凭证
         AwsBasicCredentials credentials = AwsBasicCredentials.create(accessKey, secretKey);
 
@@ -64,7 +72,6 @@ public class AmazonS3Config {
                 .build();
         return client;
     }
-
 
     /**
      * 配置并创建适用于 MinIO 的 S3AsyncClient 实例

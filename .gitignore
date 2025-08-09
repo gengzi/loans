@@ -30,3 +30,6 @@ replay_pid*
 /.gradle/
 /.idea/
 /gradle/
+/.gradle/
+/logs/
+/.gradle/

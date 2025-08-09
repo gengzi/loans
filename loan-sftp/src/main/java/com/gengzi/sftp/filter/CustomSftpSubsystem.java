@@ -1,13 +1,17 @@
 package com.gengzi.sftp.filter;
 
-import com.gengzi.sftp.handle.S3DoStat;
+import com.gengzi.sftp.handle.S3DirectoryHandle;
 import com.gengzi.sftp.handle.S3FileHandle;
+import com.gengzi.sftp.process.S3Do;
+import com.gengzi.sftp.process.S3DoStat;
 import org.apache.sshd.common.util.ValidateUtils;
 import org.apache.sshd.common.util.buffer.Buffer;
 import org.apache.sshd.common.util.buffer.BufferUtils;
 import org.apache.sshd.server.channel.ChannelSession;
 import org.apache.sshd.server.session.ServerSession;
 import org.apache.sshd.sftp.SftpModuleProperties;
+import org.apache.sshd.sftp.client.SftpClient;
+import org.apache.sshd.sftp.client.fs.SftpPath;
 import org.apache.sshd.sftp.client.impl.SftpPathImpl;
 import org.apache.sshd.sftp.common.SftpConstants;
 import org.apache.sshd.sftp.common.SftpException;
@@ -15,11 +19,11 @@ import org.apache.sshd.sftp.common.SftpHelper;
 import org.apache.sshd.sftp.server.*;
 
 import java.io.IOException;
+import java.nio.file.AccessDeniedException;
 import java.nio.file.LinkOption;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
-import java.util.Map;
-import java.util.NavigableMap;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -30,7 +34,7 @@ public class CustomSftpSubsystem extends SftpSubsystem {
 
 
     // 存储s3文件句柄对应的处理类
-    protected final Map<String, Handle> s3FileHandles = new ConcurrentHashMap<>();
+    protected final Map<String, Handle> s3Handles = new ConcurrentHashMap<>();
 
     /**
      * @param channel      The {@link ChannelSession} through which the command was received
@@ -47,6 +51,8 @@ public class CustomSftpSubsystem extends SftpSubsystem {
 
     @Override
     protected void doProcess(Buffer buffer, int length, int type, int id) throws IOException {
+        ServerSession serverSession = getServerSession();
+
         String statusName = SftpConstants.getCommandMessageName(type);
         log.info("doProcess :type={} typeName={} [id={}][length={}][buffer={}] ", type, statusName, id, length, buffer);
         super.doProcess(buffer, length, type, id);
@@ -58,14 +64,7 @@ public class CustomSftpSubsystem extends SftpSubsystem {
         // 根据路径获取对应目录下的 文件
         // 获取根据路径+文件名称 获取文件句柄
         log.info("doLStat :path={} [id={}][flags={}] ", path, id, flags);
-        if (path != null && path.startsWith("/s3")) {
-            return S3DoStat.doStat(id, path, flags);
-        }
-        Map<String, Object> stringObjectMap = super.doLStat(id, path, flags);
-        for (Map.Entry<String, Object> stringObjectEntry : stringObjectMap.entrySet()) {
-            System.out.println(stringObjectEntry.getKey() + "," + stringObjectEntry.getValue());
-        }
-        return stringObjectMap;
+        return S3DoStat.doStat(id, path, flags);
     }
 
 
@@ -78,8 +77,47 @@ public class CustomSftpSubsystem extends SftpSubsystem {
         return super.doStat(id, path, flags);
     }
 
+    /**
+     * 打开一个目录
+     *
+     * @param id
+     * @param path
+     * @param dir
+     * @param options
+     * @return
+     * @throws IOException
+     */
     @Override
     protected String doOpenDir(int id, String path, Path dir, LinkOption... options) throws IOException {
+
+        if (true) {
+            try {
+                // 校验目录是否存在
+                //TODO 先判断路径是否是一个目录
+                S3Do s3Do = new S3Do();
+                boolean status = s3Do.doesDirectoryExist(s3Do.getAmazonS3Config().getDefaultBucketName(), path);
+                if (!status) {
+                    throw signalOpenFailure(id, path, dir.toAbsolutePath(), true,
+                            new NoSuchFileException(path, path, "Referenced target directory N/A"));
+                }
+            } catch (Exception e) {
+                throw signalOpenFailure(id, path, dir.toAbsolutePath(), true,
+                        new AccessDeniedException(dir.toAbsolutePath().toString(), dir.toAbsolutePath().toString(), "Cannot determine open-dir existence"));
+            }
+            String handle;
+            try {
+                synchronized (s3Handles) {
+                    handle = generateFileHandle(dir);
+                    S3DirectoryHandle s3DirectoryHandle = new S3DirectoryHandle(this, dir, handle);
+                    s3Handles.put(handle, s3DirectoryHandle);
+                }
+            } catch (IOException e) {
+                throw signalOpenFailure(id, path, dir, true, e);
+            }
+
+            return handle;
+        }
+
         return super.doOpenDir(id, path, dir, options);
     }
 
@@ -100,7 +138,7 @@ public class CustomSftpSubsystem extends SftpSubsystem {
             }
 
             Path file = resolveFile(path);
-            int curHandleCount = handles.size();
+            int curHandleCount = s3Handles.size();
             int maxHandleCount = SftpModuleProperties.MAX_OPEN_HANDLES_PER_SESSION.getRequired(session);
             if (curHandleCount > maxHandleCount) {
                 throw signalOpenFailure(id, path, file, false,
@@ -110,10 +148,10 @@ public class CustomSftpSubsystem extends SftpSubsystem {
 
             String handle;
             try {
-                synchronized (s3FileHandles) {
+                synchronized (s3Handles) {
                     handle = generateFileHandle(file);
                     S3FileHandle fileHandle = new S3FileHandle(this, file, pflags, handle, access);
-                    s3FileHandles.put(handle, fileHandle);
+                    s3Handles.put(handle, fileHandle);
                 }
             } catch (IOException e) {
                 throw signalOpenFailure(id, path, file, false, e);
@@ -129,7 +167,8 @@ public class CustomSftpSubsystem extends SftpSubsystem {
     @Override
     protected int doRead(int id, String handle, long offset, int length, byte[] data, int doff, AtomicReference<Boolean> eof) throws IOException {
         System.out.println(handle);
-        S3FileHandle s3FileHandle = (S3FileHandle) s3FileHandles.get(handle);
+        Handle h = s3Handles.get(handle);
+        S3FileHandle s3FileHandle = validateHandle(handle, h, S3FileHandle.class);
         if (s3FileHandle != null) {
 
             ServerSession session = getServerSession();
@@ -159,7 +198,7 @@ public class CustomSftpSubsystem extends SftpSubsystem {
     @Override
     protected void doReadDir(Buffer buffer, int id) throws IOException {
         String handle = buffer.getString();
-        Handle h = handles.get(handle);
+        Handle h = s3Handles.get(handle);
         ServerSession session = getServerSession();
         boolean debugEnabled = log.isDebugEnabled();
         if (debugEnabled) {
@@ -168,45 +207,16 @@ public class CustomSftpSubsystem extends SftpSubsystem {
 
         Buffer reply = null;
         try {
-            DirectoryHandle dh = validateHandle(handle, h, DirectoryHandle.class);
+            S3DirectoryHandle dh = validateHandle(handle, h, S3DirectoryHandle.class);
             if (dh.isDone()) {
                 sendStatus(prepareReply(buffer), id, SftpConstants.SSH_FX_EOF, "Directory reading is done");
                 return;
             }
 
             Path file = dh.getFile();
-            // If it's an SftpPath, don't re-check accessibily or existence. The underlying DirectoryHandle iterator
-            // contacts the upstream server, which should check. This repeated check here is questionable anyway.
-            // We did check in doOpenDir(). If access to the directory has changed in the meantime; it's undefined
-            // anyway what happens. If the directory is local, it depends on what the Java library would do with
-            // the DirectoryStream in that case if it reads the directory lazily. And if it is remote, it may well
-            // be that the upstream server has read the whole list from the local file system and buffered it, so
-            // it could serve the listing even if some other concurrent operation had removed the directory in the
-            // meantime, or had changed its access. It is entirely unspecified what shall happen if files inside
-            // the directory are changed while the directory is listed, and likewise it's entirely unspecified what
-            // shall happen if the directory itself is deleted while being listed.
-            //
-            // As long as the file system is local, this check here is local operations only, but if the directory
-            // is remote; this incurs several (up to three) remote LSTAT calls. We really can skip this here and let
-            // the upstream server decide.
-//            if (!(file instanceof SftpPath)) {
-//                LinkOption[] options = getPathResolutionLinkOption(SftpConstants.SSH_FXP_READDIR, "", file);
-//                Boolean status = IoUtils.checkFileExistsAnySymlinks(file, !IoUtils.followLinks(options));
-//                if (status == null) {
-//                    throw new AccessDeniedException(file.toString(), file.toString(), "Cannot determine existence of read-dir");
-//                }
-//
-//                if (!status) {
-//                    throw new NoSuchFileException(file.toString(), file.toString(), "Non-existent directory");
-//                } else if (!Files.isDirectory(file, options)) {
-//                    throw new NotDirectoryException(file.toString());
-//                } else if (!Files.isReadable(file)) {
-//                    throw new AccessDeniedException(file.toString(), file.toString(), "Not readable");
-//                }
-//            }
 
-            SftpEventListener listener = getSftpEventListenerProxy();
-            listener.readingEntries(session, handle, dh);
+//            SftpEventListener listener = getSftpEventListenerProxy();
+//            listener.readingEntries(session, handle, dh);
 
             if (dh.isSendDot() || dh.isSendDotDot() || dh.hasNext()) {
                 // There is at least one file in the directory or we need to send the "..".
@@ -221,7 +231,9 @@ public class CustomSftpSubsystem extends SftpSubsystem {
                 reply.putUInt(0L);  // save room for actual length
 
                 int maxDataSize = SftpModuleProperties.MAX_READDIR_DATA_SIZE.getRequired(session);
+
                 int count = doReadDir(id, handle, dh, reply, maxDataSize, false);
+
                 BufferUtils.updateLengthPlaceholder(reply, lenPos, count);
                 if ((!dh.isSendDot()) && (!dh.isSendDotDot()) && (!dh.hasNext())) {
                     dh.markDone();
@@ -247,14 +259,83 @@ public class CustomSftpSubsystem extends SftpSubsystem {
         }
 
         send(reply);
-
-
-        super.doReadDir(buffer, id);
     }
 
-    @Override
-    protected int doReadDir(int id, String handle, DirectoryHandle dir, Buffer buffer, int maxSize, boolean followLinks) throws IOException {
-        return super.doReadDir(id, handle, dir, buffer, maxSize, followLinks);
+
+    protected int doReadDir(int id, String handle, S3DirectoryHandle dir, Buffer buffer, int maxSize, boolean followLinks) throws IOException {
+
+        ServerSession session = getServerSession();
+        SftpFileSystemAccessor accessor = getFileSystemAccessor();
+        LinkOption[] options = accessor.resolveFileAccessLinkOptions(
+                this, dir.getFile(), SftpConstants.SSH_FXP_READDIR, "", followLinks);
+        int nb = 0;
+        Map<String, Path> entries = new TreeMap<>(Comparator.naturalOrder());
+
+        while ((dir.isSendDot() || dir.isSendDotDot() || dir.hasNext()) && (buffer.wpos() < maxSize)) {
+            if (dir.isSendDot()) {
+                writeDirEntry(id, dir, entries, buffer, nb, dir.getFile(), ".", options);
+                dir.markDotSent(); // do not send it again
+            } else if (dir.isSendDotDot()) {
+                Path dirPath = dir.getFile();
+                Path parentPath = dirPath.getParent();
+                if (parentPath != null) {
+                    writeDirEntry(id, dir, entries, buffer, nb, parentPath, "..", options);
+                }
+                dir.markDotDotSent(); // do not send it again
+            } else {
+                Path f = dir.next();
+                String shortName = getShortName(f);
+                if (f instanceof SftpPath) {
+                    SftpClient.Attributes attributes = ((SftpPath) f).getAttributes();
+                    if (attributes != null) {
+                        entries.put(shortName, f);
+                        writeDirEntry(session, id, buffer, nb, f, shortName, attributes);
+                        nb++;
+                        continue;
+                    }
+                }
+                writeDirEntry(id, dir, entries, buffer, nb, f, shortName, options);
+            }
+
+            nb++;
+        }
+
+//        SftpEventListener listener = getSftpEventListenerProxy();
+//        listener.readEntries(session, handle, dir, entries);
+        return nb;
+    }
+
+
+    protected void writeDirEntry(int id, S3DirectoryHandle dir, Map<String, Path> entries, Buffer buffer, int index, Path f, String shortName, LinkOption... options) throws IOException {
+
+        // 返回该文件的各种属性信息
+        Map<String, ?> attrs = new TreeMap<>();
+        // 针对目录
+
+        // 针对文件
+
+
+        entries.put(shortName, f);
+
+        SftpFileSystemAccessor accessor = getFileSystemAccessor();
+        ServerSession session = getServerSession();
+        accessor.putRemoteFileName(this, f, buffer, shortName, true);
+
+        int version = getVersion();
+        if (version == SftpConstants.SFTP_V3) {
+            String longName = getLongName(f, shortName, options);
+            accessor.putRemoteFileName(this, f, buffer, longName, false);
+
+            if (log.isTraceEnabled()) {
+                log.trace("writeDirEntry({} id={})[{}] - {} [{}]: {}", session, id, index, shortName, longName, attrs);
+            }
+        } else {
+            if (log.isTraceEnabled()) {
+                log.trace("writeDirEntry({} id={})[{}] - {}: {}", session, id, index, shortName, attrs);
+            }
+        }
+
+        writeAttrs(buffer, attrs);
     }
 
     @Override
@@ -267,15 +348,19 @@ public class CustomSftpSubsystem extends SftpSubsystem {
 
     @Override
     protected void doClose(int id, String handle) throws IOException {
-        if (s3FileHandles.containsKey(handle)) {
-            S3FileHandle s3FileHandle = (S3FileHandle) s3FileHandles.get(handle);
-            Boolean fileIsUploaded = s3FileHandle.getFileIsUploaded();
-            if(!fileIsUploaded){
-                // 异步上传
-                s3FileHandle.asyncPut();
-                // 写数据库操作，如果上传失败或者其他的信息
+        if (s3Handles.containsKey(handle)) {
+            Handle h = s3Handles.get(handle);
+            // 判断是文件句柄，不是目录句柄
+            if (h instanceof S3FileHandle) {
+                S3FileHandle s3FileHandle = (S3FileHandle) h;
+                Boolean fileIsUploaded = s3FileHandle.getFileIsUploaded();
+                if (!fileIsUploaded) {
+                    // 异步上传
+                    s3FileHandle.asyncPut();
+                    // 写数据库操作，如果上传失败或者其他的信息
+                }
             }
-            Handle nodeHandle = s3FileHandles.remove(handle);
+            Handle nodeHandle = s3Handles.remove(handle);
             ServerSession session = getServerSession();
             SftpEventListener listener = getSftpEventListenerProxy();
             try {
@@ -299,7 +384,7 @@ public class CustomSftpSubsystem extends SftpSubsystem {
     @Override
     protected void doWrite(int id, String handle, long offset, int length, byte[] data, int doff, int remaining) throws IOException {
 
-        S3FileHandle s3FileHandle = (S3FileHandle) s3FileHandles.get(handle);
+        S3FileHandle s3FileHandle = (S3FileHandle) s3Handles.get(handle);
         ServerSession session = getServerSession();
         int maxAllowed = SftpModuleProperties.MAX_WRITEDATA_PACKET_LENGTH.getRequired(session);
         if (log.isTraceEnabled()) {

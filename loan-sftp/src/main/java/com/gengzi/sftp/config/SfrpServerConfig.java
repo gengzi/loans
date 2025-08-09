@@ -1,6 +1,7 @@
 package com.gengzi.sftp.config;
 
 
+import com.gengzi.sftp.factory.DynamicVirtualFileSystemFactory;
 import com.gengzi.sftp.filter.CustomSftpSubsystemFactory;
 import com.gengzi.sftp.handle.MySftpFileSystemAccessor;
 import com.gengzi.sftp.listener.FileWriteListener;
@@ -53,9 +54,12 @@ public class SfrpServerConfig {
         // 配置主机密钥
         server.setKeyPairProvider(new FileKeyPairProvider(Paths.get(new File("D:\\work\\loans\\loan-sfpt\\hostkey.ser").getAbsolutePath())));
 
-        CustomSftpSubsystemFactory factory = new CustomSftpSubsystemFactory();
-        factory.setFileSystemAccessor(new MySftpFileSystemAccessor());
+//        CustomSftpSubsystemFactory factory = new CustomSftpSubsystemFactory();
+//        factory.setFileSystemAccessor(new MySftpFileSystemAccessor());
+//
+//        server.setSubsystemFactories(Collections.singletonList(factory));
 
+        SftpSubsystemFactory factory = new SftpSubsystemFactory();
         server.setSubsystemFactories(Collections.singletonList(factory));
 
         factory.addSftpEventListener(new SftpEventListener() {
@@ -218,11 +222,17 @@ public class SfrpServerConfig {
                 // 这里实现自定义的用户名密码验证逻辑
                 // 实际应用中应从数据库或安全存储中验证
                 // 示例：允许用户"admin"使用密码"admin123"登录
-                return "admin".equals(username) && "admin123".equals(password);
+                boolean b = "admin".equals(username) && "admin123".equals(password);
+//                if(b){
+//                    session.setAttribute("1","1");
+//                }
+
+
+                return b;
             }
         });
         // 设置文件系统根目录
-        server.setFileSystemFactory(new VirtualFileSystemFactory(Paths.get("D:\\work\\loans\\loan-sfpt")));
+        server.setFileSystemFactory(new DynamicVirtualFileSystemFactory());
 
         server.start();
         return server;
