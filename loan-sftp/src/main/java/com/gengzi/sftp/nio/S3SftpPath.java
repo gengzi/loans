@@ -7,7 +7,9 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.*;
 import java.util.Iterator;
+import java.util.LinkedList;
 
+import static com.gengzi.sftp.nio.S3SftpFileSystemProvider.checkPath;
 import static com.gengzi.sftp.nio.constans.Constans.PATH_SEPARATOR;
 import static java.nio.file.LinkOption.NOFOLLOW_LINKS;
 
@@ -20,8 +22,6 @@ public class S3SftpPath implements Path {
     public S3SftpPath(S3SftpFileSystem fileSystem, S3SftpPosixLikePathRepresentation pathRepresentation) {
         this.fileSystem = fileSystem;
         this.pathRepresentation = pathRepresentation;
-
-
     }
 
 
@@ -33,9 +33,6 @@ public class S3SftpPath implements Path {
      * @return
      */
     public static Path getPath(S3SftpFileSystem s3SftpFileSystem, String first,String... more) {
-
-
-
         return new S3SftpPath(s3SftpFileSystem, S3SftpPosixLikePathRepresentation.of(first,more));
     }
 
@@ -47,7 +44,7 @@ public class S3SftpPath implements Path {
 
     @Override
     public boolean isAbsolute() {
-        return false;
+        return pathRepresentation.isAbsolute();
     }
 
     @Override
@@ -102,22 +99,85 @@ public class S3SftpPath implements Path {
         return Path.super.endsWith(other);
     }
 
+    /**
+     * 规范化路径：移除 .（当前目录）和 ..（父目录）等冗余组件
+     * @return
+     */
     @NotNull
     @Override
     public Path normalize() {
-        return null;
+        // 如果是根目录，返回this
+        if(pathRepresentation.isRoot()){
+            return this;
+        }
+        // 判断是否目录
+        boolean directory = pathRepresentation.isDirectory();
+
+        final var elements = pathRepresentation.elements();
+        final var realElements = new LinkedList<String>();
+
+        if (this.isAbsolute()) {
+            realElements.add(PATH_SEPARATOR);
+        }
+
+        for (var element : elements) {
+            if (element.equals(".")) {
+                continue;
+            }
+            if (element.equals("..")) {
+                if (!realElements.isEmpty()) {
+                    realElements.removeLast();
+                }
+                continue;
+            }
+
+            if (directory) {
+                realElements.addLast(element + "/");
+            } else {
+                realElements.addLast(element);
+            }
+        }
+        return S3SftpPath.getPath(fileSystem, String.join(PATH_SEPARATOR, realElements));
+
+
     }
 
     @NotNull
     @Override
     public Path resolve(@NotNull Path other) {
-        return null;
+        S3SftpPath s3Other = checkPath(other);
+
+        if (!this.bucketName().equals(s3Other.bucketName())) {
+            throw new IllegalArgumentException("S3Paths cannot be resolved when they are from different buckets");
+        }
+
+        if (s3Other.isAbsolute()) {
+            return s3Other;
+        }
+        if (s3Other.isEmpty()) {
+            return this;
+        }
+
+        String concatenatedPath;
+        if (!this.pathRepresentation.hasTrailingSeparator()) {
+            concatenatedPath = this + PATH_SEPARATOR + s3Other;
+        } else {
+            concatenatedPath = this.toString() + s3Other;
+        }
+
+        return from(concatenatedPath);
+    }
+    /**
+     * Construct a path using the same filesystem (bucket) as this path
+     */
+    private S3SftpPath from(String path) {
+        return (S3SftpPath) getPath(this.fileSystem, path);
     }
 
     @NotNull
     @Override
     public Path resolve(@NotNull String other) {
-        return Path.super.resolve(other);
+        return resolve(from(other));
     }
 
     @NotNull
@@ -147,19 +207,29 @@ public class S3SftpPath implements Path {
     @NotNull
     @Override
     public Path toAbsolutePath() {
-        return null;
+
+        if (isAbsolute()) {
+            return this;
+        }
+
+        return new S3SftpPath(fileSystem, S3SftpPosixLikePathRepresentation.of(PATH_SEPARATOR, pathRepresentation.toString()));
+
     }
 
     @NotNull
     @Override
     public Path toRealPath(@NotNull LinkOption... options)  {
-        return null;
+        S3SftpPath path = this;
+        if (!isAbsolute()) {
+            return toAbsolutePath();
+        }
+        return S3SftpPath.getPath(fileSystem, PATH_SEPARATOR, path.normalize().toString());
     }
 
     @NotNull
     @Override
     public File toFile() {
-        return Path.super.toFile();
+        throw new UnsupportedOperationException("S3 Objects cannot be represented in the local (default) file system");
     }
 
     @NotNull
@@ -208,5 +278,10 @@ public class S3SftpPath implements Path {
 
     public boolean isDirectory() {
         return false;
+    }
+
+    @Override
+    public String toString() {
+        return pathRepresentation.toString();
     }
 }

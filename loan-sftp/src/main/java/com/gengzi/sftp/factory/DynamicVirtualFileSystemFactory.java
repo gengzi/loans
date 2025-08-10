@@ -1,5 +1,6 @@
 package com.gengzi.sftp.factory;
 
+import com.gengzi.sftp.nio.S3SftpFileSystemProvider;
 import org.apache.sshd.common.file.FileSystemFactory;
 import org.apache.sshd.common.session.SessionContext;
 import software.amazon.nio.spi.s3.S3XFileSystemProvider;
@@ -42,11 +43,15 @@ public class DynamicVirtualFileSystemFactory implements  FileSystemFactory {
 //                Thread.currentThread().getContextClassLoader() // 类加载器
 //        );
 //        return s3Fs;
-        URI s3Urix = URI.create("s3x://minioadmin:minioadmin@127.0.0.1:9000/image");
-        S3XFileSystemProvider s3xFileSystemProvider = new S3XFileSystemProvider();
-        S3NioSpiConfiguration s3NioSpiConfiguration = new S3NioSpiConfiguration(env);
-        s3xFileSystemProvider.setConfiguration(s3NioSpiConfiguration);
-        return s3xFileSystemProvider.getFileSystem(s3Urix);
+        URI s3Urix = URI.create("s3sftp://minioadmin:minioadmin@127.0.0.1:9000/image");
+
+        S3SftpFileSystemProvider s3FileSystemProvider = new S3SftpFileSystemProvider();
+        FileSystem fileSystem = s3FileSystemProvider.newFileSystem(s3Urix, env);
+
+//        S3XFileSystemProvider s3xFileSystemProvider = new S3XFileSystemProvider();
+//        S3NioSpiConfiguration s3NioSpiConfiguration = new S3NioSpiConfiguration(env);
+//        s3xFileSystemProvider.setConfiguration(s3NioSpiConfiguration);
+        return fileSystem;
 
 
     }

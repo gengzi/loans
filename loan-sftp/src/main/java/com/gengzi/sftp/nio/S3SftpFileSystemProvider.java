@@ -3,8 +3,6 @@ package com.gengzi.sftp.nio;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import software.amazon.nio.spi.s3.S3BasicFileAttributes;
-import software.amazon.nio.spi.s3.S3Path;
 
 import java.io.IOException;
 import java.net.URI;

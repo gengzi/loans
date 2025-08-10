@@ -32,7 +32,7 @@ public class S3SftpClientProvider {
     public S3AsyncClient generateClient(String bucketName) {
         //TODO 创建s3客户端 ,先看缓存中是否已经创建好了，如果创建好了直接获取
         asyncClientBuilder.endpointOverride(configuration.endpointUri());
-        asyncClientBuilder.region(Region.of(""));
+//        asyncClientBuilder.region(Region.of(""));
         asyncClientBuilder.credentialsProvider(StaticCredentialsProvider.create(
                 AwsBasicCredentials.create(configuration.accessKey(), configuration.secretKey())
         ));

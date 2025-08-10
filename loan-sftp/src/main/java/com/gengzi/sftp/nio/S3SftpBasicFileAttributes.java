@@ -10,8 +10,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
+import java.nio.file.attribute.PosixFilePermission;
 import java.time.Duration;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
@@ -29,17 +32,21 @@ public class S3SftpBasicFileAttributes implements BasicFileAttributes {
     private final Object eTag;
     private final boolean isDirectory;
     private final boolean isRegularFile;
+    private final Set<PosixFilePermission> permissions;
+
 
     public S3SftpBasicFileAttributes(FileTime lastModifiedTime,
                                      Long size,
                                      Object eTag,
                                      boolean isDirectory,
-                                     boolean isRegularFile) {
+                                     boolean isRegularFile,
+                                     Set<PosixFilePermission>  permissions) {
         this.lastModifiedTime = lastModifiedTime;
         this.size = size;
         this.eTag = eTag;
         this.isDirectory = isDirectory;
         this.isRegularFile = isRegularFile;
+        this.permissions = permissions;
 
     }
 
@@ -48,6 +55,14 @@ public class S3SftpBasicFileAttributes implements BasicFileAttributes {
         if (path.isDirectory()) {
             // return DIRECTORY_ATTRIBUTES;
         }
+
+        HashSet<PosixFilePermission> posixFilePermissions = new HashSet<>();
+        posixFilePermissions.add(PosixFilePermission.OWNER_READ);
+        posixFilePermissions.add(PosixFilePermission.OWNER_WRITE);
+        posixFilePermissions.add(PosixFilePermission.OTHERS_READ);
+        posixFilePermissions.add(PosixFilePermission.OTHERS_WRITE);
+        posixFilePermissions.add(PosixFilePermission.GROUP_READ);
+        posixFilePermissions.add(PosixFilePermission.GROUP_WRITE);
         // 是文件，调用s3返回文件属性
         var headResponse = getObjectMetadata(path, Duration.ofMinutes(5));
         return new S3SftpBasicFileAttributes(
@@ -55,7 +70,8 @@ public class S3SftpBasicFileAttributes implements BasicFileAttributes {
                 headResponse.contentLength(),
                 headResponse.eTag(),
                 false,
-                true
+                true,
+                posixFilePermissions
         );
 
     }
@@ -100,7 +116,7 @@ public class S3SftpBasicFileAttributes implements BasicFileAttributes {
      */
     @Override
     public FileTime lastModifiedTime() {
-        return null;
+        return lastModifiedTime;
     }
 
     /**
@@ -116,7 +132,7 @@ public class S3SftpBasicFileAttributes implements BasicFileAttributes {
      */
     @Override
     public FileTime lastAccessTime() {
-        return null;
+        return lastModifiedTime();
     }
 
     /**
@@ -133,7 +149,7 @@ public class S3SftpBasicFileAttributes implements BasicFileAttributes {
      */
     @Override
     public FileTime creationTime() {
-        return null;
+        return lastModifiedTime();
     }
 
     /**
@@ -143,7 +159,7 @@ public class S3SftpBasicFileAttributes implements BasicFileAttributes {
      */
     @Override
     public boolean isRegularFile() {
-        return false;
+        return isRegularFile;
     }
 
     /**
@@ -153,7 +169,7 @@ public class S3SftpBasicFileAttributes implements BasicFileAttributes {
      */
     @Override
     public boolean isDirectory() {
-        return false;
+        return isDirectory;
     }
 
     /**
@@ -189,7 +205,7 @@ public class S3SftpBasicFileAttributes implements BasicFileAttributes {
      */
     @Override
     public long size() {
-        return 0;
+        return size;
     }
 
     /**
@@ -218,7 +234,7 @@ public class S3SftpBasicFileAttributes implements BasicFileAttributes {
      */
     @Override
     public Object fileKey() {
-        return null;
+        return eTag;
     }
 
     public Map<String, Object> toMap() {
@@ -232,7 +248,12 @@ public class S3SftpBasicFileAttributes implements BasicFileAttributes {
                 "isSymbolicLink", isSymbolicLink(),
                 "isOther", isOther(),
                 "size", size(),
-                "fileKey", fileKey()
+                "fileKey", fileKey(),
+                "permissions", permissions()
         );
+    }
+
+    private Set<PosixFilePermission> permissions() {
+        return permissions;
     }
 }

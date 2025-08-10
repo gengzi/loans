@@ -17,11 +17,11 @@ public class S3SftpNioSpiConfiguration extends HashMap<String, Object> {
 
 
     // s3服务
-    private static final String ENDPOINT = "";
+    private static final String ENDPOINT = "endpoint";
 
-    private static final String ACCESS_KEY = "";
+    private static final String ACCESS_KEY = "accessKey";
 
-    private static final String SECRET_KEY = "";
+    private static final String SECRET_KEY = "secretKey";
 
     private static final Pattern ENDPOINT_REGEXP = Pattern.compile("(\\w[\\w\\-\\.]*)?(:(\\d+))?");
 
@@ -54,11 +54,11 @@ public class S3SftpNioSpiConfiguration extends HashMap<String, Object> {
         return this;
     }
 
-    public S3SftpNioSpiConfiguration withBucketName(Object bucket) {
-        if (bucketName != null) {
-            BucketUtils.isValidDnsBucketName(bucketName, true);
+    public S3SftpNioSpiConfiguration withBucketName(String bucket) {
+        if (bucket != null) {
+            BucketUtils.isValidDnsBucketName(bucket, true);
         }
-        this.bucketName = bucketName;
+        this.bucketName = bucket;
         return this;
     }
 
@@ -72,12 +72,14 @@ public class S3SftpNioSpiConfiguration extends HashMap<String, Object> {
     }
 
     public URI endpointUri() {
-        return URI.create(get(ENDPOINT).toString());
+        return URI.create("http://" + get(ENDPOINT).toString());
     }
 
     public String accessKey() {
+        return get(ACCESS_KEY).toString();
     }
 
     public String secretKey() {
+        return get(SECRET_KEY).toString();
     }
 }

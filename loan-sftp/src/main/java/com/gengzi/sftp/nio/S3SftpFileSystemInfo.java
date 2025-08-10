@@ -67,7 +67,7 @@ public class S3SftpFileSystemInfo {
         return accessSecret;
     }
 
-    public Object bucket() {
+    public String bucket() {
         return bucket;
     }
 }
