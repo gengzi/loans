@@ -3,9 +3,9 @@ package com.gengzi.sftp.nio;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.net.URI;
+import java.nio.channels.FileChannel;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -184,4 +184,15 @@ public class S3SftpFileSystemProvider extends FileSystemProvider {
     }
 
 
+    @Override
+    public FileSystem newFileSystem(Path path, Map<String, ?> env) throws IOException {
+        return null;
+    }
+
+    @Override
+    public FileChannel newFileChannel(Path path, Set<? extends OpenOption> options, FileAttribute<?>... attrs) throws IOException {
+        S3SftpFileSystem fs = (S3SftpFileSystem) getFileSystem(path.toUri());
+        S3SftpSeekableByteChannel s3SeekableByteChannel = new S3SftpSeekableByteChannel((S3SftpPath) path, fs.client(), options);
+        return new S3SftpFileChannel(s3SeekableByteChannel);
+    }
 }

@@ -2,10 +2,14 @@ package com.gengzi.sftp.nio;
 
 
 
+import software.amazon.awssdk.services.s3.S3AsyncClient;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
+import java.nio.file.OpenOption;
 import java.nio.file.StandardOpenOption;
+import java.util.Set;
 
 /**
  * 文件数据流通道
@@ -14,8 +18,8 @@ import java.nio.file.StandardOpenOption;
  */
 public class S3SftpSeekableByteChannel implements SeekableByteChannel {
 
-
-
+    public S3SftpSeekableByteChannel(S3SftpPath s3Path, S3AsyncClient s3Client, Set<? extends OpenOption> options) {
+    }
 
     /**
      * Reads a sequence of bytes from this channel into the given buffer.
