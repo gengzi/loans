@@ -43,6 +43,10 @@ public class S3SftpFileSystem extends FileSystem {
         this.s3SftpClientProvider = new S3SftpClientProvider(config);
     }
 
+    S3SftpNioSpiConfiguration configuration(){
+        return s3SftpNioSpiConfiguration;
+    }
+
     public S3AsyncClient client() {
         return s3SftpClientProvider.generateClient(bucketName);
     }

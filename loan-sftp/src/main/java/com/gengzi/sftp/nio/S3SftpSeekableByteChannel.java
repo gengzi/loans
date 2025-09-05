@@ -1,7 +1,6 @@
 package com.gengzi.sftp.nio;
 
 
-
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 
 import java.io.IOException;
@@ -9,6 +8,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.*;
 import java.nio.file.OpenOption;
 import java.nio.file.StandardOpenOption;
+import java.time.Duration;
 import java.util.Set;
 
 /**
@@ -18,10 +18,47 @@ import java.util.Set;
  */
 public class S3SftpSeekableByteChannel implements SeekableByteChannel {
 
-    public S3SftpSeekableByteChannel(S3SftpPath s3Path, S3AsyncClient s3Client, Set<? extends OpenOption> options) {
+
+    // 定义position 当前通道读写位置
+    private long position;
+    // 定义一个close 标志，表示当前文件通道是否已经关闭
+    private boolean close;
+    // 定义一个文件大小的size 字节数
+    private long size = 0L;
+    // 局部变量
+    private S3SftpPath path;
+
+    public static final long TIMEOUT_TIME_LENGTH_1 = 1L;
+
+
+    // 定义一个读通道
+    private final S3SftpReadableByteChannel readableByteChannel;
+
+
+    // 包含了一个读通道和写通道
+    public S3SftpSeekableByteChannel(S3SftpPath s3Path, S3AsyncClient s3Client, Set<? extends OpenOption> options) throws IOException {
+        // 初始化position
+        this.position = 0L;
+        // 初始化close为false未关闭
+        this.close = false;
+        // 初始化
+        this.path = s3Path;
+
+        // 获取读通道，用于向s3存储读取内容
+        S3SftpNioSpiConfiguration configuration = path.getFileSystem().configuration();
+        this.readableByteChannel = new S3SftpReadableByteChannel(s3Path,5,10,
+                s3Client, this,null,null);
     }
 
     /**
+     * 这段代码是Java中ReadableByteChannel接口的read方法注释文档。
+     * 功能解释：
+     * 从当前通道的位置开始读取字节序列到指定的缓冲区(dst)
+     * 读取完成后会更新通道的当前位置，增加实际读取的字节数
+     * 方法行为与ReadableByteChannel接口规范完全一致
+     * 这是一个标准的字节通道读取操作，用于将数据从通道传输到字节缓冲区中
+     *
+     *
      * Reads a sequence of bytes from this channel into the given buffer.
      *
      * <p> Bytes are read starting at this channel's current position, and
@@ -33,9 +70,14 @@ public class S3SftpSeekableByteChannel implements SeekableByteChannel {
      */
     @Override
     public int read(ByteBuffer dst) throws IOException {
+        validateOpen();
 
+        if(readableByteChannel == null){
+            throw new NonReadableChannelException();
 
-        return 0;
+        }
+
+        return readableByteChannel.read(dst);
     }
 
     /**
@@ -68,10 +110,31 @@ public class S3SftpSeekableByteChannel implements SeekableByteChannel {
      */
     @Override
     public long position() throws IOException {
-        return 0;
+        //  获取当前通道的读写位置
+        // 加锁
+        // 判断当前文件通道是否已经关闭
+        validateOpen();
+
+        synchronized (this) {
+            return position;
+        }
     }
 
+    private void validateOpen() throws ClosedChannelException {
+        if (this.close) {
+            throw new ClosedChannelException();
+        }
+    }
+
+
     /**
+     *
+     * 这段代码是Java NIO中用于设置通道位置的方法注释。主要功能是：
+     * 将通道的当前位置设置为指定的新位置
+     * 如果新位置超出当前文件大小，不会改变文件大小
+     * 读取时会立即返回文件结束标识
+     * 写入时会扩展文件大小
+     * 不建议在追加模式下设置位置，因为写入前会自动定位到文件末尾
      * Sets this channel's position.
      *
      * <p> Setting the position to a value that is greater than the current size
@@ -96,10 +159,39 @@ public class S3SftpSeekableByteChannel implements SeekableByteChannel {
      */
     @Override
     public SeekableByteChannel position(long newPosition) throws IOException {
-        return null;
+
+
+        if(newPosition < 0){
+            throw new IllegalArgumentException("newPosition < 0");
+        }
+
+        if(!isOpen()){
+            throw new ClosedChannelException();
+        }
+
+        //TODO
+
+
+        // 将通道位置设置为新位置
+        synchronized (this){
+            this.position = newPosition;
+            return this;
+        }
+
+
+
+
     }
 
     /**
+     *
+     * 这段代码是Java NIO中FileChannel类的size()方法的文档注释。
+     * 功能： 获取与此通道连接的实体（文件）的当前大小，以字节为单位返回。
+     * 异常情况：
+     * 如果通道已关闭，抛出ClosedChannelException
+     * 如果发生其他I/O错误，抛出IOException
+     * 该方法用于查询文件的大小信息
+     *
      * Returns the current size of entity to which this channel is connected.
      *
      * @return The current size, measured in bytes
@@ -108,7 +200,12 @@ public class S3SftpSeekableByteChannel implements SeekableByteChannel {
      */
     @Override
     public long size() throws IOException {
-        return 0;
+        // 需要从对象存储中获取对应的文件大小
+        validateOpen();
+        synchronized (this){
+            this.size = S3SftpBasicFileAttributes.get(path, Duration.ofMinutes(TIMEOUT_TIME_LENGTH_1)).size();
+            return size;
+        }
     }
 
     /**
@@ -144,7 +241,9 @@ public class S3SftpSeekableByteChannel implements SeekableByteChannel {
      */
     @Override
     public boolean isOpen() {
-        return false;
+        synchronized (this) {
+            return !close;
+        }
     }
 
     /**
@@ -166,6 +265,10 @@ public class S3SftpSeekableByteChannel implements SeekableByteChannel {
      */
     @Override
     public void close() throws IOException {
+        //TODO 读通道关闭，写通道关闭
 
+        synchronized (this) {
+            this.close = true;
+        }
     }
 }

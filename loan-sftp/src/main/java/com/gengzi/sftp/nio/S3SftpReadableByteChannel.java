@@ -42,7 +42,17 @@ public class S3SftpReadableByteChannel implements ReadableByteChannel {
     private final Cache<Integer, CompletableFuture<ByteBuffer>> readAheadBuffersCache;
 
 
-
+    /**
+     *
+     * @param path
+     * @param maxFragmentSize
+     * @param maxNumberFragments
+     * @param client
+     * @param delegator
+     * @param timeout
+     * @param timeUnit
+     * @throws IOException
+     */
     S3SftpReadableByteChannel(S3SftpPath path, int maxFragmentSize, int maxNumberFragments, S3AsyncClient client,
                            S3SftpSeekableByteChannel delegator, Long timeout, TimeUnit timeUnit) throws IOException {
         Objects.requireNonNull(path);
