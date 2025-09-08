@@ -255,14 +255,14 @@ public class S3SftpPath implements Path {
         return 0;
     }
 
-    String bucketName() {
+    public String bucketName() {
         return fileSystem.bucketName();
     }
     private boolean isEmpty() {
         return pathRepresentation.toString().isEmpty();
     }
 
-    String getKey() {
+    public String getKey() {
         if (isEmpty()) {
             return "";
         }

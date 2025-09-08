@@ -1,6 +1,7 @@
 package com.gengzi.sftp.nio;
 
 
+import com.gengzi.sftp.nio.util.S3Util;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 
 import java.io.IOException;
@@ -10,6 +11,9 @@ import java.nio.file.OpenOption;
 import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * 文件数据流通道
@@ -34,9 +38,17 @@ public class S3SftpSeekableByteChannel implements SeekableByteChannel {
     // 定义一个读通道
     private final S3SftpReadableByteChannel readableByteChannel;
 
+    // 定义一个写通道
+    private final S3SftpWritableByteChannel writableByteChannel;
+
+    // 定义一个s3的工具类
+    private final S3Util s3Util;
 
     // 包含了一个读通道和写通道
     public S3SftpSeekableByteChannel(S3SftpPath s3Path, S3AsyncClient s3Client, Set<? extends OpenOption> options) throws IOException {
+
+        this.s3Util = new S3Util(s3Client, null, null);
+
         // 初始化position
         this.position = 0L;
         // 初始化close为false未关闭
@@ -44,10 +56,15 @@ public class S3SftpSeekableByteChannel implements SeekableByteChannel {
         // 初始化
         this.path = s3Path;
 
-        // 获取读通道，用于向s3存储读取内容
+        //TODO 根据不同模式判断是创建读通道还是写通道 获取读通道，用于向s3存储读取内容
         S3SftpNioSpiConfiguration configuration = path.getFileSystem().configuration();
         this.readableByteChannel = new S3SftpReadableByteChannel(s3Path,5,10,
                 s3Client, this,null,null);
+
+
+        this.writableByteChannel = new S3SftpWritableByteChannel(s3Path,s3Client, options,s3Util);
+
+
     }
 
     /**
@@ -71,16 +88,22 @@ public class S3SftpSeekableByteChannel implements SeekableByteChannel {
     @Override
     public int read(ByteBuffer dst) throws IOException {
         validateOpen();
-
         if(readableByteChannel == null){
             throw new NonReadableChannelException();
 
         }
-
         return readableByteChannel.read(dst);
     }
 
     /**
+     *
+     * 这段代码是Java NIO中WritableByteChannel接口的write方法注释，描述了向通道写入字节缓冲区的功能：
+     * 从缓冲区向通道写入字节序列
+     * 写入位置从通道当前position开始
+     * 若通道连接的实体（如文件）以APPEND模式打开，则先将position移到末尾
+     * 写入时会根据需要扩展连接的实体大小
+     * 最后更新position为实际写入的字节数
+     *
      * Writes a sequence of bytes to this channel from the given buffer.
      *
      * <p> Bytes are written starting at this channel's current position, unless

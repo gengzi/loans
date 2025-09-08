@@ -3,6 +3,10 @@ package com.gengzi.sftp.nio;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.s3.S3AsyncClient;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
+
 import java.io.IOException;
 import java.net.URI;
 import java.nio.channels.FileChannel;
@@ -18,6 +22,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
+
+import static java.util.concurrent.TimeUnit.MINUTES;
 
 /**
  * 用于创建返回 FileSystem 的工厂类
@@ -194,5 +202,24 @@ public class S3SftpFileSystemProvider extends FileSystemProvider {
         S3SftpFileSystem fs = (S3SftpFileSystem) getFileSystem(path.toUri());
         S3SftpSeekableByteChannel s3SeekableByteChannel = new S3SftpSeekableByteChannel((S3SftpPath) path, fs.client(), options);
         return new S3SftpFileChannel(s3SeekableByteChannel);
+    }
+
+    /**
+     * 判断文件是否存在
+     *
+     * @param s3SftpPath  文件
+     */
+    public Boolean exists(S3AsyncClient s3AsyncClient, S3SftpPath s3SftpPath) {
+        try {
+            //TODO 配置类
+            s3AsyncClient.headObject(HeadObjectRequest.builder().bucket(s3SftpPath.bucketName()).key(s3SftpPath.getKey()).build())
+                    .get(1L, MINUTES);
+            return true;
+        } catch (ExecutionException | NoSuchKeyException | InterruptedException | TimeoutException e) {
+            logger.debug("Could not retrieve object head information", e);
+            return false;
+        }
+
+
     }
 }

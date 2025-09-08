@@ -17,6 +17,7 @@ dependencies {
     implementation 'org.apache.sshd:sshd-sftp:2.10.0'
     // 异步 HTTP 客户端（Netty）
     implementation 'software.amazon.awssdk:netty-nio-client:2.32.16'
+    implementation("software.amazon.awssdk:s3-transfer-manager:2.32.16")
     implementation("software.amazon.nio.s3:aws-java-nio-spi-for-s3:2.2.0")
     implementation("com.github.ben-manes.caffeine:caffeine:3.2.2")
 //    implementation("com.amazonaws:aws-java-sdk-s3:1.12.788")

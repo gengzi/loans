@@ -1,4 +1,5 @@
 rootProject.name = 'loans'
 include 'loan-center', 'pay-center'
 include 'loan-sftp'
+include 'loan-ai'
 
