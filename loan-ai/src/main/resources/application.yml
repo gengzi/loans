@@ -1,0 +1,8 @@
+spring:
+  ai:
+    openai:
+      base-url: https://api.siliconflow.cn
+      api-key: sk-ltrjtwcekfkowwmdqghjzgfkjhylcocxibuuviorbnfzvqqj
+    chat:
+      client:
+        enabled: false

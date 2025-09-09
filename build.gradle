@@ -18,6 +18,8 @@ subprojects {
     apply plugin: 'org.springframework.boot'
     apply plugin: 'io.spring.dependency-management'
 
+
+
 //    dependencies {
 //        // 这里放子项目通用依赖，比如测试依赖等
 //        testImplementation 'org.springframework.boot:spring-boot-starter-test'
