@@ -51,7 +51,6 @@ public class S3SftpDirectoryStream implements DirectoryStream {
                 listObjectsV2Publisher.commonPrefixes().map(CommonPrefix::prefix);
         final Publisher<String> keysPublisher =
                 listObjectsV2Publisher.contents().map(S3Object::key);
-
         return Flowable.concat(prefixPublisher, keysPublisher)
                 .map(fs::getPath)
                 .filter(path -> !isEqualToParent(finalDirName, path))  // including the parent will induce loops

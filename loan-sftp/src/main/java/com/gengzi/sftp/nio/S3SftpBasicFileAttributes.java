@@ -1,9 +1,18 @@
 package com.gengzi.sftp.nio;
 
 
+import com.gengzi.sftp.nio.constans.Constans;
+import io.reactivex.rxjava3.core.Flowable;
+import io.reactivex.rxjava3.core.Single;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.core.async.SdkPublisher;
+import software.amazon.awssdk.services.s3.S3AsyncClient;
+import software.amazon.awssdk.services.s3.model.CommonPrefix;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
+import software.amazon.awssdk.services.s3.model.S3Object;
+import software.amazon.awssdk.services.s3.paginators.ListObjectsV2Publisher;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -71,12 +80,28 @@ public class S3SftpBasicFileAttributes implements BasicFileAttributes {
     }
 
     public static S3SftpBasicFileAttributes get(S3SftpPath path, Duration duration) throws IOException {
+
         // 如果是目录就返回固定的属性
         if (path.isDirectory()) {
             return DIRECTORY_ATTRIBUTES;
         }
         // 是文件，调用s3返回文件属性
         var headResponse = getObjectMetadata(path, Duration.ofMinutes(5));
+        if(headResponse == null){
+            // 不存在该键，判断是否为目录
+            String dir = normalizePath(path.getKey());
+            ListObjectsV2Publisher result = listObjectsV2Paginator(path, dir);
+            SdkPublisher<S3Object> contents = result.contents();
+            SdkPublisher<CommonPrefix> commonPrefixSdkPublisher = result.commonPrefixes();
+            Single<Boolean> empty = Flowable.concat(commonPrefixSdkPublisher, contents).isEmpty();
+            if(!empty.blockingGet()){
+                return DIRECTORY_ATTRIBUTES;
+            }else{
+               return null;
+            }
+
+
+        }
         return new S3SftpBasicFileAttributes(
                 FileTime.from(headResponse.lastModified()),
                 headResponse.contentLength(),
@@ -87,6 +112,29 @@ public class S3SftpBasicFileAttributes implements BasicFileAttributes {
         );
 
     }
+
+    /**
+     * 规范化路径：确保路径以 "/" 结尾，统一前缀格式
+     * 例如："docs" → "docs/", "docs/" → "docs/"
+     */
+    private static String normalizePath(String path) {
+        if (path == null || path.isEmpty()) {
+            return ""; // 空路径表示根目录
+        }
+        return path.endsWith("/") ? path : path + "/";
+    }
+
+
+    private static ListObjectsV2Publisher listObjectsV2Paginator(S3SftpPath path, String dir){
+        S3AsyncClient client = path.getFileSystem().client();
+        ListObjectsV2Publisher listObjectsV2Publisher = client.listObjectsV2Paginator(req -> req
+                .bucket(path.bucketName())
+                .prefix(dir)
+                .delimiter(Constans.PATH_SEPARATOR));
+        return listObjectsV2Publisher;
+    }
+
+
 
     private static HeadObjectResponse getObjectMetadata(
             S3SftpPath path,
@@ -99,7 +147,14 @@ public class S3SftpBasicFileAttributes implements BasicFileAttributes {
                     .bucket(bucketName)
                     .key(path.getKey())
             ).get(timeout.toMillis(), MILLISECONDS);
+
+        } catch (NoSuchKeyException e){
+            return null;
         } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            if(cause instanceof NoSuchKeyException){
+                return null;
+            }
             var errMsg = format(
                     "an '%s' error occurred while obtaining the metadata (for operation getFileAttributes) of '%s'" +
                             "that was not handled successfully by the S3Client's configured RetryConditions",
