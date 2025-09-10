@@ -1,7 +1,7 @@
 package com.gengzi.sftp.nio;
 
 
-import com.gengzi.sftp.nio.constans.Constans;
+import com.gengzi.sftp.nio.constans.Constants;
 import io.reactivex.rxjava3.core.Flowable;
 import io.reactivex.rxjava3.core.Single;
 import org.slf4j.Logger;
@@ -99,8 +99,6 @@ public class S3SftpBasicFileAttributes implements BasicFileAttributes {
             }else{
                return null;
             }
-
-
         }
         return new S3SftpBasicFileAttributes(
                 FileTime.from(headResponse.lastModified()),
@@ -130,7 +128,7 @@ public class S3SftpBasicFileAttributes implements BasicFileAttributes {
         ListObjectsV2Publisher listObjectsV2Publisher = client.listObjectsV2Paginator(req -> req
                 .bucket(path.bucketName())
                 .prefix(dir)
-                .delimiter(Constans.PATH_SEPARATOR));
+                .delimiter(Constants.PATH_SEPARATOR));
         return listObjectsV2Publisher;
     }
 
@@ -313,7 +311,7 @@ public class S3SftpBasicFileAttributes implements BasicFileAttributes {
             put("isDirectory", isDirectory());
             put("isSymbolicLink", isSymbolicLink());
             put("isOther", isOther());
-            put("size", size());
+            put("size", size);
             put("fileKey", fileKey());
             put("permissions", permissions());
         }};

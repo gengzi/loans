@@ -1,6 +1,6 @@
 package com.gengzi.sftp.nio;
 
-import com.gengzi.sftp.nio.constans.Constans;
+import com.gengzi.sftp.nio.constans.Constants;
 import org.jetbrains.annotations.NotNull;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 
@@ -75,7 +75,7 @@ public class S3SftpFileSystem extends FileSystem {
 
     @Override
     public String getSeparator() {
-        return Constans.PATH_SEPARATOR;
+        return Constants.PATH_SEPARATOR;
     }
 
     /**

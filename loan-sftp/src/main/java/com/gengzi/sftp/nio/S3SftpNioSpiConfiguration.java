@@ -71,6 +71,11 @@ public class S3SftpNioSpiConfiguration extends HashMap<String, Object> {
         return this;
     }
 
+
+    public String getEndpoint(){
+        return get(ENDPOINT).toString();
+    }
+
     public URI endpointUri() {
         return URI.create("http://" + get(ENDPOINT).toString());
     }

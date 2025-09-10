@@ -1,6 +1,6 @@
 package com.gengzi.sftp.nio;
 
-import com.gengzi.sftp.nio.constans.Constans;
+import com.gengzi.sftp.nio.constans.Constants;
 import io.reactivex.rxjava3.core.Flowable;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
@@ -12,7 +12,6 @@ import software.amazon.awssdk.services.s3.paginators.ListObjectsV2Publisher;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Iterator;
 
 
@@ -39,7 +38,7 @@ public class S3SftpDirectoryStream implements DirectoryStream {
         ListObjectsV2Publisher listObjectsV2Publisher = fileSystem.client().listObjectsV2Paginator(req -> req
                 .bucket(bucketName)
                 .prefix(path)
-                .delimiter(Constans.PATH_SEPARATOR));
+                .delimiter(Constants.PATH_SEPARATOR));
 
         dirs = pathIteratorForPublisher(listObjectsV2Publisher, fileSystem, path, filter);
 

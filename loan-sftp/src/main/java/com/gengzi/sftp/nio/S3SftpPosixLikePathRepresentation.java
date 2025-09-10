@@ -1,6 +1,6 @@
 package com.gengzi.sftp.nio;
 
-import com.gengzi.sftp.nio.constans.Constans;
+import com.gengzi.sftp.nio.constans.Constants;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -8,9 +8,9 @@ import java.util.stream.Collectors;
 
 public class S3SftpPosixLikePathRepresentation {
 
-    static final S3SftpPosixLikePathRepresentation ROOT = new S3SftpPosixLikePathRepresentation(Constans.PATH_SEPARATOR);
+    static final S3SftpPosixLikePathRepresentation ROOT = new S3SftpPosixLikePathRepresentation(Constants.PATH_SEPARATOR);
     static final S3SftpPosixLikePathRepresentation EMPTY_PATH = new S3SftpPosixLikePathRepresentation("");
-    private static final char PATH_SEPARATOR_CHAR = Constans.PATH_SEPARATOR.charAt(0);
+    private static final char PATH_SEPARATOR_CHAR = Constants.PATH_SEPARATOR.charAt(0);
 
     private String path;
 
@@ -73,13 +73,13 @@ public class S3SftpPosixLikePathRepresentation {
         var path = allParts.stream()
                 .flatMap(part -> Arrays.stream(part.split("/+")))
                 .filter(p -> !p.isEmpty())
-                .collect(Collectors.joining(Constans.PATH_SEPARATOR));
+                .collect(Collectors.joining(Constants.PATH_SEPARATOR));
 
         if (endsWithSeparator && !hasTrailingSeparatorString(path)) {
-            path = path + Constans.PATH_SEPARATOR;
+            path = path + Constants.PATH_SEPARATOR;
         }
         if (startsWithSeparator && !isAbsoluteString(path)) {
-            path = Constans.PATH_SEPARATOR + path;
+            path = Constants.PATH_SEPARATOR + path;
         }
         return path;
     }
@@ -104,7 +104,7 @@ public class S3SftpPosixLikePathRepresentation {
     }
 
     private static boolean isRootString(String path) {
-        return path.equals(Constans.PATH_SEPARATOR);
+        return path.equals(Constants.PATH_SEPARATOR);
     }
 
     /**
@@ -175,7 +175,7 @@ public class S3SftpPosixLikePathRepresentation {
             return Collections.emptyList();
         }
 
-        return Arrays.stream(path.split(Constans.PATH_SEPARATOR))
+        return Arrays.stream(path.split(Constants.PATH_SEPARATOR))
                 .filter(s -> !s.trim().isEmpty())
                 .collect(Collectors.toList());
     }

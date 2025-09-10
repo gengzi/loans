@@ -5,12 +5,14 @@ import org.jetbrains.annotations.NotNull;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.Iterator;
 import java.util.LinkedList;
 
 import static com.gengzi.sftp.nio.S3SftpFileSystemProvider.checkPath;
-import static com.gengzi.sftp.nio.constans.Constans.PATH_SEPARATOR;
+import static com.gengzi.sftp.nio.constans.Constants.PATH_SEPARATOR;
 import static java.nio.file.LinkOption.NOFOLLOW_LINKS;
 
 public class S3SftpPath implements Path {
@@ -27,13 +29,14 @@ public class S3SftpPath implements Path {
 
     /**
      * 获取一个时sftp文件操作类
+     *
      * @param s3SftpFileSystem
-     * @param first first 为路径的初始部分
-     * @Param more 为路径的后续部分（自动用文件系统的分隔符拼接）
+     * @param first            first 为路径的初始部分
      * @return
+     * @Param more 为路径的后续部分（自动用文件系统的分隔符拼接）
      */
-    public static Path getPath(S3SftpFileSystem s3SftpFileSystem, String first,String... more) {
-        return new S3SftpPath(s3SftpFileSystem, S3SftpPosixLikePathRepresentation.of(first,more));
+    public static Path getPath(S3SftpFileSystem s3SftpFileSystem, String first, String... more) {
+        return new S3SftpPath(s3SftpFileSystem, S3SftpPosixLikePathRepresentation.of(first, more));
     }
 
     @NotNull
@@ -101,13 +104,14 @@ public class S3SftpPath implements Path {
 
     /**
      * 规范化路径：移除 .（当前目录）和 ..（父目录）等冗余组件
+     *
      * @return
      */
     @NotNull
     @Override
     public Path normalize() {
         // 如果是根目录，返回this
-        if(pathRepresentation.isRoot()){
+        if (pathRepresentation.isRoot()) {
             return this;
         }
         // 判断是否目录
@@ -167,6 +171,7 @@ public class S3SftpPath implements Path {
 
         return from(concatenatedPath);
     }
+
     /**
      * Construct a path using the same filesystem (bucket) as this path
      */
@@ -198,10 +203,44 @@ public class S3SftpPath implements Path {
         return null;
     }
 
+    /**
+     * touri
+     * <p>
+     * Path 接口的 toUri() 方法用于将文件路径转换为 URI（Uniform Resource Identifier，统一资源标识符），返回一个 java.net.URI 对象
+     *
+     * @return
+     */
     @NotNull
     @Override
     public URI toUri() {
-        return null;
+        Path path = toAbsolutePath().toRealPath(NOFOLLOW_LINKS);
+        var elements = path.iterator();
+
+        var uri = new StringBuilder(fileSystem.provider().getScheme() + "://");
+
+        //拼接账户和密码
+        uri.append(fileSystem.configuration().accessKey() + ":" + fileSystem.configuration().secretKey() + "@");
+
+
+        var endpoint = fileSystem.configuration().getEndpoint();
+        if (!endpoint.isEmpty()) {
+            uri.append(fileSystem.configuration().getEndpoint()).append(PATH_SEPARATOR);
+        }
+        uri.append(bucketName());
+        elements.forEachRemaining(
+                (e) -> {
+                    var name = e.getFileName().toString();
+                    if (name.endsWith(PATH_SEPARATOR)) {
+                        name = name.substring(0, name.length() - 1);
+                    }
+                    uri.append(PATH_SEPARATOR).append(URLEncoder.encode(name, StandardCharsets.UTF_8));
+                }
+        );
+        if (isDirectory()) {
+            uri.append(PATH_SEPARATOR);
+        }
+
+        return URI.create(uri.toString());
     }
 
     @NotNull
@@ -215,7 +254,7 @@ public class S3SftpPath implements Path {
 
     @NotNull
     @Override
-    public Path toRealPath(@NotNull LinkOption... options)  {
+    public Path toRealPath(@NotNull LinkOption... options) {
         S3SftpPath path = this;
         if (!isAbsolute()) {
             return toAbsolutePath();
@@ -255,6 +294,7 @@ public class S3SftpPath implements Path {
     public String bucketName() {
         return fileSystem.bucketName();
     }
+
     private boolean isEmpty() {
         return pathRepresentation.toString().isEmpty();
     }
@@ -275,7 +315,7 @@ public class S3SftpPath implements Path {
 
     /**
      * 判断是否为目录
-     *
+     * <p>
      * 以 / 结尾的认为是目录
      *
      * @return
@@ -288,7 +328,6 @@ public class S3SftpPath implements Path {
     public String toString() {
         return pathRepresentation.toString();
     }
-
 
 
 }
