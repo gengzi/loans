@@ -1,18 +1,24 @@
 package com.gengzi.sftp.nio;
 
+import software.amazon.nio.spi.s3.NotYetImplementedException;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.ReadOnlyBufferException;
-import java.nio.channels.FileChannel;
-import java.nio.channels.FileLock;
-import java.nio.channels.ReadableByteChannel;
-import java.nio.channels.WritableByteChannel;
+import java.nio.channels.*;
 
+/**
+ * filechannel
+ * 定制了大量文件专属操作能力
+ */
 public class S3SftpFileChannel extends FileChannel {
 
-    public S3SftpFileChannel(S3SftpSeekableByteChannel seekableChannel) {
+    private S3SftpSeekableByteChannel seekableChannel;
 
+
+    public S3SftpFileChannel(S3SftpSeekableByteChannel seekableChannel) {
+        this.seekableChannel = seekableChannel;
     }
 
     /**
@@ -27,10 +33,15 @@ public class S3SftpFileChannel extends FileChannel {
      */
     @Override
     public int read(ByteBuffer dst) throws IOException {
-        return 0;
+        return seekableChannel.read(dst);
     }
 
     /**
+     * 这段代码是Java NIO中FileChannel类的read方法注释，功能是从文件通道读取字节序列到指定的缓冲区数组中。主要特点：
+     * 从通道当前文件位置开始读取数据
+     * 读取后会更新文件位置指针
+     * 支持将数据分散读取到多个缓冲区（Scattering读取）
+     * 参数包括目标缓冲区数组、起始偏移量和长度
      * Reads a sequence of bytes from this channel into a subsequence of the
      * given buffers.
      *
@@ -45,7 +56,16 @@ public class S3SftpFileChannel extends FileChannel {
      */
     @Override
     public long read(ByteBuffer[] dsts, int offset, int length) throws IOException {
-        return 0;
+        // 从当前位置读取文件内容，到不同的缓冲区数组中
+        long totalBytesRead = 0L;
+        for (int i = offset; i < offset + length - 1; i++) {
+            int read = read(dsts[i]);
+            if (read == -1) {
+                break;
+            }
+            totalBytesRead += read;
+        }
+        return totalBytesRead;
     }
 
     /**
@@ -63,7 +83,7 @@ public class S3SftpFileChannel extends FileChannel {
      */
     @Override
     public int write(ByteBuffer src) throws IOException {
-        return 0;
+        return seekableChannel.write(src);
     }
 
     /**
@@ -84,7 +104,12 @@ public class S3SftpFileChannel extends FileChannel {
      */
     @Override
     public long write(ByteBuffer[] srcs, int offset, int length) throws IOException {
-        return 0;
+        int bytesWritten = 0;
+        for (int i = offset; i < offset + length; i++) {
+            ByteBuffer src = srcs[i];
+            bytesWritten += write(src);
+        }
+        return bytesWritten;
     }
 
     /**
@@ -98,7 +123,7 @@ public class S3SftpFileChannel extends FileChannel {
      */
     @Override
     public long position() throws IOException {
-        return 0;
+        return seekableChannel.position();
     }
 
     /**
@@ -121,7 +146,8 @@ public class S3SftpFileChannel extends FileChannel {
      */
     @Override
     public FileChannel position(long newPosition) throws IOException {
-        return null;
+        seekableChannel.position(newPosition);
+        return this;
     }
 
     /**
@@ -134,7 +160,7 @@ public class S3SftpFileChannel extends FileChannel {
      */
     @Override
     public long size() throws IOException {
-        return 0;
+        return seekableChannel.size();
     }
 
     /**
@@ -156,7 +182,8 @@ public class S3SftpFileChannel extends FileChannel {
      */
     @Override
     public FileChannel truncate(long size) throws IOException {
-        return null;
+        seekableChannel.truncate(size);
+        return this;
     }
 
     /**
@@ -204,7 +231,9 @@ public class S3SftpFileChannel extends FileChannel {
      */
     @Override
     public void force(boolean metaData) throws IOException {
-
+        if (seekableChannel.getWritableByteChannel() != null) {
+            ((S3SftpWritableByteChannel) seekableChannel.getWritableByteChannel()).force();
+        }
     }
 
     /**
@@ -252,7 +281,42 @@ public class S3SftpFileChannel extends FileChannel {
      */
     @Override
     public long transferTo(long position, long count, WritableByteChannel target) throws IOException {
-        return 0;
+        // 零拷贝，用操作系统的方法，实现从一个文件通道，在内核态直接写入到另个文件通道中
+        if (position < 0 || count < 0) {
+            throw new IllegalArgumentException("position or count args exception");
+        }
+        if (seekableChannel.getReadableByteChannel() == null) {
+            throw new NonReadableChannelException();
+        }
+
+        if (count == 0 || position > seekableChannel.size()) {
+            return 0;
+        }
+
+        if (!seekableChannel.isOpen()) {
+            throw new ClosedChannelException();
+        }
+
+        synchronized (seekableChannel) {
+            long originalPosition = seekableChannel.position();
+            seekableChannel.position(position);
+            long bytesTransferred = 0;
+            while (bytesTransferred < count) {
+                int bytesToTransfer = (int) Math.min(count - bytesTransferred, Integer.MAX_VALUE);
+                ByteBuffer buffer = ByteBuffer.allocate(bytesToTransfer);
+                int read = seekableChannel.read(buffer);
+                if (read == -1) {
+                    break;
+                }
+                // 从写模式切换为读模式
+                buffer.flip();
+                target.write(buffer);
+                bytesTransferred += read;
+            }
+
+            this.seekableChannel.position(originalPosition);
+            return bytesTransferred;
+        }
     }
 
     /**
@@ -301,7 +365,46 @@ public class S3SftpFileChannel extends FileChannel {
      */
     @Override
     public long transferFrom(ReadableByteChannel src, long position, long count) throws IOException {
-        return 0;
+        if (position < 0) {
+            throw new IllegalArgumentException("file position must be non-negative");
+        }
+
+        if (count < 0) {
+            throw new IllegalArgumentException("byte count must be non-negative");
+        }
+
+        if (count == 0 || position > seekableChannel.size()) {
+            return 0;  // no op
+        }
+
+        if (seekableChannel.getWritableByteChannel() == null) {
+            throw new NonWritableChannelException();
+        }
+
+        if (!seekableChannel.isOpen()) {
+            throw new ClosedChannelException();
+        }
+        synchronized (seekableChannel) {
+            var originalPosition = seekableChannel.position();
+            seekableChannel.position(position);
+            long bytesTransferred = 0;
+
+            while (bytesTransferred < count) {
+                int bytesToTransfer = ((int) Math.min(count - bytesTransferred, Integer.MAX_VALUE));
+                var buffer = ByteBuffer.allocate(bytesToTransfer);
+                int bytesRead = src.read(buffer);
+                if (bytesRead == -1) {
+                    break;
+                }
+                buffer.flip();
+                seekableChannel.write(buffer);
+                bytesTransferred += bytesRead;
+            }
+
+            // set the byte buffers position back to this channels position
+            seekableChannel.position(originalPosition);
+            return bytesTransferred;
+        }
     }
 
     /**
@@ -333,7 +436,18 @@ public class S3SftpFileChannel extends FileChannel {
      */
     @Override
     public int read(ByteBuffer dst, long position) throws IOException {
-        return 0;
+        if (position < 0) {
+            throw new IllegalArgumentException("file position must be non-negative");
+        }
+        synchronized (seekableChannel){
+            long originalPosition = seekableChannel.position();
+            try {
+                seekableChannel.position(position);
+                return seekableChannel.read(dst);
+            } finally {
+                seekableChannel.position(originalPosition);
+            }
+        }
     }
 
     /**
@@ -365,7 +479,13 @@ public class S3SftpFileChannel extends FileChannel {
      */
     @Override
     public int write(ByteBuffer src, long position) throws IOException {
-        return 0;
+        synchronized (seekableChannel) {
+            var originalPosition = seekableChannel.position();
+            seekableChannel.position(position);
+            var bytesWritten = seekableChannel.write(src);
+            seekableChannel.position(originalPosition);
+            return bytesWritten;
+        }
     }
 
     /**
@@ -449,7 +569,7 @@ public class S3SftpFileChannel extends FileChannel {
      */
     @Override
     public MappedByteBuffer map(MapMode mode, long position, long size) throws IOException {
-        return null;
+        throw new IOException(new NotYetImplementedException("This library current doesn't support MappedByteBuffers"));
     }
 
     /**
@@ -520,7 +640,7 @@ public class S3SftpFileChannel extends FileChannel {
      */
     @Override
     public FileLock lock(long position, long size, boolean shared) throws IOException {
-        return null;
+        throw new IOException(new UnsupportedOperationException("S3 does not support file locks"));
     }
 
     /**
@@ -576,7 +696,7 @@ public class S3SftpFileChannel extends FileChannel {
      */
     @Override
     public FileLock tryLock(long position, long size, boolean shared) throws IOException {
-        return null;
+        throw new IOException(new UnsupportedOperationException("S3 does not support file locks"));
     }
 
     /**
@@ -596,6 +716,6 @@ public class S3SftpFileChannel extends FileChannel {
      */
     @Override
     protected void implCloseChannel() throws IOException {
-
+        seekableChannel.close();
     }
 }

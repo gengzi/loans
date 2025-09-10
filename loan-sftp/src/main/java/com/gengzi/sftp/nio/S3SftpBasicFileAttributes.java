@@ -7,11 +7,11 @@ import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
 import java.nio.file.attribute.PosixFilePermission;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -25,6 +25,26 @@ import static software.amazon.nio.spi.s3.util.TimeOutUtils.createAndLogTimeOutMe
 public class S3SftpBasicFileAttributes implements BasicFileAttributes {
 
     private static final Logger logger = LoggerFactory.getLogger(S3SftpBasicFileAttributes.class.getName());
+    // 修改声明：为目录和文件都添加了权限，支持用户用户组，和其他用户组的可读可写
+    private static final Set<PosixFilePermission> posixFilePermissions;
+    static {
+        posixFilePermissions = new HashSet<>();
+        posixFilePermissions.add(PosixFilePermission.OWNER_READ);
+        posixFilePermissions.add(PosixFilePermission.OWNER_WRITE);
+        posixFilePermissions.add(PosixFilePermission.OTHERS_READ);
+        posixFilePermissions.add(PosixFilePermission.OTHERS_WRITE);
+        posixFilePermissions.add(PosixFilePermission.GROUP_READ);
+        posixFilePermissions.add(PosixFilePermission.GROUP_WRITE);
+    }
+    private static final S3SftpBasicFileAttributes DIRECTORY_ATTRIBUTES = new S3SftpBasicFileAttributes(
+            FileTime.fromMillis(0),
+            0L,
+            null,
+            true,
+            false,
+            posixFilePermissions
+    );
+
 
 
     private final FileTime lastModifiedTime;
@@ -40,7 +60,7 @@ public class S3SftpBasicFileAttributes implements BasicFileAttributes {
                                      Object eTag,
                                      boolean isDirectory,
                                      boolean isRegularFile,
-                                     Set<PosixFilePermission>  permissions) {
+                                     Set<PosixFilePermission> permissions) {
         this.lastModifiedTime = lastModifiedTime;
         this.size = size;
         this.eTag = eTag;
@@ -53,16 +73,8 @@ public class S3SftpBasicFileAttributes implements BasicFileAttributes {
     public static S3SftpBasicFileAttributes get(S3SftpPath path, Duration duration) throws IOException {
         // 如果是目录就返回固定的属性
         if (path.isDirectory()) {
-            // return DIRECTORY_ATTRIBUTES;
+            return DIRECTORY_ATTRIBUTES;
         }
-
-        HashSet<PosixFilePermission> posixFilePermissions = new HashSet<>();
-        posixFilePermissions.add(PosixFilePermission.OWNER_READ);
-        posixFilePermissions.add(PosixFilePermission.OWNER_WRITE);
-        posixFilePermissions.add(PosixFilePermission.OTHERS_READ);
-        posixFilePermissions.add(PosixFilePermission.OTHERS_WRITE);
-        posixFilePermissions.add(PosixFilePermission.GROUP_READ);
-        posixFilePermissions.add(PosixFilePermission.GROUP_WRITE);
         // 是文件，调用s3返回文件属性
         var headResponse = getObjectMetadata(path, Duration.ofMinutes(5));
         return new S3SftpBasicFileAttributes(
@@ -238,19 +250,18 @@ public class S3SftpBasicFileAttributes implements BasicFileAttributes {
     }
 
     public Map<String, Object> toMap() {
-
-        return Map.of(
-                "lastModifiedTime", lastModifiedTime(),
-                "lastAccessTime", lastAccessTime(),
-                "creationTime", creationTime(),
-                "isRegularFile", isRegularFile(),
-                "isDirectory", isDirectory(),
-                "isSymbolicLink", isSymbolicLink(),
-                "isOther", isOther(),
-                "size", size(),
-                "fileKey", fileKey(),
-                "permissions", permissions()
-        );
+        return new HashMap<String, Object>() {{
+            put("lastModifiedTime", lastModifiedTime());
+            put("lastAccessTime", lastAccessTime());
+            put("creationTime", creationTime());
+            put("isRegularFile", isRegularFile());
+            put("isDirectory", isDirectory());
+            put("isSymbolicLink", isSymbolicLink());
+            put("isOther", isOther());
+            put("size", size());
+            put("fileKey", fileKey());
+            put("permissions", permissions());
+        }};
     }
 
     private Set<PosixFilePermission> permissions() {

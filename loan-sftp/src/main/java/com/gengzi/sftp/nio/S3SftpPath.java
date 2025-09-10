@@ -206,14 +206,11 @@ public class S3SftpPath implements Path {
 
     @NotNull
     @Override
-    public Path toAbsolutePath() {
-
+    public S3SftpPath toAbsolutePath() {
         if (isAbsolute()) {
             return this;
         }
-
         return new S3SftpPath(fileSystem, S3SftpPosixLikePathRepresentation.of(PATH_SEPARATOR, pathRepresentation.toString()));
-
     }
 
     @NotNull
@@ -276,12 +273,22 @@ public class S3SftpPath implements Path {
         return s;
     }
 
+    /**
+     * 判断是否为目录
+     *
+     * 以 / 结尾的认为是目录
+     *
+     * @return
+     */
     public boolean isDirectory() {
-        return false;
+        return pathRepresentation.isDirectory();
     }
 
     @Override
     public String toString() {
         return pathRepresentation.toString();
     }
+
+
+
 }

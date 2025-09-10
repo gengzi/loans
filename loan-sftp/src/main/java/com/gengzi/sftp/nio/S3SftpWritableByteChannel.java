@@ -6,6 +6,7 @@ import software.amazon.awssdk.services.s3.S3AsyncClient;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.*;
@@ -172,4 +173,12 @@ public class S3SftpWritableByteChannel implements WritableByteChannel {
 
         this.isOpen = false;
     }
+
+    protected void force() throws IOException {
+        if(!isOpen){
+            throw new ClosedChannelException();
+        }
+        s3Util.uploadLocalFile(s3SftpPath, tempFile);
+    }
+
 }

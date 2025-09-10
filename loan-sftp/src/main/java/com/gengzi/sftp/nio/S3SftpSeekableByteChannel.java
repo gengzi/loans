@@ -11,9 +11,6 @@ import java.nio.file.OpenOption;
 import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 /**
  * 文件数据流通道
@@ -23,6 +20,9 @@ import java.util.concurrent.TimeoutException;
 public class S3SftpSeekableByteChannel implements SeekableByteChannel {
 
 
+    public static final long TIMEOUT_TIME_LENGTH_1 = 1L;
+    // 定义一个s3的工具类
+    private final S3Util s3Util;
     // 定义position 当前通道读写位置
     private long position;
     // 定义一个close 标志，表示当前文件通道是否已经关闭
@@ -31,39 +31,52 @@ public class S3SftpSeekableByteChannel implements SeekableByteChannel {
     private long size = 0L;
     // 局部变量
     private S3SftpPath path;
-
-    public static final long TIMEOUT_TIME_LENGTH_1 = 1L;
-
-
     // 定义一个读通道
-    private final S3SftpReadableByteChannel readableByteChannel;
-
+    private S3SftpReadableByteChannel readableByteChannel;
     // 定义一个写通道
-    private final S3SftpWritableByteChannel writableByteChannel;
+    private S3SftpWritableByteChannel writableByteChannel;
 
-    // 定义一个s3的工具类
-    private final S3Util s3Util;
+    public S3SftpReadableByteChannel getReadableByteChannel() {
+        return readableByteChannel;
+    }
+
+    public S3SftpWritableByteChannel getWritableByteChannel() {
+        return writableByteChannel;
+    }
 
     // 包含了一个读通道和写通道
     public S3SftpSeekableByteChannel(S3SftpPath s3Path, S3AsyncClient s3Client, Set<? extends OpenOption> options) throws IOException {
-
+        this.size = -1L;
         this.s3Util = new S3Util(s3Client, null, null);
-
         // 初始化position
         this.position = 0L;
-        // 初始化close为false未关闭
-        this.close = false;
         // 初始化
         this.path = s3Path;
+        //TODO 根据不同模式判断是创建读通道还是写通道 获取读通道，用于向s3存储读取内容\
 
-        //TODO 根据不同模式判断是创建读通道还是写通道 获取读通道，用于向s3存储读取内容
-        S3SftpNioSpiConfiguration configuration = path.getFileSystem().configuration();
-        this.readableByteChannel = new S3SftpReadableByteChannel(s3Path,5,10,
-                s3Client, this,null,null);
+        // 读和写不能同时进行
+        if (options.contains(StandardOpenOption.READ) && options.contains(StandardOpenOption.WRITE)) {
+            throw new IOException("This channel does not support read and write access simultaneously");
+        }
+        // SYNC：要求每次写操作都同步到底层存储设备（保证数据持久化，性能较低）。
+        //DSYNC：类似 SYNC，但仅同步数据（不保证文件元数据同步）。
+        if (options.contains(StandardOpenOption.SYNC) || options.contains(StandardOpenOption.DSYNC)) {
+            throw new IOException("The SYNC/DSYNC options is not supported");
+        }
 
 
-        this.writableByteChannel = new S3SftpWritableByteChannel(s3Path,s3Client, options,s3Util);
+        if (options.contains(StandardOpenOption.READ)) {
+            S3SftpNioSpiConfiguration configuration = path.getFileSystem().configuration();
+            this.readableByteChannel = new S3SftpReadableByteChannel(s3Path, 5, 10,
+                    s3Client, this, null, null);
+            this.writableByteChannel = null;
+        } else if (options.contains(StandardOpenOption.WRITE)) {
+            this.readableByteChannel = null;
+            this.writableByteChannel = new S3SftpWritableByteChannel(s3Path, s3Client, options, s3Util);
+        }
 
+        // 初始化close为false未关闭
+        this.close = false;
 
     }
 
@@ -74,8 +87,8 @@ public class S3SftpSeekableByteChannel implements SeekableByteChannel {
      * 读取完成后会更新通道的当前位置，增加实际读取的字节数
      * 方法行为与ReadableByteChannel接口规范完全一致
      * 这是一个标准的字节通道读取操作，用于将数据从通道传输到字节缓冲区中
-     *
-     *
+     * <p>
+     * <p>
      * Reads a sequence of bytes from this channel into the given buffer.
      *
      * <p> Bytes are read starting at this channel's current position, and
@@ -88,7 +101,7 @@ public class S3SftpSeekableByteChannel implements SeekableByteChannel {
     @Override
     public int read(ByteBuffer dst) throws IOException {
         validateOpen();
-        if(readableByteChannel == null){
+        if (readableByteChannel == null) {
             throw new NonReadableChannelException();
 
         }
@@ -96,14 +109,13 @@ public class S3SftpSeekableByteChannel implements SeekableByteChannel {
     }
 
     /**
-     *
      * 这段代码是Java NIO中WritableByteChannel接口的write方法注释，描述了向通道写入字节缓冲区的功能：
      * 从缓冲区向通道写入字节序列
      * 写入位置从通道当前position开始
      * 若通道连接的实体（如文件）以APPEND模式打开，则先将position移到末尾
      * 写入时会根据需要扩展连接的实体大小
      * 最后更新position为实际写入的字节数
-     *
+     * <p>
      * Writes a sequence of bytes to this channel from the given buffer.
      *
      * <p> Bytes are written starting at this channel's current position, unless
@@ -119,7 +131,14 @@ public class S3SftpSeekableByteChannel implements SeekableByteChannel {
      */
     @Override
     public int write(ByteBuffer src) throws IOException {
-        return 0;
+        validateOpen();
+        if (writableByteChannel == null) {
+            throw new NonWritableChannelException();
+        }
+        int remaining = src.remaining();
+        this.position += remaining;
+        int write = writableByteChannel.write(src);
+        return write;
     }
 
     /**
@@ -151,7 +170,6 @@ public class S3SftpSeekableByteChannel implements SeekableByteChannel {
 
 
     /**
-     *
      * 这段代码是Java NIO中用于设置通道位置的方法注释。主要功能是：
      * 将通道的当前位置设置为指定的新位置
      * 如果新位置超出当前文件大小，不会改变文件大小
@@ -184,11 +202,11 @@ public class S3SftpSeekableByteChannel implements SeekableByteChannel {
     public SeekableByteChannel position(long newPosition) throws IOException {
 
 
-        if(newPosition < 0){
+        if (newPosition < 0) {
             throw new IllegalArgumentException("newPosition < 0");
         }
 
-        if(!isOpen()){
+        if (!isOpen()) {
             throw new ClosedChannelException();
         }
 
@@ -196,25 +214,22 @@ public class S3SftpSeekableByteChannel implements SeekableByteChannel {
 
 
         // 将通道位置设置为新位置
-        synchronized (this){
+        synchronized (this) {
             this.position = newPosition;
             return this;
         }
 
 
-
-
     }
 
     /**
-     *
      * 这段代码是Java NIO中FileChannel类的size()方法的文档注释。
      * 功能： 获取与此通道连接的实体（文件）的当前大小，以字节为单位返回。
      * 异常情况：
      * 如果通道已关闭，抛出ClosedChannelException
      * 如果发生其他I/O错误，抛出IOException
      * 该方法用于查询文件的大小信息
-     *
+     * <p>
      * Returns the current size of entity to which this channel is connected.
      *
      * @return The current size, measured in bytes
@@ -225,13 +240,23 @@ public class S3SftpSeekableByteChannel implements SeekableByteChannel {
     public long size() throws IOException {
         // 需要从对象存储中获取对应的文件大小
         validateOpen();
-        synchronized (this){
+        if (this.size < 0) {
             this.size = S3SftpBasicFileAttributes.get(path, Duration.ofMinutes(TIMEOUT_TIME_LENGTH_1)).size();
             return size;
         }
+
+        return this.size;
     }
 
     /**
+     * 这段代码是Java NIO中FileChannel的truncate方法文档注释。
+     * 功能： 将连接到此通道的实体（通常是文件）截断到指定大小。
+     * 逻辑：
+     * 如果指定大小小于当前大小，截断文件并丢弃超出部分
+     * 如果指定大小大于等于当前大小，文件不变
+     * 如果当前position大于指定大小，将position设置为指定大小
+     * 限制： 使用APPEND模式打开的文件可能禁止截断操作。
+     * 异常： 不可写通道、已关闭通道、负数大小等情况会抛出相应异常。
      * Truncates the entity, to which this channel is connected, to the given
      * size.
      *
@@ -254,7 +279,7 @@ public class S3SftpSeekableByteChannel implements SeekableByteChannel {
      */
     @Override
     public SeekableByteChannel truncate(long size) throws IOException {
-        return null;
+        throw new UnsupportedOperationException("Currently not supported");
     }
 
     /**
@@ -288,9 +313,17 @@ public class S3SftpSeekableByteChannel implements SeekableByteChannel {
      */
     @Override
     public void close() throws IOException {
-        //TODO 读通道关闭，写通道关闭
+        //TODO 从 channel 集合中移除
+
 
         synchronized (this) {
+            if (this.readableByteChannel != null) {
+                this.readableByteChannel.close();
+            }
+            if (this.writableByteChannel != null) {
+                this.writableByteChannel.close();
+            }
+
             this.close = true;
         }
     }

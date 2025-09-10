@@ -35,6 +35,7 @@ public class S3SftpFileSystemProvider extends FileSystemProvider {
 
     // 约束
     static final String SCHEME = "s3sftp";
+    static final String PATH_SEPARATOR = "/";
     private static final Map<String, S3SftpFileSystem> FS_CACHE = new ConcurrentHashMap<>();
     private final Logger logger = LoggerFactory.getLogger(this.getClass().getName());
 
@@ -86,9 +87,26 @@ public class S3SftpFileSystemProvider extends FileSystemProvider {
         return null;
     }
 
+    /**
+     * 创建一个目录流，遍历指定目录（dir）中符合过滤条件（filter）的文件和子目录
+     * @param dir
+     *          the path to the directory
+     * @param filter
+     *          the directory stream filter
+     *
+     * @return
+     * @throws IOException
+     */
     @Override
     public DirectoryStream<Path> newDirectoryStream(Path dir, DirectoryStream.Filter<? super Path> filter) throws IOException {
-        return null;
+        // 检查路径是否为s3sftp路径
+        S3SftpPath s3Path = checkPath(dir);
+       // 获取一个绝对路径
+        String path = s3Path.toAbsolutePath().getKey();
+        if(!s3Path.isDirectory()){
+            path = path + PATH_SEPARATOR;
+        }
+        return new S3SftpDirectoryStream(s3Path.getFileSystem(),s3Path.bucketName(), path,filter);
     }
 
     @Override
@@ -172,7 +190,7 @@ public class S3SftpFileSystemProvider extends FileSystemProvider {
         Objects.requireNonNull(attributes);
         var s3Path = checkPath(path);
 
-        if (s3Path.isDirectory() || attributes.trim().isEmpty()) {
+        if (attributes.trim().isEmpty()) {
             return Collections.emptyMap();
         }
         return S3SftpBasicFileAttributes.get(s3Path, Duration.ofMinutes(5)).toMap();
@@ -192,10 +210,7 @@ public class S3SftpFileSystemProvider extends FileSystemProvider {
     }
 
 
-    @Override
-    public FileSystem newFileSystem(Path path, Map<String, ?> env) throws IOException {
-        return null;
-    }
+
 
     @Override
     public FileChannel newFileChannel(Path path, Set<? extends OpenOption> options, FileAttribute<?>... attrs) throws IOException {
