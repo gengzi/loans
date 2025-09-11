@@ -3,9 +3,9 @@ package com.gengzi.sftp.nio;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.core.async.AsyncRequestBody;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
-import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
-import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
+import software.amazon.awssdk.services.s3.model.*;
 
 import java.io.IOException;
 import java.net.URI;
@@ -21,9 +21,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 
 import static java.util.concurrent.TimeUnit.MINUTES;
 
@@ -32,12 +30,19 @@ import static java.util.concurrent.TimeUnit.MINUTES;
  * 负责创建和管理 FileSystem 实例
  */
 public class S3SftpFileSystemProvider extends FileSystemProvider {
-
-    // 约束
+    // 文件系统前缀标识
     static final String SCHEME = "s3sftp";
     static final String PATH_SEPARATOR = "/";
     private static final Map<String, S3SftpFileSystem> FS_CACHE = new ConcurrentHashMap<>();
     private final Logger logger = LoggerFactory.getLogger(this.getClass().getName());
+
+    static S3SftpPath checkPath(Path obj) {
+        Objects.requireNonNull(obj);
+        if (!(obj instanceof S3SftpPath)) {
+            throw new ProviderMismatchException();
+        }
+        return (S3SftpPath) obj;
+    }
 
     @Override
     public String getScheme() {
@@ -63,7 +68,6 @@ public class S3SftpFileSystemProvider extends FileSystemProvider {
         return getFileSystem(uri);
     }
 
-
     @Override
     public FileSystem getFileSystem(URI uri) {
         S3SftpFileSystemInfo info = new S3SftpFileSystemInfo(uri);
@@ -79,21 +83,36 @@ public class S3SftpFileSystemProvider extends FileSystemProvider {
     @NotNull
     @Override
     public Path getPath(@NotNull URI uri) {
-        return getFileSystem(uri).getPath(uri.getScheme() + ":/" + uri.getPath());
+        Objects.requireNonNull(uri);
+        return getFileSystem(uri)
+                .getPath(uri.getScheme() + ":/" + uri.getPath());
     }
 
+    /**
+     * 用于为指定路径创建一个 可随机访问的字节通道（SeekableByteChannel），支持读写文件数据并灵活控制文件打开模式与初始属性
+     *
+     * @param path    the path to the file to open or create
+     * @param options options specifying how the file is opened
+     * @param attrs   an optional list of file attributes to set atomically when
+     *                creating the file
+     * @return
+     * @throws IOException
+     */
     @Override
     public SeekableByteChannel newByteChannel(Path path, Set<? extends OpenOption> options, FileAttribute<?>... attrs) throws IOException {
-        return null;
+        checkPath(path);
+        S3SftpFileSystem fileSystem = (S3SftpFileSystem) path.getFileSystem();
+        S3SftpSeekableByteChannel s3SftpSeekableByteChannel = new S3SftpSeekableByteChannel((S3SftpPath) path,
+                fileSystem.client(), options);
+        fileSystem.registerOpenChannel(s3SftpSeekableByteChannel);
+        return s3SftpSeekableByteChannel;
     }
 
     /**
      * 创建一个目录流，遍历指定目录（dir）中符合过滤条件（filter）的文件和子目录
-     * @param dir
-     *          the path to the directory
-     * @param filter
-     *          the directory stream filter
      *
+     * @param dir    the path to the directory
+     * @param filter the directory stream filter
      * @return
      * @throws IOException
      */
@@ -101,22 +120,97 @@ public class S3SftpFileSystemProvider extends FileSystemProvider {
     public DirectoryStream<Path> newDirectoryStream(Path dir, DirectoryStream.Filter<? super Path> filter) throws IOException {
         // 检查路径是否为s3sftp路径
         S3SftpPath s3Path = checkPath(dir);
-       // 获取一个绝对路径
+        // 获取一个绝对路径
         String path = s3Path.toAbsolutePath().getKey();
-        if(!s3Path.isDirectory()){
+        if (!s3Path.isDirectory()) {
             path = path + PATH_SEPARATOR;
         }
-        return new S3SftpDirectoryStream(s3Path.getFileSystem(),s3Path.bucketName(), path,filter);
+        return new S3SftpDirectoryStream(s3Path.getFileSystem(), s3Path.bucketName(), path, filter);
     }
 
+    /**
+     * 用于在指定路径创建新目录并设置初始属性
+     *
+     * @param dir   the directory to create
+     * @param attrs an optional list of file attributes to set atomically when
+     *              creating the directory
+     * @throws IOException
+     */
     @Override
     public void createDirectory(Path dir, FileAttribute<?>... attrs) throws IOException {
-
+        S3SftpPath s3Directory = checkPath(dir);
+        // 判断路径是否存在
+        if (s3Directory.toString().equals(PATH_SEPARATOR) || s3Directory.toString().isEmpty()) {
+            throw new FileAlreadyExistsException("Root directory already exists");
+        }
+        String directoryKey = s3Directory.toRealPath(LinkOption.NOFOLLOW_LINKS).getKey();
+        if (!directoryKey.endsWith(PATH_SEPARATOR) && !directoryKey.isEmpty()) {
+            directoryKey = directoryKey + PATH_SEPARATOR;
+        }
+        try {
+            s3Directory.getFileSystem().client().putObject(
+                    PutObjectRequest.builder()
+                            .bucket(s3Directory.bucketName())
+                            .key(directoryKey)
+                            .build(),
+                    AsyncRequestBody.empty()
+            ).get(1L, MINUTES);
+        } catch (TimeoutException e) {
+            throw new RuntimeException(e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
+        } catch (ExecutionException e) {
+            throw new RuntimeException(e);
+        }
     }
 
+    /**
+     * 用于删除指定路径对应的文件或目录，是文件系统操作中删除资源的核心方法
+     *
+     * @param path the path to the file to delete
+     * @throws IOException
+     */
     @Override
     public void delete(Path path) throws IOException {
+        S3SftpPath deletePath = checkPath(path);
+        String deletePathKey = deletePath.toRealPath(LinkOption.NOFOLLOW_LINKS).getKey();
+        // 判断如果是根目录，不允许删除
+        S3AsyncClient s3Client = deletePath.getFileSystem().client();
+        S3SftpBasicFileAttributes s3SftpBasicFileAttributes = S3SftpBasicFileAttributes.get(deletePath, null);
+        boolean directory = s3SftpBasicFileAttributes.isDirectory();
+        String bucketName = deletePath.bucketName();
+        if(!directory){
+            // 是文件，可以删除
+            delPath(s3Client, bucketName, deletePathKey);
+        }
+        if(directory){
+            boolean emptyDirectory = s3SftpBasicFileAttributes.isEmptyDirectory();
+            if(emptyDirectory){
+                // 是空目录，可以删除
+                delPath(s3Client, bucketName, deletePathKey);
+            }else{
+                throw new DirectoryNotEmptyException("dir is not empty");
+            }
+        }
+    }
 
+    private static void delPath(S3AsyncClient s3Client, String bucketName, String deletePathKey) {
+        try {
+            s3Client.deleteObject(
+                    DeleteObjectRequest.builder()
+                            .bucket(bucketName)
+                            .key(deletePathKey)
+                            .build()
+            ).get(1L, MINUTES);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
+        } catch (ExecutionException e) {
+            throw new RuntimeException(e);
+        } catch (TimeoutException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
@@ -144,9 +238,28 @@ public class S3SftpFileSystemProvider extends FileSystemProvider {
         return null;
     }
 
+    /**
+     * 检查当前程序对指定路径（文件 / 目录）是否拥有特定的访问权限，若权限不足则直接抛出异常，无异常则表示权限满足。
+     *
+     * @param path  the path to the file to check
+     * @param modes The access modes to check; may have zero elements
+     * @throws IOException
+     */
     @Override
     public void checkAccess(Path path, AccessMode... modes) throws IOException {
+        S3SftpPath checkPath = checkPath(path);
+        S3SftpPath realPath = checkPath.toRealPath(LinkOption.NOFOLLOW_LINKS);
+        try {
 
+            S3SftpBasicFileAttributes.get((S3SftpPath) realPath, null);
+
+        } catch (NoSuchFileException e) {
+            throw new NoSuchFileException(realPath.toString());
+        } catch (IOException e) {
+            throw new IOException(e);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
@@ -156,16 +269,13 @@ public class S3SftpFileSystemProvider extends FileSystemProvider {
 
     /**
      * 获取 path 的属性信息
-     * @param path
-     *          the path to the file
-     * @param type
-     *          the {@code Class} of the file attributes required
-     *          to read
-     * @param options
-     *          options indicating how symbolic links are handled
      *
-     * @return
+     * @param path    the path to the file
+     * @param type    the {@code Class} of the file attributes required
+     *                to read
+     * @param options options indicating how symbolic links are handled
      * @param <A>
+     * @return
      * @throws IOException
      */
     @Override
@@ -176,7 +286,7 @@ public class S3SftpFileSystemProvider extends FileSystemProvider {
 
         if (type.equals(BasicFileAttributes.class)) {
             @SuppressWarnings("unchecked")
-            A a = (A) S3SftpBasicFileAttributes.get((S3SftpPath) s3Path,null);
+            A a = (A) S3SftpBasicFileAttributes.get((S3SftpPath) s3Path, null);
             return a;
         } else {
             throw new UnsupportedOperationException("cannot read attributes of type: " + type);
@@ -201,17 +311,6 @@ public class S3SftpFileSystemProvider extends FileSystemProvider {
 
     }
 
-    static S3SftpPath checkPath(Path obj) {
-        Objects.requireNonNull(obj);
-        if (!(obj instanceof S3SftpPath)) {
-            throw new ProviderMismatchException();
-        }
-        return (S3SftpPath) obj;
-    }
-
-
-
-
     @Override
     public FileChannel newFileChannel(Path path, Set<? extends OpenOption> options, FileAttribute<?>... attrs) throws IOException {
         S3SftpFileSystem fs = (S3SftpFileSystem) getFileSystem(path.toUri());
@@ -222,7 +321,7 @@ public class S3SftpFileSystemProvider extends FileSystemProvider {
     /**
      * 判断文件是否存在
      *
-     * @param s3SftpPath  文件
+     * @param s3SftpPath 文件
      */
     public Boolean exists(S3AsyncClient s3AsyncClient, S3SftpPath s3SftpPath) {
         try {

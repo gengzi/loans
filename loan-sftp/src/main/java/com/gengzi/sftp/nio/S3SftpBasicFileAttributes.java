@@ -3,9 +3,14 @@ package com.gengzi.sftp.nio;
 
 import com.gengzi.sftp.nio.constans.Constants;
 import io.reactivex.rxjava3.core.Flowable;
+import io.reactivex.rxjava3.core.Maybe;
 import io.reactivex.rxjava3.core.Single;
+import io.reactivex.rxjava3.disposables.Disposable;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Flux;
+import software.amazon.awssdk.core.SdkPojo;
 import software.amazon.awssdk.core.async.SdkPublisher;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.model.CommonPrefix;
@@ -16,16 +21,15 @@ import software.amazon.awssdk.services.s3.paginators.ListObjectsV2Publisher;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
 import java.nio.file.attribute.PosixFilePermission;
 import java.time.Duration;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -51,6 +55,7 @@ public class S3SftpBasicFileAttributes implements BasicFileAttributes {
             null,
             true,
             false,
+            false,
             posixFilePermissions
     );
 
@@ -63,12 +68,16 @@ public class S3SftpBasicFileAttributes implements BasicFileAttributes {
     private final boolean isRegularFile;
     private final Set<PosixFilePermission> permissions;
 
+    // 是否为空目录，目录下没有任何文件和子目录
+    private boolean isEmptyDirectory;
+
 
     public S3SftpBasicFileAttributes(FileTime lastModifiedTime,
                                      Long size,
                                      Object eTag,
                                      boolean isDirectory,
                                      boolean isRegularFile,
+                                     boolean isEmptyDirectory,
                                      Set<PosixFilePermission> permissions) {
         this.lastModifiedTime = lastModifiedTime;
         this.size = size;
@@ -76,6 +85,7 @@ public class S3SftpBasicFileAttributes implements BasicFileAttributes {
         this.isDirectory = isDirectory;
         this.isRegularFile = isRegularFile;
         this.permissions = permissions;
+        this.isEmptyDirectory = isEmptyDirectory;
 
     }
 
@@ -83,22 +93,13 @@ public class S3SftpBasicFileAttributes implements BasicFileAttributes {
 
         // 如果是目录就返回固定的属性
         if (path.isDirectory()) {
-            return DIRECTORY_ATTRIBUTES;
+            return getS3SftpDirBasicFileAttributes(path);
         }
         // 是文件，调用s3返回文件属性
         var headResponse = getObjectMetadata(path, Duration.ofMinutes(5));
         if(headResponse == null){
             // 不存在该键，判断是否为目录
-            String dir = normalizePath(path.getKey());
-            ListObjectsV2Publisher result = listObjectsV2Paginator(path, dir);
-            SdkPublisher<S3Object> contents = result.contents();
-            SdkPublisher<CommonPrefix> commonPrefixSdkPublisher = result.commonPrefixes();
-            Single<Boolean> empty = Flowable.concat(commonPrefixSdkPublisher, contents).isEmpty();
-            if(!empty.blockingGet()){
-                return DIRECTORY_ATTRIBUTES;
-            }else{
-               return null;
-            }
+            return getS3SftpDirBasicFileAttributes(path);
         }
         return new S3SftpBasicFileAttributes(
                 FileTime.from(headResponse.lastModified()),
@@ -106,9 +107,41 @@ public class S3SftpBasicFileAttributes implements BasicFileAttributes {
                 headResponse.eTag(),
                 false,
                 true,
+                false,
                 posixFilePermissions
         );
 
+    }
+
+    @NotNull
+    private static S3SftpBasicFileAttributes getS3SftpDirBasicFileAttributes(S3SftpPath path) throws NoSuchFileException {
+        String dir = normalizePath(path.getKey());
+        ListObjectsV2Publisher result = listObjectsV2Paginator(path, dir);
+
+        SdkPublisher<S3Object> contents = result.contents();
+        SdkPublisher<CommonPrefix> commonPrefixSdkPublisher = result.commonPrefixes();
+        Single<Boolean> empty = Flowable.concat(commonPrefixSdkPublisher, contents).isEmpty();
+
+        Flowable<CommonPrefix> commonPrefixFlowable = Flowable.fromPublisher(commonPrefixSdkPublisher);
+        Flowable<S3Object> contentsFlowable = Flowable.fromPublisher(contents);
+        Set<? extends SdkPojo> collect = Flowable.concat(commonPrefixSdkPublisher, contents).toList().blockingGet().stream().collect(Collectors.toSet());
+
+        logger.info("ListObjectsV2Publisher:{}", path.getKey());
+
+        if(!empty.blockingGet()){
+            // 判断是否为空目录
+            if(commonPrefixFlowable.isEmpty().blockingGet() && contentsFlowable.count().blockingGet() == 1L){
+                Maybe<S3Object> s3ObjectMaybe = contentsFlowable.take(1).singleElement();
+                S3Object s3Object = s3ObjectMaybe.blockingGet();
+                String key = s3Object.key();
+                if(key.equals(dir)){
+                    DIRECTORY_ATTRIBUTES.isEmptyDirectory = true;
+                }
+            }
+            return DIRECTORY_ATTRIBUTES;
+        }else{
+            throw new NoSuchFileException("no path");
+        }
     }
 
     /**
@@ -138,6 +171,7 @@ public class S3SftpBasicFileAttributes implements BasicFileAttributes {
             S3SftpPath path,
             Duration timeout
     ) throws IOException {
+        logger.info("getObjectMetadata:{}",path.getKey());
         var client = path.getFileSystem().client();
         var bucketName = path.bucketName();
         try {
@@ -315,6 +349,10 @@ public class S3SftpBasicFileAttributes implements BasicFileAttributes {
             put("fileKey", fileKey());
             put("permissions", permissions());
         }};
+    }
+
+    public boolean isEmptyDirectory() {
+        return isEmptyDirectory;
     }
 
     private Set<PosixFilePermission> permissions() {

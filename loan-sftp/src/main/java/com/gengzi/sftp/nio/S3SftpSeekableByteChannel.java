@@ -52,6 +52,9 @@ public class S3SftpSeekableByteChannel implements SeekableByteChannel {
         this.position = 0L;
         // 初始化
         this.path = s3Path;
+
+        s3Path.getFileSystem().registerOpenChannel(this);
+
         //TODO 根据不同模式判断是创建读通道还是写通道 获取读通道，用于向s3存储读取内容\
 
         // 读和写不能同时进行

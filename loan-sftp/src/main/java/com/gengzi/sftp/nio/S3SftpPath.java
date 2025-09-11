@@ -1,5 +1,6 @@
 package com.gengzi.sftp.nio;
 
+import com.gengzi.sftp.nio.constans.Constants;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
@@ -35,7 +36,7 @@ public class S3SftpPath implements Path {
      * @return
      * @Param more 为路径的后续部分（自动用文件系统的分隔符拼接）
      */
-    public static Path getPath(S3SftpFileSystem s3SftpFileSystem, String first, String... more) {
+    public static S3SftpPath getPath(S3SftpFileSystem s3SftpFileSystem, String first, String... more) {
         return new S3SftpPath(s3SftpFileSystem, S3SftpPosixLikePathRepresentation.of(first, more));
     }
 
@@ -51,8 +52,8 @@ public class S3SftpPath implements Path {
     }
 
     @Override
-    public Path getRoot() {
-        return null;
+    public S3SftpPath getRoot() {
+        return getPath(this.fileSystem, PATH_SEPARATOR);
     }
 
     @Override
@@ -254,7 +255,7 @@ public class S3SftpPath implements Path {
 
     @NotNull
     @Override
-    public Path toRealPath(@NotNull LinkOption... options) {
+    public S3SftpPath toRealPath(@NotNull LinkOption... options) {
         S3SftpPath path = this;
         if (!isAbsolute()) {
             return toAbsolutePath();

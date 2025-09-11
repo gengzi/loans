@@ -5,10 +5,13 @@ import org.jetbrains.annotations.NotNull;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 
 import java.io.IOException;
+import java.nio.channels.ByteChannel;
+import java.nio.channels.Channel;
 import java.nio.file.*;
 import java.nio.file.attribute.UserPrincipalLookupService;
 import java.nio.file.spi.FileSystemProvider;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Set;
 
 
@@ -26,6 +29,10 @@ public class S3SftpFileSystem extends FileSystem {
     private final String bucketName;
     private final S3SftpClientProvider s3SftpClientProvider;
     private boolean open = true;
+
+    // 定义一个集合存储所有的channel
+    private final Set<S3SftpSeekableByteChannel> channels = new HashSet<>();
+
 
 
     /**
@@ -140,4 +147,25 @@ public class S3SftpFileSystem extends FileSystem {
     String bucketName() {
         return bucketName;
     }
+
+
+    Set<Channel> getOpenChannels() {
+        return Collections.unmodifiableSet(channels);
+    }
+
+
+    public void registerOpenChannel(S3SftpSeekableByteChannel channel) {
+        channels.add(channel);
+    }
+
+    boolean deregisterClosedChannel(S3SftpSeekableByteChannel closedChannel) {
+        assert !closedChannel.isOpen();
+
+        return channels.remove(closedChannel);
+    }
+
+
+
+
+
 }
