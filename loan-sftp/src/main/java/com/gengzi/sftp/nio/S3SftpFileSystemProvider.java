@@ -6,6 +6,9 @@ import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.model.*;
+import software.amazon.awssdk.transfer.s3.S3TransferManager;
+import software.amazon.awssdk.transfer.s3.model.CompletedCopy;
+import software.amazon.awssdk.transfer.s3.model.CopyRequest;
 
 import java.io.IOException;
 import java.net.URI;
@@ -17,12 +20,12 @@ import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.FileAttributeView;
 import java.nio.file.spi.FileSystemProvider;
 import java.time.Duration;
-import java.util.Collections;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
+import static java.nio.file.LinkOption.NOFOLLOW_LINKS;
 import static java.util.concurrent.TimeUnit.MINUTES;
 
 /**
@@ -213,19 +216,152 @@ public class S3SftpFileSystemProvider extends FileSystemProvider {
         }
     }
 
+    /**
+     *
+     * 用于复制文件或目录
+     *
+     *
+     *
+     * @param source
+     *          the path to the file to copy
+     * @param target
+     *          the path to the target file
+     * @param options
+     *          options specifying how the copy should be done
+     *
+     * @throws IOException
+     */
     @Override
     public void copy(Path source, Path target, CopyOption... options) throws IOException {
+        // If both paths point to the same object, this is a no-op
+        if (source.equals(target)) {
+            return;
+        }
 
+        var s3SourcePath = checkPath(source);
+        var s3TargetPath = checkPath(target);
+
+        final var s3Client = s3SourcePath.getFileSystem().client();
+        final var sourceBucket = s3SourcePath.bucketName();
+
+        final var timeOut = 1L;
+        final var unit = MINUTES;
+
+        var fileExistsAndCannotReplace = cannotReplaceAndFileExistsCheck(options, s3Client);
+
+        try {
+            var sourcePrefix = s3SourcePath.toRealPath(NOFOLLOW_LINKS).getKey();
+
+            List<List<ObjectIdentifier>> sourceKeys;
+            String prefixWithSeparator;
+            if (s3SourcePath.isDirectory()) {
+                sourceKeys = getContainedObjectBatches(s3Client, sourceBucket, sourcePrefix, timeOut, unit);
+                prefixWithSeparator = sourcePrefix;
+            } else {
+                sourceKeys = List.of(List.of(ObjectIdentifier.builder().key(sourcePrefix).build()));
+                prefixWithSeparator = sourcePrefix.substring(0, sourcePrefix.lastIndexOf(PATH_SEPARATOR)) + PATH_SEPARATOR;
+            }
+
+            try (var s3TransferManager = S3TransferManager.builder().s3Client(s3Client).build()) {
+                for (var keyList : sourceKeys) {
+                    for (var objectIdentifier : keyList) {
+                        copyKey(objectIdentifier.key(), prefixWithSeparator, sourceBucket, s3TargetPath, s3TransferManager,
+                                fileExistsAndCannotReplace).get(timeOut, unit);
+                    }
+                }
+            }
+        } catch (TimeoutException e) {
+            throw new IOException(e);
+        } catch (ExecutionException e) {
+            throw new IOException(e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
+        }
+
+    }
+
+    private static List<List<ObjectIdentifier>> getContainedObjectBatches(
+            S3AsyncClient s3Client,
+            String bucketName,
+            String prefix,
+            long timeOut,
+            TimeUnit unit
+    ) throws InterruptedException, ExecutionException, TimeoutException {
+        String continuationToken = null;
+        var hasMoreItems = true;
+        List<List<ObjectIdentifier>> keys = new ArrayList<>();
+        final var requestBuilder = ListObjectsV2Request.builder().bucket(bucketName).prefix(prefix);
+
+        while (hasMoreItems) {
+            var finalContinuationToken = continuationToken;
+            var response = s3Client.listObjectsV2(
+                    requestBuilder.continuationToken(finalContinuationToken).build()
+            ).get(timeOut, unit);
+            var objects = response.contents()
+                    .stream()
+                    .filter(s3Object -> s3Object.key().equals(prefix) || s3Object.key().startsWith(prefix))
+                    .map(s3Object -> ObjectIdentifier.builder().key(s3Object.key()).build())
+                    .collect(Collectors.toList());
+            if (!objects.isEmpty()) {
+                keys.add(objects);
+            }
+            hasMoreItems = response.isTruncated();
+            continuationToken = response.nextContinuationToken();
+        }
+        return keys;
+    }
+
+    private Function<S3SftpPath, Boolean> cannotReplaceAndFileExistsCheck(CopyOption[] options, S3AsyncClient s3Client) {
+        final var canReplaceFile = Arrays.asList(options).contains(StandardCopyOption.REPLACE_EXISTING);
+
+        return (S3SftpPath destination) -> {
+            if (canReplaceFile) {
+                return false;
+            }
+            return exists(s3Client, destination);
+        };
+    }
+
+    private CompletableFuture<CompletedCopy> copyKey(
+            String sourceObjectIdentifierKey,
+            String sourcePrefix,
+            String sourceBucket,
+            S3SftpPath targetPath,
+            S3TransferManager transferManager,
+            Function<S3SftpPath, Boolean> fileExistsAndCannotReplaceFn
+    ) throws FileAlreadyExistsException {
+        final var sanitizedIdKey = sourceObjectIdentifierKey.replaceFirst(sourcePrefix, "");
+
+        // should resolve if the target path is a dir
+        if (targetPath.isDirectory()) {
+            targetPath = (S3SftpPath) targetPath.resolve(sanitizedIdKey);
+        }
+
+        if (fileExistsAndCannotReplaceFn.apply(targetPath)) {
+            throw new FileAlreadyExistsException("File already exists at the target key");
+        }
+
+        return transferManager.copy(CopyRequest.builder()
+                .copyObjectRequest(CopyObjectRequest.builder()
+                        .checksumAlgorithm(ChecksumAlgorithm.SHA256)
+                        .sourceBucket(sourceBucket)
+                        .sourceKey(sourceObjectIdentifierKey)
+                        .destinationBucket(targetPath.bucketName())
+                        .destinationKey(targetPath.getKey())
+                        .build())
+                .build()).completionFuture();
     }
 
     @Override
     public void move(Path source, Path target, CopyOption... options) throws IOException {
-
+        this.copy(source, target, options);
+        this.delete(source);
     }
 
     @Override
     public boolean isSameFile(Path path, Path path2) throws IOException {
-        return false;
+        return path.toRealPath(NOFOLLOW_LINKS).equals(path2.toRealPath(NOFOLLOW_LINKS));
     }
 
     @Override
@@ -264,7 +400,14 @@ public class S3SftpFileSystemProvider extends FileSystemProvider {
 
     @Override
     public <V extends FileAttributeView> V getFileAttributeView(Path path, Class<V> type, LinkOption... options) {
-        return null;
+        Objects.requireNonNull(type, "the type of attribute view required cannot be null");
+        S3SftpPath s3SftpPath = checkPath(path);
+        if(type.equals(BasicFileAttributes.class)){
+            S3SftpFileAttributeView s3SftpFileAttributeView = new S3SftpFileAttributeView(s3SftpPath);
+            return (V) s3SftpFileAttributeView;
+        }else{
+            return null;
+        }
     }
 
     /**
@@ -308,7 +451,7 @@ public class S3SftpFileSystemProvider extends FileSystemProvider {
 
     @Override
     public void setAttribute(Path path, String attribute, Object value, LinkOption... options) throws IOException {
-
+        throw new UnsupportedOperationException("s3 file attributes cannot be modified by this class");
     }
 
     @Override

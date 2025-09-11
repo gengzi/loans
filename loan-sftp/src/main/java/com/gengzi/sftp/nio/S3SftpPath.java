@@ -1,8 +1,6 @@
 package com.gengzi.sftp.nio;
 
-import com.gengzi.sftp.nio.constans.Constants;
 import org.jetbrains.annotations.NotNull;
-
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -11,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.Objects;
 
 import static com.gengzi.sftp.nio.S3SftpFileSystemProvider.checkPath;
 import static com.gengzi.sftp.nio.constans.Constants.PATH_SEPARATOR;
@@ -58,49 +57,96 @@ public class S3SftpPath implements Path {
 
     @Override
     public Path getFileName() {
-        return null;
+        final var elements = pathRepresentation.elements();
+        var size = elements.size();
+        if (size == 0) {
+            return null;
+        }
+
+        if (pathRepresentation.hasTrailingSeparator()) {
+            return from(elements.get(size - 1) + PATH_SEPARATOR);
+        } else {
+            return from(elements.get(size - 1));
+        }
     }
 
     @Override
     public Path getParent() {
-        return null;
+        var size = pathRepresentation.elements().size();
+        if (this.equals(getRoot()) || size < 1) {
+            return null;
+        }
+        if (pathRepresentation.isAbsolute() && size == 1) {
+            return getRoot();
+        }
+        return subpath(0, getNameCount() - 1);
     }
 
     @Override
     public int getNameCount() {
-        return 0;
+        return pathRepresentation.elements().size();
     }
 
     @NotNull
     @Override
     public Path getName(int index) {
-        return null;
+        final var elements = pathRepresentation.elements();
+        if (index < 0 || index >= elements.size()) {
+            throw new IllegalArgumentException("index must be >= 0 and <= the number of path elements");
+        }
+        return subpath(index, index + 1);
     }
 
     @NotNull
     @Override
     public Path subpath(int beginIndex, int endIndex) {
-        return null;
+        final var size = pathRepresentation.elements().size();
+        if (beginIndex < 0) {
+            throw new IllegalArgumentException("begin index may not be < 0");
+        }
+        if (beginIndex >= size) {
+            throw new IllegalArgumentException("begin index may not be >= the number of path elements");
+        }
+        if (endIndex > size) {
+            throw new IllegalArgumentException("end index may not be > the number of path elements");
+        }
+        if (endIndex <= beginIndex) {
+            throw new IllegalArgumentException("end index may not be <= the begin index");
+        }
+
+        var path = String.join(PATH_SEPARATOR, pathRepresentation.elements().subList(beginIndex, endIndex));
+        if (endIndex == size && !pathRepresentation.hasTrailingSeparator()) {
+            return from(path);
+        } else {
+            return from(path + PATH_SEPARATOR);
+        }
     }
 
     @Override
     public boolean startsWith(@NotNull Path other) {
-        return false;
+        return this.equals(other) ||
+                this.fileSystem.equals(other.getFileSystem()) &&
+                        this.isAbsolute() == other.isAbsolute() &&
+                        this.getNameCount() >= other.getNameCount() &&
+                        this.subpath(0, other.getNameCount()).equals(other);
     }
 
     @Override
     public boolean startsWith(@NotNull String other) {
-        return Path.super.startsWith(other);
+        return startsWith(getPath(fileSystem, other));
     }
 
     @Override
     public boolean endsWith(@NotNull Path other) {
-        return false;
+        return this.equals(other) ||
+                this.fileSystem == other.getFileSystem() &&
+                        this.getNameCount() >= other.getNameCount() &&
+                        this.subpath(this.getNameCount() - other.getNameCount(), this.getNameCount()).equals(other);
     }
 
     @Override
     public boolean endsWith(@NotNull String other) {
-        return Path.super.endsWith(other);
+        return endsWith(getPath(fileSystem, other));
     }
 
     /**
@@ -189,19 +235,104 @@ public class S3SftpPath implements Path {
     @NotNull
     @Override
     public Path resolveSibling(@NotNull Path other) {
-        return Path.super.resolveSibling(other);
+        return getParent().resolve(other);
     }
 
     @NotNull
     @Override
     public Path resolveSibling(@NotNull String other) {
-        return Path.super.resolveSibling(other);
+        return getParent().resolve(other);
     }
 
     @NotNull
     @Override
     public Path relativize(@NotNull Path other) {
-        return null;
+        var otherPath = checkPath(other);
+
+        if (this.equals(otherPath)) {
+            return from("");
+        }
+
+        if (this.isAbsolute() != otherPath.isAbsolute()) {
+            throw new IllegalArgumentException("to obtain a relative path both must be absolute or both must be relative");
+        }
+        if (!Objects.equals(this.bucketName(), otherPath.bucketName())) {
+            throw new IllegalArgumentException("cannot relativize S3Paths from different buckets");
+        }
+
+        if (this.isEmpty()) {
+            return otherPath;
+        }
+
+        var nameCount = this.getNameCount();
+        var otherNameCount = otherPath.getNameCount();
+
+        var limit = Math.min(nameCount, otherNameCount);
+        var differenceCount = getDifferenceCount(otherPath, limit);
+
+        var parentDirCount = nameCount - differenceCount;
+        if (differenceCount < otherNameCount) {
+            return getRelativePathFromDifference(otherPath, otherNameCount, differenceCount, parentDirCount);
+        }
+
+        var relativePath = new char[parentDirCount * 3 - 1];
+        var index = 0;
+        while (parentDirCount > 0) {
+            relativePath[index++] = '.';
+            relativePath[index++] = '.';
+            if (parentDirCount > 1) {
+                relativePath[index++] = '/';
+            }
+            parentDirCount--;
+        }
+
+        return new S3SftpPath(getFileSystem(), new S3SftpPosixLikePathRepresentation(relativePath));
+    }
+
+    private S3SftpPath getRelativePathFromDifference(S3SftpPath otherPath, int otherNameCount, int differenceCount, int parentDirCount) {
+        Objects.requireNonNull(otherPath);
+        var remainingSubPath =  (S3SftpPath) otherPath.subpath(differenceCount, otherNameCount);
+
+        if (parentDirCount == 0) {
+            return (S3SftpPath) remainingSubPath;
+        }
+
+        // we need to pop up some directories (each of which needs three characters ../) then append the remaining sub-path
+        var relativePathSize = parentDirCount * 3 + remainingSubPath.pathRepresentation.toString().length();
+
+        if (otherPath.isEmpty()) {
+            relativePathSize--;
+        }
+
+        var relativePath = new char[relativePathSize];
+        var index = 0;
+        while (parentDirCount > 0) {
+            relativePath[index++] = '.';
+            relativePath[index++] = '.';
+            if (otherPath.isEmpty()) {
+                if (parentDirCount > 1) {
+                    relativePath[index++] = '/';
+                }
+            } else {
+                relativePath[index++] = '/';
+            }
+            parentDirCount--;
+        }
+        System.arraycopy(remainingSubPath.pathRepresentation.chars(), 0, relativePath, index,
+                remainingSubPath.pathRepresentation.chars().length);
+
+        return new S3SftpPath(getFileSystem(), new S3SftpPosixLikePathRepresentation(relativePath));
+    }
+
+    private int getDifferenceCount(Path other, int limit) {
+        var i = 0;
+        while (i < limit) {
+            if (!this.getName(i).equals(other.getName(i))) {
+                break;
+            }
+            i++;
+        }
+        return i;
     }
 
     /**
@@ -272,24 +403,70 @@ public class S3SftpPath implements Path {
     @NotNull
     @Override
     public WatchKey register(@NotNull WatchService watcher, WatchEvent.Kind<?>[] events, @NotNull WatchEvent.Modifier... modifiers) throws IOException {
-        return null;
+        throw new UnsupportedOperationException(
+                "This method is not yet supported. Please raise a feature request describing your use case"
+        );
     }
 
     @NotNull
     @Override
     public WatchKey register(@NotNull WatchService watcher, WatchEvent.Kind<?>... events) throws IOException {
-        return Path.super.register(watcher, events);
+        throw new UnsupportedOperationException(
+                "This method is not yet supported. Please raise a feature request describing your use case"
+        );
+    }
+
+    private final class S3PathIterator implements Iterator<Path> {
+        final boolean isAbsolute;
+        final boolean hasTrailingSeparator;
+        boolean first;
+        private final Iterator<String> delegate;
+
+        private S3PathIterator(Iterator<String> delegate, boolean isAbsolute, boolean hasTrailingSeparator) {
+            this.delegate = delegate;
+            this.isAbsolute = isAbsolute;
+            this.hasTrailingSeparator = hasTrailingSeparator;
+            first = true;
+        }
+
+        @Override
+        public Path next() {
+            var pathString = delegate.next();
+            if (isAbsolute() && first) {
+                first = false;
+                pathString = PATH_SEPARATOR + pathString;
+                if (!hasNext() && hasTrailingSeparator) {
+                    pathString = pathString + PATH_SEPARATOR;
+                }
+            }
+
+            if (hasNext() || hasTrailingSeparator) {
+                pathString = pathString + PATH_SEPARATOR;
+            }
+            return from(pathString);
+        }
+
+        @Override
+        public boolean hasNext() {
+            return delegate.hasNext();
+        }
     }
 
     @NotNull
     @Override
     public Iterator<Path> iterator() {
-        return Path.super.iterator();
+        return  new S3SftpPath.S3PathIterator(pathRepresentation.elements().iterator(), pathRepresentation.isAbsolute(),
+                pathRepresentation.hasTrailingSeparator());
     }
 
     @Override
     public int compareTo(@NotNull Path other) {
-        return 0;
+        var o = checkPath(other);
+        if (o.fileSystem != this.fileSystem) {
+            throw new ClassCastException("compared S3 paths must be from the same bucket");
+        }
+        return this.toRealPath(NOFOLLOW_LINKS).toString().compareTo(
+                o.toRealPath(NOFOLLOW_LINKS).toString());
     }
 
     public String bucketName() {
@@ -331,4 +508,20 @@ public class S3SftpPath implements Path {
     }
 
 
+    /**
+     * 重写equals 方法
+     *
+     * @param obj the object to which this object is to be compared
+     * @return
+     */
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        return obj instanceof S3SftpPath
+                && Objects.equals(((S3SftpPath) obj).bucketName(), this.bucketName())
+                && Objects.equals(((S3SftpPath) obj).toRealPath(NOFOLLOW_LINKS).pathRepresentation,
+                this.toRealPath(NOFOLLOW_LINKS).pathRepresentation);
+    }
 }

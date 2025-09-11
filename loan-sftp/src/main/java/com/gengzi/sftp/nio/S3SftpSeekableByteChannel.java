@@ -70,7 +70,7 @@ public class S3SftpSeekableByteChannel implements SeekableByteChannel {
 
         if (options.contains(StandardOpenOption.READ)) {
             S3SftpNioSpiConfiguration configuration = path.getFileSystem().configuration();
-            this.readableByteChannel = new S3SftpReadableByteChannel(s3Path, 5, 10,
+            this.readableByteChannel = new S3SftpReadableByteChannel(s3Path, 64512, 20,
                     s3Client, this, null, null);
             this.writableByteChannel = null;
         } else if (options.contains(StandardOpenOption.WRITE)) {

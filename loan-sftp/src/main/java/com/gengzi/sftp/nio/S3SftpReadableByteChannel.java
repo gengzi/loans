@@ -129,6 +129,7 @@ public class S3SftpReadableByteChannel implements ReadableByteChannel {
      */
     @Override
     public int read(ByteBuffer dst) throws IOException {
+        logger.info("dst read length:{}",dst.limit() - dst.position());
         Objects.requireNonNull(dst);
 
         var channelPosition = delegator.position();
@@ -185,6 +186,7 @@ public class S3SftpReadableByteChannel implements ReadableByteChannel {
             }
 
             delegator.position(channelPosition + copiedBytes.length);
+            logger.info("read data length:{}",copiedBytes.length);
             return copiedBytes.length;
 
         } catch (InterruptedException e) {
