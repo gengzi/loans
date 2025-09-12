@@ -24,6 +24,15 @@ public class DynamicVirtualFileSystemFactory implements  FileSystemFactory {
         return null;
     }
 
+    /**
+     * 在这里处理虚拟文件系统创建逻辑
+     * 是本地文件系统
+     * 还是s3文件系统
+     *
+     * @param sessionContext
+     * @return
+     * @throws IOException
+     */
     @Override
     public FileSystem createFileSystem(SessionContext sessionContext) throws IOException {
 //        // 配置 S3 连接参数

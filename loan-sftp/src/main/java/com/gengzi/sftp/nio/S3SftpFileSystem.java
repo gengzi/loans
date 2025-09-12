@@ -60,13 +60,22 @@ public class S3SftpFileSystem extends FileSystem {
 
 
     @Override
-    public FileSystemProvider provider() {
+    public S3SftpFileSystemProvider provider() {
         return this.s3SftpFileSystemProvider;
     }
 
     @Override
     public void close() throws IOException {
-    //TODO 等代补充
+        open = false;
+        if(!channels.isEmpty()){
+            for (S3SftpSeekableByteChannel channel : channels){
+                if(channel.isOpen()){
+                    channel.close();
+                }
+             deregisterClosedChannel(channel);
+            }
+        }
+        provider().closeFileSystem(this);
 
     }
 

@@ -1,22 +1,20 @@
 package com.gengzi.sftp.nio;
 
 import software.amazon.awssdk.services.s3.internal.BucketUtils;
-import software.amazon.nio.spi.s3.config.S3NioSpiConfiguration;
 
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 
 /**
- * 存放配置s3sftp 配置项
+ * 存放配置s3sftp配置项
  */
 public class S3SftpNioSpiConfiguration extends HashMap<String, Object> {
 
-
-    // s3服务
     private static final String ENDPOINT = "endpoint";
 
     private static final String ACCESS_KEY = "accessKey";
@@ -25,15 +23,23 @@ public class S3SftpNioSpiConfiguration extends HashMap<String, Object> {
 
     private static final Pattern ENDPOINT_REGEXP = Pattern.compile("(\\w[\\w\\-\\.]*)?(:(\\d+))?");
 
+    private static final String TIME_OUT = "timeout";
+    private static Long TIME_OUT_VAL = 60L;
+
+    private static final String TIME_OUT_UNIT = "timeoutUnit";
+    private static TimeUnit TIME_OUT_UNIT_VAL = TimeUnit.MILLISECONDS;
+
     // 桶
     private String bucketName;
 
 
     public S3SftpNioSpiConfiguration() {
         this(new HashMap<>());
+        put(TIME_OUT, TIME_OUT_VAL);
+        put(TIME_OUT_UNIT, TIME_OUT_UNIT_VAL);
     }
 
-    public S3SftpNioSpiConfiguration(Map<String,?> env) {
+    public S3SftpNioSpiConfiguration(Map<String, ?> env) {
         Objects.requireNonNull(env);
 
         // setup defaults
@@ -46,7 +52,7 @@ public class S3SftpNioSpiConfiguration extends HashMap<String, Object> {
 
     public S3SftpNioSpiConfiguration withEndpoint(String endpoint) {
         Objects.requireNonNull(endpoint);
-        if(!ENDPOINT_REGEXP.matcher(endpoint).matches()){
+        if (!ENDPOINT_REGEXP.matcher(endpoint).matches()) {
             throw new IllegalArgumentException(
                     String.format("endpoint '%s' does not match format host:port where port is a number", endpoint));
         }
@@ -63,7 +69,7 @@ public class S3SftpNioSpiConfiguration extends HashMap<String, Object> {
     }
 
     public S3SftpNioSpiConfiguration withCredentials(String accessKey, String secretAccessKey) {
-        if(Objects.isNull(accessKey) || Objects.isNull(secretAccessKey)){
+        if (Objects.isNull(accessKey) || Objects.isNull(secretAccessKey)) {
             throw new IllegalArgumentException("accessKey or secretAccessKey can not be null");
         }
         put(ACCESS_KEY, accessKey);
@@ -72,7 +78,7 @@ public class S3SftpNioSpiConfiguration extends HashMap<String, Object> {
     }
 
 
-    public String getEndpoint(){
+    public String getEndpoint() {
         return get(ENDPOINT).toString();
     }
 
@@ -86,5 +92,14 @@ public class S3SftpNioSpiConfiguration extends HashMap<String, Object> {
 
     public String secretKey() {
         return get(SECRET_KEY).toString();
+    }
+
+
+    public Long timeout() {
+        return (Long) get(TIME_OUT);
+    }
+
+    public TimeUnit timeoutUnit() {
+        return (TimeUnit) get(TIME_OUT_UNIT);
     }
 }

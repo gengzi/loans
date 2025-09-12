@@ -29,7 +29,7 @@ public class S3SftpDirectoryStream implements DirectoryStream {
     private Iterator<Path> dirs;
 
 
-    public S3SftpDirectoryStream(S3SftpFileSystem fileSystem,String bucketName,  String path,DirectoryStream.Filter<? super Path> filter) {
+    public S3SftpDirectoryStream(S3SftpFileSystem fileSystem, String bucketName, String path, DirectoryStream.Filter<? super Path> filter) {
         this.path = path;
         this.bucketName = bucketName;
         this.fileSystem = fileSystem;
@@ -45,7 +45,11 @@ public class S3SftpDirectoryStream implements DirectoryStream {
 
     }
 
-    Iterator<Path>  pathIteratorForPublisher(ListObjectsV2Publisher listObjectsV2Publisher, S3SftpFileSystem fs, String finalDirName,  DirectoryStream.Filter<? super Path> filter){
+    private static boolean isEqualToParent(String finalDirName, Path p) {
+        return ((S3SftpPath) p).getKey().equals(finalDirName);
+    }
+
+    Iterator<Path> pathIteratorForPublisher(ListObjectsV2Publisher listObjectsV2Publisher, S3SftpFileSystem fs, String finalDirName, DirectoryStream.Filter<? super Path> filter) {
         final Publisher<String> prefixPublisher =
                 listObjectsV2Publisher.commonPrefixes().map(CommonPrefix::prefix);
         final Publisher<String> keysPublisher =
@@ -57,10 +61,6 @@ public class S3SftpDirectoryStream implements DirectoryStream {
                 .blockingIterable()
                 .iterator();
 
-    }
-
-    private static boolean isEqualToParent(String finalDirName, Path p) {
-        return ((S3SftpPath) p).getKey().equals(finalDirName);
     }
 
     private boolean tryAccept(DirectoryStream.Filter<? super Path> filter, Path path) {
