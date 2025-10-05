@@ -1,0 +1,55 @@
+server:
+  port: 8883
+
+
+spring:
+  ai:
+    chat:
+      client:
+        enabled: false
+    model:
+      embedding: ollama
+    ollama:
+      init:
+        pull-model-strategy: never
+      base-url: http://localhost:11434
+      embedding:
+        options:
+          model: qwen3-embedding:0.6b
+#    vectorstore:
+#      milvus:
+#        client:
+#          host: localhost
+#          port: 19530
+#          username: root
+#          password: 'Milvus'
+#        initialize-schema: true
+##        database-name: rag
+#        collection-name: rag_store
+#        embedding-dimension: 1024
+#        auto-create-collection: true  # 自动创建集合（开发环境推荐开启，生产可手动创建）
+#        index-type: HNSW         # 索引类型（常用 HNSW，适合高维向量检索）
+#        metric-type: L2          # 距离度量（L2 欧氏距离、IP 内积等）
+    openai:
+      api-key: test
+#debug: true
+
+
+model:
+  ppStructureV3:
+    url: http://localhost:8885/layout-parsing
+
+
+s3:
+  endpoint: http://192.168.31.131:8886
+  access-key: minioadmin
+  secret-key: minioadmin
+  default-bucket-name: rag
+  async-netty-pool:
+    core-threads: 10
+    max-threads: 50
+    connection-timeout: 100
+    max-pending-connection-acquires: 1000
+
+
+
