@@ -81,6 +81,7 @@ public class PPStructureV3Tool {
                 })
                 // 异常回调：处理网络异常、解析异常等
                 .exceptionally(ex -> {
+                    ex.printStackTrace();
                     logger.error("异步调用发生异常：" + ex.getMessage());
                     // 可选：记录异常日志、重试逻辑等
                     return null;

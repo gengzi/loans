@@ -1,6 +1,5 @@
 package com.gengzi.model;
 
-import cn.hutool.core.codec.Base64;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gengzi.context.FileContext;
@@ -9,6 +8,8 @@ import com.gengzi.response.LayoutParsingResponse;
 import com.gengzi.s3.S3ClientUtils;
 import com.gengzi.utils.Base64ImageConverter;
 import com.gengzi.utils.FileIdGenerator;
+import com.gengzi.vector.es.EsVectorDocument;
+import com.gengzi.vector.es.document.ExtendedDocument;
 import org.springframework.ai.document.Document;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -66,7 +67,12 @@ public class LayoutResponseToDocumentConverter {
 
 
             // 2.4 创建Document对象并添加到列表
-            Document document = new Document(filePageId, content, metadata);
+            EsVectorDocument esVectorDocument = new EsVectorDocument();
+            esVectorDocument.setChunkId(filePageId);
+            esVectorDocument.setDocId(fileId);
+            esVectorDocument.setContent(content);
+            esVectorDocument.setMetadata(metadata);
+            ExtendedDocument document = new ExtendedDocument(esVectorDocument);
             documentList.add(document);
         }
 
@@ -77,7 +83,7 @@ public class LayoutResponseToDocumentConverter {
     /**
      * 存储markdown 文件和json文件和img 图片
      */
-    private void saveParseResult(LayoutParsingPageItem pageItem, String fileId, FileContext fileContext, int pageNum)  {
+    private void saveParseResult(LayoutParsingPageItem pageItem, String fileId, FileContext fileContext, int pageNum) {
 
         String fileKey = String.format("%s/%s_%d", fileId, fileId, pageNum);
         // json文件信息

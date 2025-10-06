@@ -1,6 +1,7 @@
 package com.gengzi.config;
 
 
+import com.gengzi.vector.es.ExtendedElasticsearchVectorStore;
 import org.apache.http.Header;
 import org.apache.http.HttpHost;
 import org.apache.http.message.BasicHeader;
@@ -63,7 +64,7 @@ public class ElasticsearchVectorConfig {
         options.setDimensions(dimensions);             // Optional: defaults to model dimensions or 1536
         options.setEmbeddingFieldName(embeddingFieldName);
 
-        return ElasticsearchVectorStore.builder(restClient, embeddingModel)
+        return ExtendedElasticsearchVectorStore.builder(restClient, embeddingModel)
                 .options(options)                     // Optional: use custom options
                 .initializeSchema(true)               // Optional: defaults to false
                 .batchingStrategy(new TokenCountBatchingStrategy()) // Optional: defaults to TokenCountBatchingStrategy

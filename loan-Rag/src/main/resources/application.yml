@@ -32,7 +32,7 @@ spring:
 #debug: true
 
 esVectorstore:
-  index-name: rag_store
+  index-name: rag_store_new
   dimensions: 1024
   similarity: cosine
   embedding-field-name: q_1024_vec
