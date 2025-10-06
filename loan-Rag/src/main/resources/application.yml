@@ -20,16 +20,22 @@ spring:
       embedding:
         options:
           model: qwen3-embedding:0.6b
-    vectorstore:
-      elasticsearch:
-        initialize-schema: true
-        index-name: rag_store
-        dimensions: 1024
-        similarity: cosine
-        embedding-field-name: q_1024_vec
+#    vectorstore:
+#      elasticsearch:
+#        initialize-schema: true
+#        index-name: rag_store
+#        dimensions: 1024
+#        similarity: cosine
+#        embedding-field-name: q_1024_vec
     openai:
       api-key: test
 #debug: true
+
+esVectorstore:
+  index-name: rag_store
+  dimensions: 1024
+  similarity: cosine
+  embedding-field-name: q_1024_vec
 
 
 model:

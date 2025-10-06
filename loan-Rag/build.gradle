@@ -31,7 +31,8 @@ dependencies {
     implementation 'org.springframework.ai:spring-ai-advisors-vector-store'
     implementation 'org.springframework.ai:spring-ai-pdf-document-reader'
     // es
-    implementation 'org.springframework.ai:spring-ai-starter-vector-store-elasticsearch'
+//    implementation 'org.springframework.ai:spring-ai-starter-vector-store-elasticsearch'
+    implementation 'org.springframework.ai:spring-ai-elasticsearch-store'
 
     implementation 'org.elasticsearch.client:elasticsearch-rest-client:9.1.4'
     implementation 'co.elastic.clients:elasticsearch-java:9.1.4'

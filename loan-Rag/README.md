@@ -33,6 +33,11 @@ conda activate env-vllm
 E:\ruanjian\minio.exe server  F:\sso   --address ":8886"  --console-address ":9006"
 access-key: rag_flow
 secret-key: infini_rag_flow
+
+## 启动es docker
+
+## 启动ollma服务
+
 ```
 
 
