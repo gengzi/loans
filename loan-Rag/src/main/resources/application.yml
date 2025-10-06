@@ -3,6 +3,10 @@ server:
 
 
 spring:
+  elasticsearch:
+    uris: http://localhost:9200
+    username: elastic
+    password: 5KH90zCh
   ai:
     chat:
       client:
@@ -16,20 +20,13 @@ spring:
       embedding:
         options:
           model: qwen3-embedding:0.6b
-#    vectorstore:
-#      milvus:
-#        client:
-#          host: localhost
-#          port: 19530
-#          username: root
-#          password: 'Milvus'
-#        initialize-schema: true
-##        database-name: rag
-#        collection-name: rag_store
-#        embedding-dimension: 1024
-#        auto-create-collection: true  # 自动创建集合（开发环境推荐开启，生产可手动创建）
-#        index-type: HNSW         # 索引类型（常用 HNSW，适合高维向量检索）
-#        metric-type: L2          # 距离度量（L2 欧氏距离、IP 内积等）
+    vectorstore:
+      elasticsearch:
+        initialize-schema: true
+        index-name: rag_store
+        dimensions: 1024
+        similarity: cosine
+        embedding-field-name: q_1024_vec
     openai:
       api-key: test
 #debug: true

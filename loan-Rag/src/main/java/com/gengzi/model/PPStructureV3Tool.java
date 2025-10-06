@@ -1,11 +1,12 @@
 package com.gengzi.model;
 
 import com.gengzi.context.FileContext;
-import com.gengzi.embedding.load.PyPdfReader;
 import com.gengzi.request.LayoutParsingRequest;
 import com.gengzi.response.LayoutParsingResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.ai.document.Document;
+import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,6 +20,7 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -27,21 +29,18 @@ import java.util.concurrent.CompletableFuture;
 @Component
 public class PPStructureV3Tool {
     private static final Logger logger = LoggerFactory.getLogger(PPStructureV3Tool.class);
+    private final RestTemplate restTemplate;
+    private final ThreadPoolTaskExecutor threadPoolTaskExecutor;
     @Value("${model.ppStructureV3.url}")
     private String url;
-
-
-
-    private final RestTemplate restTemplate;
-
-    private final ThreadPoolTaskExecutor threadPoolTaskExecutor;
-
-
     @Autowired
     private LayoutResponseToDocumentConverter layoutResponseToDocumentConverter;
 
     @Autowired
-    public PPStructureV3Tool(RestTemplate restTemplate,@Qualifier("asyncTaskExecutor") ThreadPoolTaskExecutor threadPoolTaskExecutor) {
+    private VectorStore vectorStore;
+
+    @Autowired
+    public PPStructureV3Tool(RestTemplate restTemplate, @Qualifier("asyncTaskExecutor") ThreadPoolTaskExecutor threadPoolTaskExecutor) {
         this.restTemplate = restTemplate;
         this.threadPoolTaskExecutor = threadPoolTaskExecutor;
     }
@@ -49,6 +48,7 @@ public class PPStructureV3Tool {
 
     /**
      * 异步解析PDF版面（非阻塞）
+     *
      * @param fileContext 文件属性
      * @return 异步任务标识（可用于前端轮询查询结果）
      */
@@ -72,7 +72,8 @@ public class PPStructureV3Tool {
                         logger.info("处理页数：{}", response.getResult().getLayoutParsingResults().size());
                         logger.debug("解析结果：{}", response.getResult());
                         // 此处可添加业务逻辑：如保存Markdown结果、Base64图片转存等
-                        layoutResponseToDocumentConverter.convert(response, fileContext);
+                        List<Document> convert = layoutResponseToDocumentConverter.convert(response, fileContext);
+                        vectorStore.add(convert);
 
                     } else {
                         logger.error("异步解析失败！错误信息：{}", response != null ? response.getErrorMsg() : "未知错误");
@@ -89,9 +90,10 @@ public class PPStructureV3Tool {
 
     /**
      * 异步调用版面解析接口
+     *
      * @param request 入参对象
      * @return CompletableFuture<LayoutParsingResponse> 异步结果对象
-     *         可通过 thenAccept()/thenApply() 处理成功结果，exceptionally() 处理异常
+     * 可通过 thenAccept()/thenApply() 处理成功结果，exceptionally() 处理异常
      */
     @Async("asyncTaskExecutor") // 核心注解：标记该方法为异步执行，由Spring线程池调度
     public CompletableFuture<LayoutParsingResponse> asyncCallLayoutApi(LayoutParsingRequest request) {
@@ -116,7 +118,6 @@ public class PPStructureV3Tool {
             return future;
         }
     }
-
 
 
 }

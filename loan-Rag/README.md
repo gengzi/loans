@@ -30,7 +30,124 @@ conda env list
 conda activate env-vllm
 
 ## 启动minio
-E:\ruanjian\minio.exe server  F:\sso   --address ":8886"  --console-address ":9006""
+E:\ruanjian\minio.exe server  F:\sso   --address ":8886"  --console-address ":9006"
 access-key: rag_flow
 secret-key: infini_rag_flow
+```
+
+
+## es 映射配置
+```
+{
+    "mappings": {
+        "properties": {
+            "content": {
+                "type": "text",
+                "fields": {
+                    "keyword": {
+                        "type": "keyword",
+                        "ignore_above": 256
+                    }
+                }
+            },
+            "id": {
+                "type": "text",
+                "fields": {
+                    "keyword": {
+                        "type": "keyword",
+                        "ignore_above": 256
+                    }
+                }
+            },
+            "metadata": {
+                "properties": {
+                    "convertedTimestamp": {
+                        "type": "long"
+                    },
+                    "documentType": {
+                        "type": "text",
+                        "fields": {
+                            "keyword": {
+                                "type": "keyword",
+                                "ignore_above": 256
+                            }
+                        }
+                    },
+                    "hasInputImage": {
+                        "type": "boolean"
+                    },
+                    "inputImageBase64": {
+                        "type": "text",
+                        "fields": {
+                            "keyword": {
+                                "type": "keyword",
+                                "ignore_above": 256
+                            }
+                        }
+                    },
+                    "isParagraphEnd": {
+                        "type": "boolean"
+                    },
+                    "isParagraphStart": {
+                        "type": "boolean"
+                    },
+                    "outputImageCount": {
+                        "type": "long"
+                    },
+                    "outputImageNames": {
+                        "type": "text",
+                        "fields": {
+                            "keyword": {
+                                "type": "keyword",
+                                "ignore_above": 256
+                            }
+                        }
+                    },
+                    "pageNumber": {
+                        "type": "long"
+                    },
+                    "requestLogId": {
+                        "type": "text",
+                        "fields": {
+                            "keyword": {
+                                "type": "keyword",
+                                "ignore_above": 256
+                            }
+                        }
+                    },
+                    "sourceFileUrl": {
+                        "type": "text",
+                        "copy_to": "content_tokens",  
+                        "fields": {
+                            "keyword": {
+                                "type": "keyword",
+                                "ignore_above": 256
+                            }
+                        }
+                    }
+                }
+            },
+         "content_tokens": {"type": "text", "analyzer": "ik_smart"},
+            "q_1024_vec": {
+                "type": "dense_vector",
+                "dims": 1024,
+                "index": true,
+                "similarity": "cosine",
+                "index_options": {
+                    "type": "bbq_hnsw",
+                    "m": 16,
+                    "ef_construction": 100,
+                    "rescore_vector": {
+                        "oversample": 3
+                    }
+                }
+            }
+        }
+    }
+}
+```
+--
+
+```angular2html
+
 ```

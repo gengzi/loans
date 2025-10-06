@@ -419,5 +419,13 @@ public class CustomSftpSubsystem extends SftpSubsystem {
 
         //super.doWrite(id, handle, offset, length, data, doff, remaining);
     }
+
+
+    @Override
+    protected void doClose(Buffer buffer, int id) throws IOException {
+        super.doClose(buffer, id);
+    }
+
+
 }
     

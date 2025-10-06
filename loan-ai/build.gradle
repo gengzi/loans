@@ -1,0 +1,44 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.4.9'
+    id 'io.spring.dependency-management' version '1.1.4'
+}
+
+// 覆盖父工程的依赖管理，使用3.x版本的BOM
+dependencyManagement {
+    imports {
+        mavenBom org.springframework.boot.gradle.plugin.SpringBootPlugin.BOM_COORDINATES // 会自动使用插件指定的3.x版本
+    }
+}
+
+
+apply plugin: 'org.springframework.boot'
+
+group = 'com.gengzi'
+version = '0.0.1-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+ext {
+    set('springAiVersion', "1.0.1")
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation "org.springframework.ai:spring-ai-starter-model-openai"
+    testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
+    }
+}
+
+test {
+    useJUnitPlatform()
+}

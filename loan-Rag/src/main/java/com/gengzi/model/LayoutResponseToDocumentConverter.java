@@ -1,11 +1,13 @@
 package com.gengzi.model;
 
+import cn.hutool.core.codec.Base64;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gengzi.context.FileContext;
 import com.gengzi.response.LayoutParsingPageItem;
 import com.gengzi.response.LayoutParsingResponse;
 import com.gengzi.s3.S3ClientUtils;
+import com.gengzi.utils.Base64ImageConverter;
 import com.gengzi.utils.FileIdGenerator;
 import org.springframework.ai.document.Document;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -56,16 +58,16 @@ public class LayoutResponseToDocumentConverter {
 
             saveParseResult(pageItem, fileId, context, pageNum);
 
-//            // 2.2 提取核心文本内容（优先用Markdown.text，无则用prunedResult的JSON字符串）
-//            String content = extractContent(pageItem);
+            // 2.2 提取核心文本内容（优先用Markdown.text，无则用prunedResult的JSON字符串）
+            String content = extractContent(pageItem);
 //
-//            // 2.3 构建元数据（存储页码、文件类型、图像Base64等额外信息）
-//            Map<String, Object> metadata = buildMetadata(pageItem, context.toString(), pageNum, logId);
+            // 2.3 构建元数据（存储页码、文件类型、图像Base64等额外信息）
+            Map<String, Object> metadata = buildMetadata(pageItem, context.toString(), pageNum, logId);
 
 
             // 2.4 创建Document对象并添加到列表
-//            Document document = new Document(documentId, content, metadata);
-//            documentList.add(document);
+            Document document = new Document(filePageId, content, metadata);
+            documentList.add(document);
         }
 
         return documentList;
@@ -102,7 +104,7 @@ public class LayoutResponseToDocumentConverter {
             for (Map.Entry<String, String> entry : pageItem.getOutputImages().entrySet()) {
                 String imageName = entry.getKey();
                 String imageBase64 = entry.getValue();
-                s3ClientUtils.putObjectByContentBytes(fileContext.getBucketName(), fileKey + "_" + imageName + ".jpeg", imageBase64.getBytes(), "image/jpeg");
+                s3ClientUtils.putObjectByContentBytes(fileContext.getBucketName(), fileKey + "_" + imageName + ".jpeg", Base64ImageConverter.base64ToBytes(imageBase64), "image/jpeg");
             }
         }
 
