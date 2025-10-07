@@ -2,20 +2,19 @@ package com.gengzi.model;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gengzi.context.DocumentMetadataMap;
 import com.gengzi.context.FileContext;
 import com.gengzi.response.LayoutParsingPageItem;
 import com.gengzi.response.LayoutParsingResponse;
 import com.gengzi.s3.S3ClientUtils;
 import com.gengzi.utils.Base64ImageConverter;
 import com.gengzi.utils.FileIdGenerator;
-import com.gengzi.vector.es.EsVectorDocument;
-import com.gengzi.vector.es.document.ExtendedDocument;
+import org.apache.hc.core5.http.ContentType;
 import org.springframework.ai.document.Document;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -63,16 +62,17 @@ public class LayoutResponseToDocumentConverter {
             String content = extractContent(pageItem);
 //
             // 2.3 构建元数据（存储页码、文件类型、图像Base64等额外信息）
-            Map<String, Object> metadata = buildMetadata(pageItem, context.toString(), pageNum, logId);
+            Map<String, Object> metadata = buildMetadata(filePageId, pageNum);
 
 
-            // 2.4 创建Document对象并添加到列表
-            EsVectorDocument esVectorDocument = new EsVectorDocument();
-            esVectorDocument.setChunkId(filePageId);
-            esVectorDocument.setDocId(fileId);
-            esVectorDocument.setContent(content);
-            esVectorDocument.setMetadata(metadata);
-            ExtendedDocument document = new ExtendedDocument(esVectorDocument);
+//            // 2.4 创建Document对象并添加到列表
+//            EsVectorDocument esVectorDocument = new EsVectorDocument();
+//            esVectorDocument.setChunkId(filePageId);
+//            esVectorDocument.setDocId(fileId);
+//            esVectorDocument.setContent(content);
+//            esVectorDocument.setMetadata(metadata);
+//            ExtendedDocument document = new ExtendedDocument(esVectorDocument);
+            Document document = new Document(content, metadata);
             documentList.add(document);
         }
 
@@ -145,45 +145,12 @@ public class LayoutResponseToDocumentConverter {
     /**
      * 构建单页Document的元数据（存储额外信息，便于后续处理）
      */
-    private Map<String, Object> buildMetadata(
-            LayoutParsingPageItem pageItem,
-            String sourceFileUrl,
-            int pageNum,
-            String logId) {
-        Map<String, Object> metadata = new HashMap<>();
+    private Map<String, Object> buildMetadata(String fileId, int pageNum) {
 
-        // 基础元数据：来源、页码、请求ID
-        metadata.put("sourceFileUrl", sourceFileUrl); // 原始文件URL
-        metadata.put("pageNumber", pageNum);          // 页码
-        metadata.put("requestLogId", logId);          // 接口请求的logId
-        metadata.put("documentType", "PDF");          // 文件类型（可从请求参数动态获取）
-        metadata.put("convertedTimestamp", System.currentTimeMillis()); // 转换时间戳
+        DocumentMetadataMap documentMetadataMap = new DocumentMetadataMap(fileId, ContentType.APPLICATION_PDF.getMimeType(), true, String.valueOf(pageNum));
+        documentMetadataMap.setPageRange(String.valueOf(pageNum));
+        return documentMetadataMap.toMap();
 
-        // 可选元数据1：Markdown段落连贯性标记（isStart/isEnd）
-        if (pageItem.getMarkdown() != null) {
-            metadata.put("isParagraphStart", pageItem.getMarkdown().getIsStart());
-            metadata.put("isParagraphEnd", pageItem.getMarkdown().getIsEnd());
-        }
-
-        // 可选元数据2：输入图像Base64（若有，便于后续渲染）
-        if (pageItem.getInputImage() != null && !pageItem.getInputImage().isEmpty()) {
-            metadata.put("inputImageBase64", pageItem.getInputImage());
-            metadata.put("hasInputImage", true);
-        } else {
-            metadata.put("hasInputImage", false);
-        }
-
-        // 可选元数据3：输出图像数量（若有，标记是否包含可视化结果）
-        if (pageItem.getOutputImages() != null && !pageItem.getOutputImages().isEmpty()) {
-            metadata.put("outputImageCount", pageItem.getOutputImages().size());
-            metadata.put("outputImageNames", pageItem.getOutputImages().keySet()); // 图像名称列表
-            // 若需存储具体图像Base64，可添加：metadata.put("outputImagesBase64", pageItem.getOutputImages());
-        } else {
-            metadata.put("outputImageCount", 0);
-            metadata.put("hasOutputImages", false);
-        }
-
-        return metadata;
     }
 
 }

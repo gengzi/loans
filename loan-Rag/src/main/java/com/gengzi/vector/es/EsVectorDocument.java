@@ -49,7 +49,7 @@ public class EsVectorDocument {
 
     // 3. 位置相关字段（存储为字符串，后续可解析为数组）
     @JsonProperty("page_num_int")
-    private int pageNumInt; // 页码信息（如"[5]"，对应 page_num_int）
+    private String pageNumInt; // 页码信息（如"[5]"，对应 page_num_int）
 
     @JsonProperty("position_int")
     private int positionInt; // 位置坐标（如"[[5,1144,1851,657,973]]"，对应 position_int）
@@ -86,4 +86,8 @@ public class EsVectorDocument {
 
 
     // （注意：字段类型需与 Elasticsearch 映射一致，如 q1024_vec 必须是 float[]，避免使用 List<Float>）
+
+
+
+
 }

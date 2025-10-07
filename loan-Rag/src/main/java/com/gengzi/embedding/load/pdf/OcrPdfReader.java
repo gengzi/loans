@@ -1,4 +1,4 @@
-package com.gengzi.embedding.load;
+package com.gengzi.embedding.load.pdf;
 
 import com.gengzi.config.S3Properties;
 import com.gengzi.context.FileContext;
@@ -35,9 +35,9 @@ import java.util.concurrent.CompletableFuture;
  * 表格图片的pdf，基于大模型的文本获取和元信息，或者基于识别表格的文本获取和元信息
  */
 @Component
-public class PyPdfReader {
+public class OcrPdfReader {
 
-    private static final Logger logger = LoggerFactory.getLogger(PyPdfReader.class);
+    private static final Logger logger = LoggerFactory.getLogger(OcrPdfReader.class);
 
     @Autowired
     private S3Properties s3Properties;
@@ -59,6 +59,9 @@ public class PyPdfReader {
         URL url = s3ClientUtils.generatePresignedUrl(defaultBucketName, filePath);
         fileContext.setFileUrl(url);
         logger.info("fileContext:{}", fileContext);
+
+
+
         CompletableFuture<LayoutParsingResponse> future =
                 ppStructureV3Tool.asyncParsePdf(fileContext);
         // 将信息入库，根据文本分块规则，将其分块

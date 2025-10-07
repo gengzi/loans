@@ -1,8 +1,10 @@
 package com.gengzi.model;
 
 import com.gengzi.context.FileContext;
+import com.gengzi.embedding.split.TextSplitterTool;
 import com.gengzi.request.LayoutParsingRequest;
 import com.gengzi.response.LayoutParsingResponse;
+import com.gengzi.vector.es.EsVectorDocumentConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.document.Document;
@@ -35,6 +37,9 @@ public class PPStructureV3Tool {
     private String url;
     @Autowired
     private LayoutResponseToDocumentConverter layoutResponseToDocumentConverter;
+
+    @Autowired
+    private TextSplitterTool textSplitterTool;
 
     @Autowired
     private VectorStore vectorStore;
@@ -73,7 +78,13 @@ public class PPStructureV3Tool {
                         logger.debug("解析结果：{}", response.getResult());
                         // 此处可添加业务逻辑：如保存Markdown结果、Base64图片转存等
                         List<Document> convert = layoutResponseToDocumentConverter.convert(response, fileContext);
-                        vectorStore.add(convert);
+                        logger.info("转换后的第一个Document：{}", convert.get(0).getText());
+                        // 进行文本分割
+                        List<Document> splitDocuments = textSplitterTool.splitCustomized(convert, 500, 200, 100, 10000, false);
+                        // 丰富存入向量库内容
+                        List<Document> convert1 = EsVectorDocumentConverter.convert(splitDocuments, fileContext);
+
+                        vectorStore.add(convert1);
 
                     } else {
                         logger.error("异步解析失败！错误信息：{}", response != null ? response.getErrorMsg() : "未知错误");

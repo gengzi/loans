@@ -34,10 +34,7 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.util.Assert;
 
 import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class ExtendedElasticsearchVectorStore extends AbstractObservationVectorStore implements InitializingBean {
@@ -120,12 +117,25 @@ public class ExtendedElasticsearchVectorStore extends AbstractObservationVectorS
     private Object getDocument(Document document, float[] embedding, String embeddingFieldName) {
 
         Assert.notNull(document.getText(), "document's text must not be null");
-        ExtendedDocument   extendedDocument = (ExtendedDocument) document;
-        return Map.of("id", document.getId(),
-                "content", document.getText(),
-                "metadata", document.getMetadata(),
-                embeddingFieldName, embedding,
-                "doc_id",extendedDocument.getEsVectorDocument().getDocId());
+        ExtendedDocument extendedDocument = (ExtendedDocument) document;
+        return new HashMap<String, Object>() {
+            {
+                put("id", document.getId());
+                put("content", document.getText());
+                put("metadata", document.getMetadata());
+                put(embeddingFieldName, embedding);
+                put("doc_id", extendedDocument.getEsVectorDocument().getDocId());
+                put("title_tks", extendedDocument.getEsVectorDocument().getTitleTks());
+                put("title_sm_tks", extendedDocument.getEsVectorDocument().getTitleSmTks());
+                put("content_ltks", extendedDocument.getEsVectorDocument().getContentLtks());
+                put("content_sm_ltks", extendedDocument.getEsVectorDocument().getContentSmLtks());
+                put("pageNumInt", extendedDocument.getEsVectorDocument().getPageNumInt());
+                put("create_time", extendedDocument.getEsVectorDocument().getCreateTime());
+                put("create_timestamp_flt", extendedDocument.getEsVectorDocument().getCreateTimestampFlt());
+                put("img_id", extendedDocument.getEsVectorDocument().getImgId());
+
+            }
+        };
     }
 
     @Override

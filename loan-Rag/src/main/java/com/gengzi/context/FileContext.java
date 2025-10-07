@@ -104,6 +104,15 @@ public class FileContext {
         return key;
     }
 
+    public String getFileName() {
+        if (key.contains("/")) {
+            return key.substring(key.lastIndexOf("/") + 1);
+        }else{
+            return key;
+        }
+    }
+
+
     @Override
     public String toString() {
         return "S3ObjectMetadata{" +

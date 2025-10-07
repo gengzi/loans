@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
+import software.amazon.awssdk.core.async.AsyncResponseTransformer;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
@@ -18,6 +19,7 @@ import software.amazon.awssdk.transfer.s3.model.UploadRequest;
 
 import java.io.IOException;
 import java.net.URL;
+import java.nio.ByteBuffer;
 import java.nio.file.attribute.FileTime;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
@@ -109,6 +111,23 @@ public class S3ClientUtils {
             throw new IOException("path " + key + "getFileAttributes timeout ", e);
         }
     }
+
+
+    public byte[] getObject(String bucketName, String key) {
+        logger.debug("getObject bucketName:{},key:{}", bucketName, key);
+        S3AsyncClient s3AsyncClient = this.s3Client;
+        return s3AsyncClient.getObject(
+                        builder -> builder
+                                .bucket(bucketName)
+                                .key(key),
+                        AsyncResponseTransformer.toBytes())
+                .thenApply(
+                        getObjectResponseResponseBytes -> getObjectResponseResponseBytes.asByteArray()
+                ).join();
+    }
+
+
+
 
 
 }

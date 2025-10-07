@@ -34,6 +34,11 @@ dependencies {
 //    implementation 'org.springframework.ai:spring-ai-starter-vector-store-elasticsearch'
     implementation 'org.springframework.ai:spring-ai-elasticsearch-store'
 
+    // langchain4j
+    implementation 'dev.langchain4j:langchain4j-core:1.7.1' // 建议使用最新版本
+    // https://mvnrepository.com/artifact/com.hankcs/hanlp
+    implementation("com.hankcs:hanlp:portable-1.8.6")
+
     implementation 'org.elasticsearch.client:elasticsearch-rest-client:9.1.4'
     implementation 'co.elastic.clients:elasticsearch-java:9.1.4'
     compileOnly 'org.projectlombok:lombok:1.18.30'
