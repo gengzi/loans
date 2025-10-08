@@ -60,8 +60,6 @@ public class OcrPdfReader {
         fileContext.setFileUrl(url);
         logger.info("fileContext:{}", fileContext);
 
-
-
         CompletableFuture<LayoutParsingResponse> future =
                 ppStructureV3Tool.asyncParsePdf(fileContext);
         // 将信息入库，根据文本分块规则，将其分块

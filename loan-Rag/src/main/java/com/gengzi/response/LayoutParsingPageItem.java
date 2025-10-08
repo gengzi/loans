@@ -16,7 +16,7 @@ public class LayoutParsingPageItem {
      * 说明：产线predict方法res字段的简化版，去除input_path和page_index字段
      */
     @JsonProperty("prunedResult")
-    private Object prunedResult; // 服务未明确prunedResult子字段，用Object兼容
+    private PrunedResult prunedResult; // 服务未明确prunedResult子字段，用Object兼容
 
     /**
      * Markdown结果

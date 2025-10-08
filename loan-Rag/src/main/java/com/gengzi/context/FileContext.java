@@ -19,6 +19,18 @@ public class FileContext {
     private final String bucketName;            // 所属存储桶
     private final String key;                   // 对象键（路径+文件名）
 
+    // 标识某一个文件的唯一id，通过文件路径得到
+    private String fileId;
+
+
+    public String getFileId() {
+        return fileId;
+    }
+
+    public void setFileId(String fileId) {
+        this.fileId = fileId;
+    }
+
     private URL fileUrl;
 
     private FileContext(String eTag, long contentLength, String contentType,
