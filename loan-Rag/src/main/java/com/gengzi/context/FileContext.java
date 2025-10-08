@@ -21,16 +21,6 @@ public class FileContext {
 
     // 标识某一个文件的唯一id，通过文件路径得到
     private String fileId;
-
-
-    public String getFileId() {
-        return fileId;
-    }
-
-    public void setFileId(String fileId) {
-        this.fileId = fileId;
-    }
-
     private URL fileUrl;
 
     private FileContext(String eTag, long contentLength, String contentType,
@@ -65,6 +55,14 @@ public class FileContext {
                 bucketName,
                 key
         );
+    }
+
+    public String getFileId() {
+        return fileId;
+    }
+
+    public void setFileId(String fileId) {
+        this.fileId = fileId;
     }
 
     public URL getFileUrl() {
@@ -116,12 +114,23 @@ public class FileContext {
         return key;
     }
 
-    public String getFileName() {
+    public String getFileNameAndType() {
         if (key.contains("/")) {
             return key.substring(key.lastIndexOf("/") + 1);
-        }else{
+        } else {
             return key;
         }
+    }
+
+    public String getFileName() {
+        String filename = key;
+        if (filename.contains("/")) {
+            filename = filename.substring(filename.lastIndexOf("/") + 1);
+        }
+        if (filename.contains(".")) {
+            return filename.substring(0, filename.lastIndexOf("."));
+        }
+        return filename;
     }
 
 

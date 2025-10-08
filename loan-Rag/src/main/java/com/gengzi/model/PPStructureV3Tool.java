@@ -5,6 +5,8 @@ import com.gengzi.embedding.split.TextSplitterTool;
 import com.gengzi.request.LayoutParsingRequest;
 import com.gengzi.response.LayoutParsingResponse;
 import com.gengzi.vector.es.EsVectorDocumentConverter;
+import com.gengzi.vector.es.metadata.KeywordMetadataEnricherByChatModel;
+import com.gengzi.vector.es.metadata.SummaryEnricherMetadataByChatModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.document.Document;
@@ -45,6 +47,12 @@ public class PPStructureV3Tool {
     private VectorStore vectorStore;
 
     @Autowired
+    private KeywordMetadataEnricherByChatModel keywordMetadataEnricherByChatModel;
+
+    @Autowired
+    private SummaryEnricherMetadataByChatModel summaryEnricherMetadataByChatModel;
+
+    @Autowired
     public PPStructureV3Tool(RestTemplate restTemplate, @Qualifier("asyncTaskExecutor") ThreadPoolTaskExecutor threadPoolTaskExecutor) {
         this.restTemplate = restTemplate;
         this.threadPoolTaskExecutor = threadPoolTaskExecutor;
@@ -81,6 +89,10 @@ public class PPStructureV3Tool {
                         logger.info("转换后的第一个Document：{}", convert.get(0).getText());
                         // 进行文本分割
                         List<Document> splitDocuments = textSplitterTool.splitCustomized(convert, 500, 200, 100, 10000, false);
+                        // 使用ai模型增加关键字
+//                        List<Document> documents = keywordMetadataEnricherByChatModel.enrichDocuments(splitDocuments);
+
+//                        List<Document> documents1 = summaryEnricherMetadataByChatModel.enrichDocuments(documents);
                         // 丰富存入向量库内容
                         List<Document> convert1 = EsVectorDocumentConverter.convert(splitDocuments, fileContext);
 

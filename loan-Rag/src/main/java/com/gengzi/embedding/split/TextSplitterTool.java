@@ -1,6 +1,7 @@
 package com.gengzi.embedding.split;
 
 
+import dev.langchain4j.data.document.Metadata;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.transformer.splitter.TokenTextSplitter;
 import org.springframework.stereotype.Component;
@@ -48,6 +49,10 @@ public class TextSplitterTool {
         TokenTextSplitter splitter = new TokenTextSplitter(chunkSize, minChunkSizeChars, minChunkLengthToEmbed, maxNumChunks, keepSeparator);
         return splitter.apply(documents);
     }
+
+
+
+
 
 
 

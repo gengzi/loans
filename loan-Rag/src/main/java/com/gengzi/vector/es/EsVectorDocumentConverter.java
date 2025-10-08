@@ -8,6 +8,7 @@ import com.gengzi.context.FileContext;
 import com.gengzi.utils.FileIdGenerator;
 import com.gengzi.utils.HanLPUtil;
 import com.gengzi.utils.InstantConverter;
+import com.gengzi.utils.PunctuationAndLineBreakRemover;
 import com.gengzi.vector.es.document.ExtendedDocument;
 import org.springframework.ai.document.Document;
 
@@ -41,14 +42,16 @@ public class EsVectorDocumentConverter {
             esVectorDocument.setAvailableInt(1);
             esVectorDocument.setCreateTime(InstantConverter.instantToString(fileContext.getLastModified(), ZoneId.systemDefault()));
             esVectorDocument.setCreateTimestampFlt(fileContext.getLastModified().toEpochMilli());
-            // TODO 这里不正确
+            // spring ai 只能处理一个document，不能跨document处理
             esVectorDocument.setPageNumInt((String) document.getMetadata().get(DocumentMetadataMap.PAGE_RANGE));
-            esVectorDocument.setImgId(String.format("%s_%d", fileId, chunkNumber));
-            // TODO 分词需要移除各种格式
-            esVectorDocument.setContentLtks(HanLPUtil.nShortSegment(document.getText()).stream().collect(Collectors.joining(" ")));
-            esVectorDocument.setContentSmLtks(HanLPUtil.segment(document.getText()).stream().collect(Collectors.joining(" ")));
-            esVectorDocument.setTitleSmTks(HanLPUtil.segment(fileContext.getFileName()).stream().collect(Collectors.joining(" ")));
-            esVectorDocument.setTitleTks(HanLPUtil.nShortSegment(fileContext.getFileName()).stream().collect(Collectors.joining(" ")));
+//            esVectorDocument.setImgId(String.format("%s_%d", fileId, chunkNumber));
+            // 分词需要移除各种格式
+            String content = PunctuationAndLineBreakRemover.removePunctuationAndAllWhitespace(document.getText());
+            String title = PunctuationAndLineBreakRemover.removePunctuationAndAllWhitespace(fileContext.getFileName());
+            esVectorDocument.setContentLtks(HanLPUtil.nShortSegment(content).stream().collect(Collectors.joining(" ")));
+            esVectorDocument.setContentSmLtks(HanLPUtil.segment(content).stream().collect(Collectors.joining(" ")));
+            esVectorDocument.setTitleSmTks(HanLPUtil.segment(title).stream().collect(Collectors.joining(" ")));
+            esVectorDocument.setTitleTks(HanLPUtil.nShortSegment(title).stream().collect(Collectors.joining(" ")));
 
             ExtendedDocument extendedDocument = new ExtendedDocument(esVectorDocument);
 
