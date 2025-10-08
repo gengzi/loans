@@ -22,6 +22,10 @@ dependencyManagement {
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter'
     implementation 'org.springframework.boot:spring-boot-starter-web'
+
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+    implementation 'io.projectreactor:reactor-core'
+
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     implementation "org.springframework.ai:spring-ai-rag"
     implementation "org.springframework.ai:spring-ai-starter-model-openai"
@@ -51,6 +55,9 @@ dependencies {
     implementation 'software.amazon.awssdk:core:2.32.16'
     // 工具包
     implementation 'cn.hutool:hutool-all:5.8.16'
+
+
+
 
     testImplementation platform('org.junit:junit-bom:5.10.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
