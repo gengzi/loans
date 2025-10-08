@@ -1,7 +1,10 @@
 package com.gengzi.vector.es;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.RRFRetriever;
+import co.elastic.clients.elasticsearch._types.Retriever;
 import co.elastic.clients.elasticsearch._types.mapping.DenseVectorSimilarity;
+import co.elastic.clients.elasticsearch._types.query_dsl.TextQueryType;
 import co.elastic.clients.elasticsearch.core.BulkRequest;
 import co.elastic.clients.elasticsearch.core.BulkResponse;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
@@ -76,6 +79,10 @@ public class ExtendedElasticsearchVectorStore extends AbstractObservationVectorS
         return new ExtendedElasticsearchVectorStore.Builder(restClient, embeddingModel);
     }
 
+    /**
+     * 添加内容
+     * @param documents
+     */
     @Override
     public void doAdd(List<Document> documents) {
         documents.forEach(document -> {
@@ -180,27 +187,100 @@ public class ExtendedElasticsearchVectorStore extends AbstractObservationVectorS
 
     @Override
     public List<Document> doSimilaritySearch(SearchRequest searchRequest) {
+//        Assert.notNull(searchRequest, "The search request must not be null.");
+//        try {
+//            float threshold = (float) searchRequest.getSimilarityThreshold();
+//            // reverting l2_norm distance to its original value
+//            if (this.options.getSimilarity().equals(SimilarityFunction.l2_norm)) {
+//                threshold = 1 - threshold;
+//            }
+//            final float finalThreshold = threshold;
+//            float[] vectors = this.embeddingModel.embed(searchRequest.getQuery());
+//
+//            SearchResponse<Document> res = this.elasticsearchClient.search(sr -> sr.index(this.options.getIndexName())
+//                    .knn(knn -> knn.queryVector(EmbeddingUtils.toList(vectors))
+//                            .similarity(finalThreshold)
+//                            .k(searchRequest.getTopK())
+//                            .field(this.options.getEmbeddingFieldName())
+//                            .numCandidates((int) (1.5 * searchRequest.getTopK()))
+//                            .filter(fl -> fl
+//                                    .queryString(qs -> qs.query(getElasticsearchQueryString(searchRequest.getFilterExpression())))))
+//                    .size(searchRequest.getTopK()), Document.class);
+//
+//            return res.hits().hits().stream().map(this::toDocument).collect(Collectors.toList());
+//        } catch (IOException e) {
+//            throw new RuntimeException(e);
+//        }
+
         Assert.notNull(searchRequest, "The search request must not be null.");
         try {
             float threshold = (float) searchRequest.getSimilarityThreshold();
-            // reverting l2_norm distance to its original value
+            // 处理L2归一化距离的阈值转换
             if (this.options.getSimilarity().equals(SimilarityFunction.l2_norm)) {
                 threshold = 1 - threshold;
             }
             final float finalThreshold = threshold;
+
+            // 生成查询向量
             float[] vectors = this.embeddingModel.embed(searchRequest.getQuery());
+            List<Float> queryVector = EmbeddingUtils.toList(vectors);
+            String queryText = searchRequest.getQuery();
 
-            SearchResponse<Document> res = this.elasticsearchClient.search(sr -> sr.index(this.options.getIndexName())
-                    .knn(knn -> knn.queryVector(EmbeddingUtils.toList(vectors))
-                            .similarity(finalThreshold)
-                            .k(searchRequest.getTopK())
-                            .field(this.options.getEmbeddingFieldName())
-                            .numCandidates((int) (1.5 * searchRequest.getTopK()))
+            // 1. 构建向量检索器 (KNN搜索)
+            Retriever vectorRetriever = Retriever.of(r -> r
+                    .standard(s -> s
+                            .query(q -> q
+                                    .knn(knn -> knn
+                                            .queryVector(queryVector)
+                                            .similarity(finalThreshold)
+                                            .k(searchRequest.getTopK())
+                                            .field(this.options.getEmbeddingFieldName())
+                                            .numCandidates((int) (1.5 * searchRequest.getTopK()))
+                                    )
+                            )
+                            // 应用过滤条件到向量检索器
                             .filter(fl -> fl
-                                    .queryString(qs -> qs.query(getElasticsearchQueryString(searchRequest.getFilterExpression())))))
-                    .size(searchRequest.getTopK()), Document.class);
+                                    .queryString(qs -> qs.query(getElasticsearchQueryString(searchRequest.getFilterExpression())))
+                            )
+                    )
+            );
 
-            return res.hits().hits().stream().map(this::toDocument).collect(Collectors.toList());
+            // 2. 构建全文检索器 (match查询)
+            Retriever textRetriever = Retriever.of(r -> r
+                    .standard(s -> s
+                            .query(q -> q
+                                    .multiMatch(mm -> mm
+                                            .query(queryText)
+                                            .fields("title_tks^2", "content_ltks")  // 可根据实际字段调整
+                                            .type(TextQueryType.BestFields)
+                                    )
+                            )
+                            // 同样应用过滤条件到全文检索器
+                            .filter(fl -> fl
+                                    .queryString(qs -> qs.query(getElasticsearchQueryString(searchRequest.getFilterExpression())))
+                            )
+                    )
+            );
+
+            // 3. 配置RRF融合器
+            RRFRetriever rrfRetriever = RRFRetriever.of(rrf -> rrf
+                    .retrievers(vectorRetriever, textRetriever)  // 融合向量和全文检索结果
+                    .rankConstant(60)  // RRF算法常数，默认60
+            );
+
+            // 4. 执行RRF混合搜索
+            SearchResponse<Document> res = this.elasticsearchClient.search(sr -> sr
+                            .index(this.options.getIndexName())
+                            .retriever(r -> r.rrf(rrfRetriever))  // 使用RRF检索器
+                            .size(searchRequest.getTopK()),
+                    Document.class
+            );
+
+            // 5. 处理并返回结果
+            return res.hits().hits().stream()
+                    .map(this::toDocument)
+                    .collect(Collectors.toList());
+
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
