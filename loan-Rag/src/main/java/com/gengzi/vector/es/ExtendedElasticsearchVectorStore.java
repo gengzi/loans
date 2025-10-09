@@ -262,7 +262,7 @@ public class ExtendedElasticsearchVectorStore extends AbstractObservationVectorS
                     )
             );
 
-            // 3. 配置RRF融合器
+            // 3. 配置RRF融合器 （还有一种权重计算）  （重排序）
             RRFRetriever rrfRetriever = RRFRetriever.of(rrf -> rrf
                     .retrievers(vectorRetriever, textRetriever)  // 融合向量和全文检索结果
                     .rankConstant(60)  // RRF算法常数，默认60

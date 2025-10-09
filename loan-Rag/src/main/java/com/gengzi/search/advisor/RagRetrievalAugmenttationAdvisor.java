@@ -42,7 +42,6 @@ public class RagRetrievalAugmenttationAdvisor {
                         .build())
                 // 查询参数 这里设置模板
                 .queryAugmenter(ContextualQueryAugmenter.builder()
-
                         // 设置提示词模板
                         .promptTemplate(ragPromptTemplate.ragPromptTemplate())
                         .emptyContextPromptTemplate(new PromptTemplate("知识库无此信息"))

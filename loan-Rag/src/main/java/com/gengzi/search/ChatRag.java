@@ -42,6 +42,7 @@ public class ChatRag {
                 .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, conversationId))
                 .stream()
                 .content();
+        // 返回用户问题后，还需要拼接上参考的文档信息，文档链接
         return content;
     }
 

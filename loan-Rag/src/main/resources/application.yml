@@ -29,7 +29,7 @@ spring:
 #        embedding-field-name: q_1024_vec
     openai:
       api-key: test
-#debug: true
+debug: true
 
 esVectorstore:
   index-name: rag_store_new
