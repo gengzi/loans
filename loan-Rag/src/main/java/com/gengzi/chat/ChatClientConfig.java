@@ -22,22 +22,28 @@ public class ChatClientConfig {
     private Advisor advisor;
 
     @Autowired
+    @Qualifier("jdbcChatMemory")
     private ChatMemory chatMemory;
 
+
+    /**
+     * 执行rag流程
+     * @param chatModel
+     * @return
+     */
     @Bean
-    public OpenAiChatModel openAiChatModel() {
-        OpenAiApi openApi = OpenAiApi.builder().apiKey("sk-ltrjtwcekfkowwmdqghjzgfkjhylcocxibuuviorbnfzvqqj")
-                .baseUrl("https://api.siliconflow.cn").build();
-        return OpenAiChatModel.builder()
-                .openAiApi(openApi)
-                .defaultOptions(OpenAiChatOptions.builder().model("deepseek-ai/DeepSeek-V3").build())
-                .build();
+    public ChatClient deepseekChatClientByRag(OpenAiChatModel chatModel) {
+        return ChatClient.builder(chatModel).defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build(), advisor).build();
     }
 
-
+    /**
+     * 不执行rag流程
+     * @param chatModel
+     * @return
+     */
     @Bean
     public ChatClient deepseekChatClient(OpenAiChatModel chatModel) {
-        return ChatClient.builder(chatModel).defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build(), advisor).build();
+        return ChatClient.builder(chatModel).defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build()).build();
     }
 
 

@@ -1,6 +1,7 @@
 package com.gengzi.search.advisor;
 
 
+import com.gengzi.search.query.QueryTranslation;
 import com.gengzi.search.template.RagPromptTemplate;
 import org.springframework.ai.chat.client.advisor.api.Advisor;
 import org.springframework.ai.chat.prompt.PromptTemplate;
@@ -26,11 +27,15 @@ public class RagRetrievalAugmenttationAdvisor {
     private RagPromptTemplate ragPromptTemplate;
 
 
+    @Autowired
+    private QueryTranslation queryTranslation;
+
+
     @Bean("ragAdvisor")
     public Advisor createAdvisor() {
         Advisor retrievalAugmentationAdvisor = RetrievalAugmentationAdvisor.builder()
                 // 用于转换输入查询，使得更有效的执行检索
-                .queryTransformers()
+                .queryTransformers(queryTranslation)
                 // 检索器
                 .documentRetriever(VectorStoreDocumentRetriever.builder()
                         // 相似度
