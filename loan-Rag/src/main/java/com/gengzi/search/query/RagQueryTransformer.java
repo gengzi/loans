@@ -1,7 +1,6 @@
 package com.gengzi.search.query;
 
 
-import com.gengzi.search.ChatRag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.rag.Query;

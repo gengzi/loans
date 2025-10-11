@@ -3,10 +3,10 @@ package com.gengzi.dao;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 
 /**
  * 存储对话记录的核心表，包含单轮对话内容、关联会话及用户信息
@@ -23,6 +23,10 @@ import java.time.Instant;
         @Index(name = "conversation_name", columnList = "name"),
         @Index(name = "conversation_user_id", columnList = "user_id")
 })
+@Data
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
 public class Conversation {
     /**
      * 对话记录唯一标识（主键），通常为UUID或雪花ID
@@ -42,7 +46,7 @@ public class Conversation {
      * 创建日期时间（YYYY-MM-DD HH:MM:SS），用于直观展示创建时间
      */
     @Column(name = "create_date")
-    private Instant createDate;
+    private LocalDateTime createDate;
 
     /**
      * 最后更新时间戳（毫秒级），记录数据修改时间
@@ -54,7 +58,7 @@ public class Conversation {
      * 最后更新日期时间（YYYY-MM-DD HH:MM:SS），直观展示更新时间
      */
     @Column(name = "update_date")
-    private Instant updateDate;
+    private LocalDateTime updateDate;
 
     /**
      * 会话ID，关联同一轮对话的所有记录（多轮对话归属标识）
