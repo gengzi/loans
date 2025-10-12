@@ -3,12 +3,19 @@ package com.gengzi.controller;
 
 import com.gengzi.embedding.load.pdf.OcrPdfReader;
 import com.gengzi.embedding.load.pdf.PdfReaderTool;
+import com.gengzi.request.AddDocumentByS3;
+import com.gengzi.request.KnowledgebaseCreateReq;
+import com.gengzi.response.KnowledgebaseResponse;
 import com.gengzi.response.Result;
+import com.gengzi.service.KnowledgeService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @Tag(name = "doc管理", description = "doc管理")
@@ -20,6 +27,54 @@ public class DocumentController {
 
     @Autowired
     private PdfReaderTool pdfReaderTool;
+
+
+    @Autowired
+    private KnowledgeService knowledgeService;
+
+
+    /**
+     * 根据登录用户获取所有的知识库
+     *
+     * @return
+     */
+    @GetMapping("/api/knowledge-base")
+    public Result<List<KnowledgebaseResponse>> knowledgeBase() {
+        List<KnowledgebaseResponse> knowledgebase = knowledgeService.getKnowledgebase();
+        return Result.success(knowledgebase);
+    }
+
+    /**
+     * 根据登录用户获取所有的知识库
+     *
+     * @return
+     */
+    @PostMapping("/api/knowledge-base/create")
+    public Result<Boolean> knowledgeBaseCreate(@RequestBody KnowledgebaseCreateReq req) {
+        knowledgeService.createKnowledgebase(req);
+        return Result.success(true);
+    }
+
+    /**
+     * 获取当前知识库下面的文档列表
+     *
+     * @return
+     */
+    @GetMapping("/api/knowledge-base/documents")
+    @ResponseBody
+    public Result<?> knowledgeBaseCreate(@RequestParam(required = true) String kbId,
+                                         @PageableDefault(page = 0, size = 10) Pageable pageable) {
+        Page<?> documents = knowledgeService.documents(kbId, pageable);
+        return Result.success(documents);
+    }
+
+
+    @PostMapping("/document/add")
+    @ResponseBody
+    public Result<?> documentAdd(@RequestBody AddDocumentByS3 addDocumentByS3) {
+        knowledgeService.documentAdd(addDocumentByS3);
+        return Result.success(true);
+    }
 
 
     @PostMapping("/document/upload")

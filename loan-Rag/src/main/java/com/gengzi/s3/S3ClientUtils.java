@@ -5,23 +5,26 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Flux;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
 import software.amazon.awssdk.core.async.AsyncResponseTransformer;
+import software.amazon.awssdk.core.async.SdkPublisher;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
-import software.amazon.awssdk.services.s3.model.GetObjectRequest;
-import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
-import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
+import software.amazon.awssdk.services.s3.model.*;
+import software.amazon.awssdk.services.s3.paginators.ListObjectsV2Publisher;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.transfer.s3.S3TransferManager;
+import software.amazon.awssdk.transfer.s3.model.CompletedCopy;
 import software.amazon.awssdk.transfer.s3.model.CompletedUpload;
+import software.amazon.awssdk.transfer.s3.model.CopyRequest;
 import software.amazon.awssdk.transfer.s3.model.UploadRequest;
 
 import java.io.IOException;
 import java.net.URL;
-import java.nio.ByteBuffer;
-import java.nio.file.attribute.FileTime;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -39,6 +42,14 @@ public class S3ClientUtils {
     @Autowired
     @Qualifier("s3Presigner")
     private S3Presigner presigner;
+
+    private static String normalizePath(String path) {
+        if (path == null || path.isEmpty()) {
+            // 空路径表示根目录
+            return "";
+        }
+        return path.endsWith("/") ? path : path + "/";
+    }
 
     public URL generatePresignedUrl(String bucketName, String objectKey) {
         try {
@@ -64,8 +75,7 @@ public class S3ClientUtils {
         return null;
     }
 
-
-    public void putObjectByContentBytes(String bucketName, String key, byte[] bytes, String contentType)  {
+    public void putObjectByContentBytes(String bucketName, String key, byte[] bytes, String contentType) {
         logger.info("putObjectByLocalFile bucketName:{},key:{}", bucketName, key);
         try (S3TransferManager s3TransferManager = S3TransferManager.builder().s3Client(this.s3Client).build()) {
             CompletableFuture<CompletedUpload> completedUploadCompletableFuture = s3TransferManager.upload(
@@ -82,7 +92,7 @@ public class S3ClientUtils {
         }
     }
 
-    public HeadObjectResponse headObject(String bucketName, String key){
+    public HeadObjectResponse headObject(String bucketName, String key) {
         logger.debug("headObject bucketName:{},key:{} ", bucketName, key);
         try {
             return getObjectAttributes(bucketName, key);
@@ -112,7 +122,6 @@ public class S3ClientUtils {
         }
     }
 
-
     public byte[] getObject(String bucketName, String key) {
         logger.debug("getObject bucketName:{},key:{}", bucketName, key);
         S3AsyncClient s3AsyncClient = this.s3Client;
@@ -126,8 +135,48 @@ public class S3ClientUtils {
                 ).join();
     }
 
+    public void copyObject(String sourceBucketName, String sourceKey, String destinationBucketName, String destinationKey) {
+        try (S3TransferManager s3TransferManager = S3TransferManager.builder().s3Client(this.s3Client).build()) {
+            CompletableFuture<CompletedCopy> completedCopyCompletableFuture = s3TransferManager.copy(CopyRequest.builder()
+                    .copyObjectRequest(CopyObjectRequest.builder()
+                            .checksumAlgorithm(ChecksumAlgorithm.SHA256)
+                            .sourceBucket(sourceBucketName)
+                            .sourceKey(sourceKey)
+                            .destinationBucket(destinationBucketName)
+                            .destinationKey(destinationKey)
+                            .build())
+                    .build()).completionFuture();
+            completedCopyCompletableFuture.join();
+        }
+    }
 
+    private ListObjectsV2Publisher getObjectsAttributes(String bucketName, String key) {
+        String keyDir = normalizePath(key);
+        return this.s3Client.listObjectsV2Paginator(req -> req
+                .bucket(bucketName)
+                .prefix(keyDir)
+                .delimiter("/"));
+    }
 
+    /**
+     * 获取S3指定桶中某个目录下的所有文件
+     *
+     * @param bucketName    S3桶名称
+     * @param directoryPath 目录路径（例如："documents/reports/"，注意末尾的斜杠）
+     * @return 文件列表（包含文件名和相关信息）
+     */
+    public List<S3Object> listFilesInDirectory(String bucketName, String directoryPath) {
+
+        List<S3Object> s3Objects = new ArrayList<>();
+
+        ListObjectsV2Publisher objectsAttributes = getObjectsAttributes(bucketName, directoryPath);
+        SdkPublisher<S3Object> contents = objectsAttributes.contents();
+        Flux.from(contents).doOnNext(s3Object -> {
+            s3Objects.add(s3Object);
+        }).then().block();
+
+        return s3Objects;
+    }
 
 
 }

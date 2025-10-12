@@ -1,6 +1,7 @@
 package com.gengzi.utils;
 
 import cn.hutool.core.util.IdUtil;
+import jakarta.validation.constraints.Size;
 
 public class IdUtils {
 
@@ -12,5 +13,13 @@ public class IdUtils {
     public static String generateChatId() {
         long timeMillis = System.currentTimeMillis();
         return String.valueOf(timeMillis);
+    }
+
+    public static String generateKnowledgeId() {
+        return "k_" + IdUtil.simpleUUID();
+    }
+
+    public static String generateDocumentId() {
+        return "d_" + IdUtil.simpleUUID();
     }
 }

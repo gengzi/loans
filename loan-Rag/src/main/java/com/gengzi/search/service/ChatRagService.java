@@ -1,7 +1,12 @@
 package com.gengzi.search.service;
 
+import com.gengzi.request.RagChatCreateReq;
 import com.gengzi.request.RagChatReq;
+import com.gengzi.response.ConversationDetailsResponse;
+import com.gengzi.response.ConversationResponse;
 import reactor.core.publisher.Flux;
+
+import java.util.List;
 
 public interface ChatRagService {
 
@@ -15,5 +20,9 @@ public interface ChatRagService {
     Flux<String> chatRag(RagChatReq ragChatReq);
 
 
-//    void chatRagCreate(RagChatReq req);
+    void chatRagCreate(RagChatCreateReq req);
+
+    List<ConversationResponse> chatRagAll();
+
+    ConversationDetailsResponse chatRagMsgList(String conversationId);
 }

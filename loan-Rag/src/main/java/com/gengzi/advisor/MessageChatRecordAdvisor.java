@@ -4,9 +4,11 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.gengzi.context.RagChatContext;
 import com.gengzi.dao.Conversation;
-import com.gengzi.dao.entity.RagAssistantMessageRag;
 import com.gengzi.dao.entity.RagChatMessage;
+import com.gengzi.dao.entity.RagReference;
 import com.gengzi.dao.repository.ConversationRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClientMessageAggregator;
 import org.springframework.ai.chat.client.ChatClientRequest;
 import org.springframework.ai.chat.client.ChatClientResponse;
@@ -18,6 +20,8 @@ import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.MessageType;
 import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.document.Document;
+import org.springframework.ai.rag.advisor.RetrievalAugmentationAdvisor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
@@ -32,7 +36,7 @@ import java.util.stream.Collectors;
  * 对话消息记录存储Advisor
  */
 public class MessageChatRecordAdvisor implements BaseAdvisor {
-
+    private static final Logger logger = LoggerFactory.getLogger(MessageChatRecordAdvisor.class);
     // 记录表
     private ConversationRepository conversationRepository;
 
@@ -40,6 +44,22 @@ public class MessageChatRecordAdvisor implements BaseAdvisor {
         this.conversationRepository = conversationRepository;
     }
 
+    private static RagChatContext getRagChatContext(Map<String, Object> context) {
+
+        RagChatContext ragChatContext = (RagChatContext) context.get(RagChatContext.RAG_CHAT_CONTEXT);
+        if (ragChatContext == null) {
+            throw new IllegalArgumentException("ragChatContext is not valid");
+        }
+        return ragChatContext;
+    }
+
+    private static List<Document> getDocuments(Map<String, Object> context) {
+        List<Document> documents = (List<Document>) context.get(RetrievalAugmentationAdvisor.DOCUMENT_CONTEXT);
+        if (documents == null) {
+            logger.info("从知识库未检索到内容");
+        }
+        return documents;
+    }
 
     @Override
     public Flux<ChatClientResponse> adviseStream(ChatClientRequest chatClientRequest, StreamAdvisorChain streamAdvisorChain) {
@@ -54,15 +74,6 @@ public class MessageChatRecordAdvisor implements BaseAdvisor {
                 .transform(flux -> new ChatClientMessageAggregator().aggregateChatClientResponse(flux,
                         response -> this.after(response, streamAdvisorChain)));
 
-    }
-
-    private static RagChatContext getRagChatContext(Map<String, Object> context) {
-
-        RagChatContext ragChatContext = (RagChatContext) context.get(RagChatContext.RAG_CHAT_CONTEXT);
-        if (ragChatContext == null) {
-            throw new IllegalArgumentException("ragChatContext is not valid");
-        }
-        return ragChatContext;
     }
 
     @Override
@@ -82,6 +93,7 @@ public class MessageChatRecordAdvisor implements BaseAdvisor {
             chatMessage.setContent(text);
             chatMessage.setRole(MessageType.USER.name());
             chatMessage.setConversationId(conversationId);
+            chatMessage.setCreatedAt(System.currentTimeMillis());
             if (StrUtil.isNotBlank(message)) {
                 List<RagChatMessage> list = JSONUtil.toList(message, RagChatMessage.class);
                 list.add(chatMessage);
@@ -103,8 +115,10 @@ public class MessageChatRecordAdvisor implements BaseAdvisor {
     @Override
     public ChatClientResponse after(ChatClientResponse chatClientResponse, AdvisorChain advisorChain) {
         // 获取大模型的回答
+
         List<Message> assistantMessages = new ArrayList<>();
         RagChatContext ragChatContext = getRagChatContext(chatClientResponse.context());
+        List<Document> documents = getDocuments(chatClientResponse.context());
         final String conversationId = ragChatContext.getConversationId();
         final String chatId = ragChatContext.getChatId();
         if (chatClientResponse.chatResponse() != null) {
@@ -121,7 +135,7 @@ public class MessageChatRecordAdvisor implements BaseAdvisor {
             String message = conversation.getMessage();
             if (StrUtil.isNotBlank(message)) {
                 List<RagChatMessage> list = JSONUtil.toList(message, RagChatMessage.class);
-                RagAssistantMessageRag ragAssistantMessage = new RagAssistantMessageRag();
+                RagChatMessage ragAssistantMessage = new RagChatMessage();
                 ragAssistantMessage.setId(chatId);
                 String answer = assistantMessages.stream().map(msg -> {
                     if (msg instanceof AssistantMessage) {
@@ -133,12 +147,20 @@ public class MessageChatRecordAdvisor implements BaseAdvisor {
                 ragAssistantMessage.setContent(answer);
                 ragAssistantMessage.setRole(MessageType.ASSISTANT.name());
                 ragAssistantMessage.setConversationId(conversationId);
-//                assistantMessage.setPrompt();
                 ragAssistantMessage.setCreatedAt(System.currentTimeMillis());
                 list.add(ragAssistantMessage);
                 conversation.setMessage(JSONUtil.toJsonStr(list));
-                conversationRepository.save(conversation);
             }
+
+            String reference = conversation.getReference();
+            if (StrUtil.isNotBlank(reference)) {
+                List<RagReference> list = JSONUtil.toList(reference, RagReference.class);
+                RagReference ragReference = new RagReference();
+                ragReference.setDocuments(documents);
+                list.add(ragReference);
+                conversation.setReference(JSONUtil.toJsonStr(list));
+            }
+            conversationRepository.save(conversation);
         }
         return chatClientResponse;
     }

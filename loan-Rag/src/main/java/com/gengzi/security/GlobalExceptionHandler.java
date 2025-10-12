@@ -3,8 +3,10 @@ package com.gengzi.security;
 
 import com.gengzi.response.Result;
 import com.gengzi.response.ResultCode;
+import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -21,6 +23,27 @@ import java.util.Map;
 public class GlobalExceptionHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class.getName());
+
+    // 专门捕获 BadCredentialsException
+    @ExceptionHandler(BadCredentialsException.class)
+    public Result<Map<String, String>> handleBadCredentialsException(BadCredentialsException e, HttpServletResponse response) {
+
+        Map<String, String> errorMap = new HashMap<>();
+        // 封装为标准失败格式
+        return Result.fail(ResultCode.LOGIN_ERROR.getCode(),
+                ResultCode.LOGIN_ERROR.getMessage(),
+                errorMap);
+    }
+
+    // 捕获其他 Security 异常（可选）
+    @ExceptionHandler(org.springframework.security.core.AuthenticationException.class)
+    public Result<Map<String, String>> handleAuthenticationException(Exception e, HttpServletResponse response) {
+        Map<String, String> errorMap = new HashMap<>();
+        // 封装为标准失败格式
+        return Result.fail(ResultCode.LOGIN_ERROR.getCode(),
+                ResultCode.LOGIN_ERROR.getMessage(),
+                errorMap);
+    }
 
     /**
      * 1. 处理参数校验异常（@Valid 触发）
@@ -50,11 +73,10 @@ public class GlobalExceptionHandler {
     /**
      * 3. 处理系统异常（兜底）
      */
-//    @ExceptionHandler(Exception.class)
-//    public Result<Void> handleSystemException(Exception e) {
-//        logger.error("系统异常:{} StackTrace:{}", e.getMessage(), e.fillInStackTrace());
-//        // 生产环境建议打印日志（如 log.error("系统异常", e)）
-//        return Result.fail(ResultCode.SYSTEM_ERROR.getCode(),
-//                ResultCode.SYSTEM_ERROR.getMessage());
-//    }
+    @ExceptionHandler(Exception.class)
+    public Result<Void> handleSystemException(Exception e) {
+        logger.error("系统异常:{} StackTrace:{}", e.getMessage(), e.fillInStackTrace(), e);
+        return Result.fail(ResultCode.SYSTEM_ERROR.getCode(),
+                ResultCode.SYSTEM_ERROR.getMessage());
+    }
 }

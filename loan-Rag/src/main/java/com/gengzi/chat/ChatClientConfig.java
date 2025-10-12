@@ -36,7 +36,9 @@ public class ChatClientConfig {
      */
     @Bean
     public ChatClient deepseekChatClientByRag(OpenAiChatModel chatModel) {
-        return ChatClient.builder(chatModel).defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build(), advisor).build();
+        MessageChatRecordAdvisor messageChatRecordAdvisor = new MessageChatRecordAdvisor(conversationRepository);
+        return ChatClient.builder(chatModel).defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build(),
+                messageChatRecordAdvisor,advisor).build();
     }
 
     /**

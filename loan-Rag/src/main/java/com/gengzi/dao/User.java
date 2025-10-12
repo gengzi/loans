@@ -177,4 +177,12 @@ public class User {
     @Column(name = "is_superuser")
     private Boolean isSuperuser;
 
+    /**
+     * 用户绑定的知识库ID列表，逗号分隔
+     */
+    @NotNull
+    @Lob
+    @Column(name = "knowledge_ids", nullable = false)
+    private String knowledgeIds;
+
 }

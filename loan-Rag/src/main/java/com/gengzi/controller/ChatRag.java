@@ -1,6 +1,7 @@
 package com.gengzi.controller;
 
 
+import com.gengzi.request.RagChatCreateReq;
 import com.gengzi.request.RagChatReq;
 import com.gengzi.response.Result;
 import com.gengzi.search.service.ChatRagService;
@@ -13,10 +14,7 @@ import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 
 @RestController
@@ -45,18 +43,31 @@ public class ChatRag {
 
     @Autowired
     private ChatRagService chatRagService;
-//
-//    @PostMapping("/chat/rag/create")
-//    public Result<Boolean> chatRagCreate(@RequestBody RagChatReq req) {
-//        chatRagService.chatRagCreate(req);
-//        return Result.success(true);
-//
-//    }
+
+    @PostMapping("/chat/rag/create")
+    public Result<Boolean> chatRagCreate(@RequestBody RagChatCreateReq req) {
+        chatRagService.chatRagCreate(req);
+        return Result.success(true);
+    }
+
+    /**
+     * 获取的当前创建的所有对话列表
+     */
+    @GetMapping("/chat/rag/all")
+    public Result<?> chatRagAll() {
+        return Result.success(chatRagService.chatRagAll());
+    }
 
 
     @PostMapping("/chat/rag")
     public Flux<String> chatRag(@RequestBody RagChatReq req) {
         return chatRagService.chatRag(req);
+    }
+
+
+    @GetMapping("/chat/rag/msg/list")
+    public Result<?> chatRagMsgList(@RequestParam String conversationId) {
+        return Result.success(chatRagService.chatRagMsgList(conversationId));
     }
 
 

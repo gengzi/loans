@@ -96,4 +96,9 @@ public class Conversation {
     @Column(name = "user_id")
     private String userId;
 
+    @Size(max = 64)
+    @NotNull
+    @Column(name = "knowledgebase_id", nullable = false, length = 64)
+    private String knowledgebaseId;
+
 }

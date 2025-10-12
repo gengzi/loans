@@ -12,4 +12,6 @@ import java.util.List;
 @Repository
 public interface UserRepository extends JpaRepository<User, String>, JpaSpecificationExecutor<User> {
     User findUserByUsername(@Size(max = 255) @NotNull String username);
+
+    void findUserById(String id);
 }

@@ -16,6 +16,7 @@ public enum ResultCode {
     AUTH_ERROR(401, "未登录或令牌过期"),
     PERMISSION_ERROR(403, "无操作权限"),
     RESOURCE_NOT_FOUND(404, "请求资源不存在"),
+    LOGIN_ERROR(405, "登录失败"),
     // 服务端错误
     SYSTEM_ERROR(500, "服务端异常，请联系管理员"),
     DB_ERROR(501, "数据库操作异常"),
