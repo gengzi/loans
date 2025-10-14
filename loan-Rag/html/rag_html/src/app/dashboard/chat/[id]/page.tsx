@@ -138,9 +138,10 @@ export default function ChatPage({ params }: { params: { id: string } }) {
                   
                   // 检查是否是结束标记
                   if (parsedData.answer === '[DONE]') {
-                    
+                    // 对于[DONE]标记，只设置加载状态为false，但不立即返回
+                    // 继续执行下面的代码，确保引用信息被正确处理
                     setIsLoading(false);
-                    return;
+                    // 不返回，继续处理引用信息
                   }
                   
                   // 获取答案内容
@@ -149,35 +150,37 @@ export default function ChatPage({ params }: { params: { id: string } }) {
                     if (!fullAnswer.endsWith(parsedData.answer)) {
                       fullAnswer += parsedData.answer;
                     }
-                    
-                    // 添加调试日志，查看接收到的answer内容
-                    console.log('Received answer chunk:', parsedData.answer);
-                    console.log('Current full answer:', fullAnswer);
-                      
-                    // 提取引用信息，但只在流结束时使用
-                    const citations: Citation[] = [];
-                    const ragReference = parsedData.reference?.reference || [];
-                    
-                    // 如果有引用信息，转换为所需格式
-                    if (Array.isArray(ragReference) && ragReference.length > 0) {
-                      ragReference.forEach((ref, index) => {
-                        citations.push({
-                          id: index + 1,
-                          text: ref.text || '',
-                          metadata: {
-                            title: ref.documentUrl || `引用文档 ${index + 1}`,
-                            source: ref.contentType || '文档',
-                            page: ref.pageRange,
-                            documentId: ref.documentId,
-                            // 保留原始metadata中的其他字段
-                            ...(ref.metadata || {})
-                          }
-                        });
+                  }
+                  
+                  // 无论是否是[DONE]标记，都提取引用信息
+                  // 添加调试日志，查看接收到的answer内容
+                  console.log('Received answer chunk:', parsedData.answer);
+                  console.log('Current full answer:', fullAnswer);
+                     
+                  // 提取引用信息
+                  const citations: Citation[] = [];
+                  const ragReference = parsedData.reference?.reference || [];
+                  
+                  // 如果有引用信息，转换为所需格式
+                  if (Array.isArray(ragReference) && ragReference.length > 0) {
+                    ragReference.forEach((ref, index) => {
+                      citations.push({
+                        id: index + 1,
+                        text: ref.text || '',
+                        metadata: {
+                          title: ref.documentUrl || `引用文档 ${index + 1}`,
+                          source: ref.contentType || '文档',
+                          page: ref.pageRange,
+                          documentId: ref.documentId,
+                          // 保留原始metadata中的其他字段
+                          ...(ref.metadata || {})
+                        }
                       });
-                    }
-                    
-                    // 检查是否是流的最后一部分数据
-                    const isFinalChunk = done || accumulatedResponse.includes('[DONE]');
+                    });
+                  }
+                  
+                  // 检查是否是流的最后一部分数据
+                  const isFinalChunk = done || accumulatedResponse.includes('[DONE]') || parsedData.answer === '[DONE]';
                     
                     // 创建助手消息对象
                     const assistantMessage = {
@@ -221,7 +224,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
                           return newMessages;
                         }
                       });
-                       
+                        
                       assistantMessageCreated = true;
                     } else {
                       // 更新现有助手消息的内容
@@ -240,7 +243,6 @@ export default function ChatPage({ params }: { params: { id: string } }) {
                         return updatedMessages;
                       });
                     }
-                  }
                 } catch (error) {
                   console.log('SSE JSON parsing error:', error);
                   // 继续处理，不中断整个流程
