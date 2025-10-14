@@ -4,8 +4,14 @@ module.exports = {
   experimental: {
     // This is needed for standalone output to work correctly
     outputFileTracingRoot: undefined,
-    outputStandalone: true,
-    skipMiddlewareUrlNormalize: true,
-    skipTrailingSlashRedirect: true,
+  },
+  // 添加API请求代理配置
+  async rewrites() {
+    return [
+      {
+        source: '/chat/:path*',
+        destination: 'http://localhost:8883/chat/:path*',
+      },
+    ];
   },
 };

@@ -1,23 +1,11 @@
-import React, {
-  FC,
-  useMemo,
-  useEffect,
-  useState,
-  ClassAttributes,
-} from "react";
-import { AnchorHTMLAttributes } from "react";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Divider } from "@/components/ui/divider";
-import Markdown from "react-markdown";
+import React from "react";
+import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
-import { api } from "@/lib/api";
-import { FileIcon } from "react-file-icon";
+import rehypeRaw from "rehype-raw";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { File } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface Citation {
   id: number;
@@ -25,155 +13,94 @@ interface Citation {
   metadata: Record<string, any>;
 }
 
-interface KnowledgeBaseInfo {
-  name: string;
-}
-
-interface DocumentInfo {
-  file_name: string;
-  knowledge_base: KnowledgeBaseInfo;
-}
-
-interface CitationInfo {
-  knowledge_base: KnowledgeBaseInfo;
-  document: DocumentInfo;
-}
-
-export const Answer: FC<{
-  markdown: string;
+interface AnswerProps {
+  content: string;
   citations?: Citation[];
-}> = ({ markdown, citations = [] }) => {
-  const [citationInfoMap, setCitationInfoMap] = useState<
-    Record<string, CitationInfo>
-  >({});
+  ragReference?: any;
+  isStreaming?: boolean;
+}
 
-  const processedMarkdown = useMemo(() => {
-    return markdown
-      .replace(/<think>/g, "## 💭 深度思考\n```think")
-      .replace(/<\/think>/g, "```");
-  }, [markdown]);
-
-  // 直接从citations的metadata中获取信息，不再请求额外接口
-  useEffect(() => {
-    const infoMap: Record<string, CitationInfo> = {};
-
-    for (const citation of citations) {
-      const { kb_id, document_id, file_name, knowledge_base_name } = citation.metadata;
-      if (!kb_id || !document_id) continue;
-
-      const key = `${kb_id}-${document_id}`;
-      if (infoMap[key]) continue;
-
-      // 直接从metadata中获取信息，或者使用默认值
-      const kbName = knowledge_base_name || `知识库 ${kb_id}`;
-      const fileName = file_name || `文档 ${document_id}`;
-
-      infoMap[key] = {
-        knowledge_base: {
-          name: kbName,
-        },
-        document: {
-          file_name: fileName,
-          knowledge_base: {
-            name: kbName,
-          },
-        },
-      };
+const Answer: React.FC<AnswerProps> = ({ content, citations, ragReference, isStreaming }) => {
+  // 处理引用信息，合并citations和ragReference
+  const getCitations = () => {
+    // 首先使用传入的citations
+    if (citations && citations.length > 0) {
+      return citations;
     }
-
-    setCitationInfoMap(infoMap);
-  }, [citations]);
-
-  const CitationLink = useMemo(
-    () =>
-      (
-        props: ClassAttributes<HTMLAnchorElement> &
-          AnchorHTMLAttributes<HTMLAnchorElement>
-      ) => {
-        const citationId = props.href?.match(/^(\d+)$/)?.[1];
-        const citation = citationId
-          ? citations[parseInt(citationId) - 1]
-          : null;
-
-        if (!citation) {
-          // 找不到引用时，不显示任何引用标记
-          return null;
+    
+    // 如果没有citations但有ragReference，从ragReference中提取
+    if (ragReference && ragReference.reference && Array.isArray(ragReference.reference)) {
+      return ragReference.reference.map((ref: any, index: number) => ({
+        id: index + 1,
+        text: ref.text || '',
+        metadata: {
+          title: ref.documentUrl || `引用文档 ${index + 1}`,
+          source: ref.contentType || '文档',
+          page: ref.pageRange,
+          documentId: ref.documentId
         }
+      }));
+    }
+    
+    return [];
+  };
 
-        const citationInfo =
-          citationInfoMap[
-            `${citation.metadata.kb_id}-${citation.metadata.document_id}`
-          ];
+  const renderCitations = () => {
+    const allCitations = getCitations();
+    if (allCitations.length === 0) return null;
 
-        return (
-          <Popover>
-            <PopoverTrigger asChild>
-              <a
-                {...props}
-                href="#"
-                role="button"
-                className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs font-medium text-blue-600 bg-blue-50 rounded hover:bg-blue-100 transition-colors relative"
-              >
-                <span className="absolute -top-3 -right-1">[{props.href}]</span>
-              </a>
-            </PopoverTrigger>
-            <PopoverContent
-              side="top"
-              align="start"
-              className="max-w-2xl w-[calc(100vw-100px)] p-4 rounded-lg shadow-lg"
-            >
-              <div className="text-sm space-y-3">
-                {citationInfo && (
-                  <div className="flex items-center gap-2 text-xs font-medium text-gray-700 bg-gray-50 p-2 rounded">
-                    <div className="w-5 h-5 flex items-center justify-center">
-                      <FileIcon
-                        extension={
-                          citationInfo.document.file_name.split(".").pop() || ""
-                        }
-                        color="#E2E8F0"
-                        labelColor="#94A3B8"
-                      />
-                    </div>
-                    <span className="truncate">
-                      {citationInfo.knowledge_base.name} /{" "}
-                      {citationInfo.document.file_name}
-                    </span>
-                  </div>
-                )}
-                <Divider />
-                <p className="text-gray-700 leading-relaxed">{citation.text}</p>
-
-              </div>
-            </PopoverContent>
-          </Popover>
-        );
-      },
-    [citations, citationInfoMap]
-  );
-
-  if (!markdown) {
     return (
-      <div className="flex flex-col gap-2">
-        <Skeleton className="max-w-sm h-4 bg-zinc-200" />
-        <Skeleton className="max-w-lg h-4 bg-zinc-200" />
-        <Skeleton className="max-w-2xl h-4 bg-zinc-200" />
-        <Skeleton className="max-w-lg h-4 bg-zinc-200" />
-        <Skeleton className="max-w-xl h-4 bg-zinc-200" />
+      <div className="mt-4 space-y-3">
+        <h4 className="text-sm font-semibold text-muted-foreground flex items-center gap-1.5">
+          <File className="h-3.5 w-3.5" />
+          引用的文档
+        </h4>
+        <div className="grid gap-2 sm:grid-cols-1 md:grid-cols-1 lg:grid-cols-1">
+          {allCitations.map((citation: Citation) => (
+            <Card key={`${citation.id}-${citation.metadata.documentId || Math.random().toString(36).substr(2, 5)}`} className="border border-muted/30 bg-muted/50 hover:border-primary/50 hover:shadow-sm transition-all duration-300 transform hover:-translate-y-0.5">
+              <CardHeader className="p-3 pb-0">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <File className="h-4 w-4 text-primary" />
+                    <CardTitle className="text-sm font-medium">
+                      {citation.metadata.title || `文档 ${citation.id}`}
+                    </CardTitle>
+                  </div>
+                  <span className="text-xs font-medium text-primary/80">
+                    [引用 {citation.id}]
+                  </span>
+                </div>
+                <div className="text-xs mt-0.5 text-muted-foreground">
+                  {citation.metadata.documentId ? `文档ID: ${citation.metadata.documentId}` : ''}
+                  {citation.metadata.page ? `，页码: ${citation.metadata.page}` : ''}
+                  {citation.metadata.source ? `，类型: ${citation.metadata.source}` : ''}
+                </div>
+              </CardHeader>
+              <CardContent className="p-3 pt-2">
+                <p className="text-xs text-muted-foreground line-clamp-3 bg-background/30 p-2 rounded-md">
+                  {citation.text}
+                </p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     );
-  }
+  };
 
   return (
-    <div className="prose prose-sm max-w-full">
-      <Markdown
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeHighlight]}
-        components={{
-          a: CitationLink,
-        }}
-      >
-        {processedMarkdown}
-      </Markdown>
+    <div className={cn("space-y-2", isStreaming && "animate-pulse")}>
+      <div className="prose prose-sm max-w-none text-accent-foreground prose-headings:font-medium prose-headings:text-base prose-p:my-2 prose-li:my-1 prose-code:bg-muted/50 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-ol:pl-5 prose-ul:pl-5">
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          rehypePlugins={[rehypeRaw, rehypeHighlight]}
+        >
+          {content}
+        </ReactMarkdown>
+      </div>
+      {renderCitations()}
     </div>
   );
 };
+
+export default Answer;

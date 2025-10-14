@@ -1,36 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useMemo } from "react";
-import { useRouter } from "next/navigation";
-import { useChat } from "ai/react";
-import { Send, User, Bot } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter, useParams } from "next/navigation";
+import { Send, User, Bot, ArrowLeft, MessageSquare, ThumbsUp, ThumbsDown, Loader2 } from "lucide-react";
 import DashboardLayout from "@/components/layout/dashboard-layout";
-import { api, ApiError } from "@/lib/api";
+import { api, ApiError } from '@/lib/api';
 import { useToast } from "@/components/ui/use-toast";
-import { Answer } from "@/components/chat/answer";
-
-interface Message {
-  id: string;
-  role: "assistant" | "user" | "system" | "data";
-  content: string;
-  citations?: Citation[];
-}
-
-interface ChatMessage {
-  id: string;
-  content: string;
-  role: "assistant" | "user";
-  created_at: string;
-}
-
-interface Chat {
-  id: string;
-  name: string;
-  createDate: string;
-  knowledgebaseId: string;
-  dialogId: string;
-  messages: ChatMessage[];
-}
+import Answer from "@/components/chat/answer";
+import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 interface Citation {
   id: number;
@@ -38,11 +16,13 @@ interface Citation {
   metadata: Record<string, any>;
 }
 
-// Extend the default useChat message type
-declare module "ai/react" {
-  interface Message {
-    citations?: Citation[];
-  }
+interface Message {
+  id: string;
+  content: string;
+  role: 'user' | 'assistant';
+  createdAt: Date;
+  citations?: Citation[];
+  ragReference?: any;
 }
 
 export default function ChatPage({ params }: { params: { id: string } }) {
@@ -50,499 +30,524 @@ export default function ChatPage({ params }: { params: { id: string } }) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const [loadingChat, setLoadingChat] = useState(true);
+  const [chatTitle, setChatTitle] = useState("新对话");
+  const [currentBotMessage, setCurrentBotMessage] = useState<{ content: string; citations?: Citation[] } | null>(null);
+  
+  // 自定义消息状态管理，替代 useChat
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const {
-    messages,
-    data,
-    input,
-    handleInputChange,
-    isLoading,
-    setMessages,
-    setInput
-  } = useChat({
-    // 禁用默认的API调用，我们将使用自定义的提交函数
-    api: undefined,
-    headers: {
-      Authorization: `Bearer ${
-        typeof window !== "undefined"
-          ? window.localStorage.getItem("token")
-          : ""
-      }`,
-    },
-  });
+  // 获取token用于Authorization头
+  const getToken = () => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('token') || '';
+    }
+    return '';
+  };
 
-  // 自定义提交函数，使用新的API接口发送消息
-  const handleSubmit = async (e: React.FormEvent) => {
+  // 自定义提交函数，只发送当前输入的消息
+  const handleChatSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!input.trim()) return;
-    
-    // 创建当前消息对象
-    const currentMessage = {
-      id: Date.now().toString(),
-      role: 'user' as const,
-      content: input.trim(),
-    };
-    
-    // 先在前端显示用户消息
-    setMessages([...messages, currentMessage]);
+    if (!input.trim() || isLoading || loadingChat) return;
     
     try {
-      // 使用新的API接口发送消息
-      // 格式：POST /chat/rag
-      // 请求体：{ "question": "string", "conversationId": "string" }
-      const response = await api.post(`/chat/rag`, {
-        question: input.trim(),
-        conversationId: params.id
+      setIsLoading(true);
+      
+      // 创建用户消息
+      const userMessage = {
+        id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        content: input,
+        role: 'user' as const,
+        createdAt: new Date()
+      };
+      
+      // 先更新本地消息列表
+      setMessages(prev => [...prev, userMessage]);
+      
+      // 发送请求到API，但只发送当前消息，不包含整个历史
+      const response = await fetch('http://127.0.0.1:8883/chat/rag', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'accept': 'text/event-stream',
+          'Authorization': `Bearer ${getToken()}`
+        },
+        body: JSON.stringify({
+          question: input,  // 使用question参数名而不是message
+          conversationId: params.id
+        })
       });
       
-      // 根据新API的响应格式处理助手消息
-      // 假设响应格式与之前的fetchChat函数处理的格式类似
-      const data = response.success ? response.data : response;
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       
-      // 解析嵌套的JSON字符串消息
-      let assistantMessage = null;
-      if (data.message) {
-        try {
-          // message字段是JSON字符串，需要解析
-          const parsedMessages = JSON.parse(data.message);
-          // 假设最后一条消息是助手的回复
-          if (parsedMessages.length > 0) {
-            const lastMsg = parsedMessages[parsedMessages.length - 1];
-            if (lastMsg.role === 'ASSISTANT') {
-              assistantMessage = {
-                id: lastMsg.id || Date.now().toString() + '-assistant',
-                role: 'assistant' as const,
-                content: lastMsg.content || '',
-                citations: []
-              };
-            }
+      // 清空输入框
+      setInput('');
+      
+      // 滚动到底部
+      scrollToBottom();
+      
+      // 处理流式响应
+      const reader = response.body?.getReader();
+      if (!reader) return;
+      
+      const decoder = new TextDecoder();
+      let accumulatedResponse = '';
+      let assistantMessageId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      let assistantMessageCreated = false;
+      let fullAnswer = '';
+      
+      try {
+        while (true) {
+      
+          const { done, value } = await reader.read();
+
+          console.log("消息响应reader：",value);
+          
+          // 处理流结束
+          if (done || accumulatedResponse.includes('[DONE]')) {
+            setIsLoading(false);
+            break;
           }
-        } catch (e) {
-          console.error("Failed to parse assistant message:", e);
-        }
-      }
-      
-      // 添加助手消息到消息列表
-      if (assistantMessage) {
-        setMessages(prev => [...prev, assistantMessage]);
-      }
-      
-      // 处理引用信息
-      let references = [];
-      if (data.reference) {
-        try {
-          // reference字段是JSON字符串，需要解析
-          references = JSON.parse(data.reference);
-        } catch (e) {
-          console.error("Failed to parse reference JSON string:", e);
-          references = [];
-        }
-      }
-      
-      // 只有当确实有有效的引用信息时，才为助手消息添加引用
-      if (assistantMessage && references.length > 0) {
-        // 从parsedMessages中找到对应助手消息的索引
-        let assistantMessageIndex = -1;
-        if (data.message) {
-          try {
-            const parsedMessages = JSON.parse(data.message);
-            // 从后往前找，找到最后一条助手消息的位置
-            for (let i = parsedMessages.length - 1; i >= 0; i--) {
-              if (parsedMessages[i].role === 'ASSISTANT') {
-                assistantMessageIndex = i;
-                break;
+          
+          if (value) {
+            const chunk = decoder.decode(value, { stream: true });
+            accumulatedResponse += chunk;
+
+            console.log("chunk结果拼接",accumulatedResponse)
+            
+            // 分割SSE事件
+            const events = accumulatedResponse.split('\n\n');
+            
+            // 处理每个完整的事件
+            for (let i = 0; i < events.length; i++) {
+              const event = events[i].trim();
+              if (!event) continue;
+              
+              // 查找data:前缀并提取JSON部分
+              const dataPrefixIndex = event.indexOf('data:');
+              if (dataPrefixIndex !== -1) {
+                const jsonData = event.substring(dataPrefixIndex + 5);
+                console.log("解析后json数据",jsonData)
+                try {
+                  const parsedData = JSON.parse(jsonData);
+                  
+                  // 检查是否是结束标记
+                  if (parsedData.answer === '[DONE]') {
+                    setIsLoading(false);
+                    return;
+                  }
+                  
+                  // 获取答案内容
+                  if (parsedData.answer && parsedData.answer !== '[DONE]') {
+                    // 累积答案内容，而不是直接替换
+                    fullAnswer += parsedData.answer;
+                    
+                    // 添加调试日志，查看接收到的answer内容
+                    console.log('Received answer chunk:', parsedData.answer);
+                    console.log('Current full answer:', fullAnswer);
+                      
+                    // 提取引用信息，但只在流结束时使用
+                    const citations: Citation[] = [];
+                    const ragReference = parsedData.reference?.reference || [];
+                    
+                    // 如果有引用信息，转换为所需格式
+                    if (Array.isArray(ragReference) && ragReference.length > 0) {
+                      ragReference.forEach((ref, index) => {
+                        citations.push({
+                          id: index + 1,
+                          text: ref.text || '',
+                          metadata: ref.metadata || {}
+                        });
+                      });
+                    }
+                    
+                    // 检查是否是流的最后一部分数据
+                    const isFinalChunk = done || accumulatedResponse.includes('[DONE]');
+                    
+                    // 创建助手消息对象
+                    const assistantMessage = {
+                      id: assistantMessageId,
+                      content: fullAnswer || '暂无内容', // 确保内容不为空
+                      role: 'assistant' as const,
+                      createdAt: new Date(),
+                      // 只在最后一次处理流数据时包含引用信息
+                      citations: isFinalChunk ? citations : undefined,
+                      ragReference: isFinalChunk ? ragReference : undefined
+                    };
+                    
+                    // 添加调试日志，查看助手消息内容
+                    console.log('Creating/updating assistant message with content:', fullAnswer);
+                    console.log('Is final chunk (show citations):', isFinalChunk);
+                    if (!assistantMessageCreated) {
+                      // 首次创建助手消息
+                      setMessages(prev => {
+                        console.log('Adding new assistant message to messages array');
+                        const lastMessage = prev[prev.length - 1];
+                        if (lastMessage && lastMessage.role === 'user' && lastMessage.content === input) {
+                          const newMessages = [...prev, assistantMessage];
+                          console.log('New messages array after adding assistant message:', newMessages);
+                          return newMessages;
+                        } else {
+                          // 如果最后一条不是用户刚发送的消息，则查找并更新
+                          const userIndex = prev.findIndex(msg => msg.role === 'user' && msg.content === input);
+                          if (userIndex !== -1) {
+                            const newMessages = [...prev];
+                            // 检查用户消息后是否已有助手消息，如果有则更新，否则添加
+                            if (newMessages.length > userIndex + 1 && newMessages[userIndex + 1].role === 'assistant') {
+                              newMessages[userIndex + 1] = assistantMessage;
+                            } else {
+                              newMessages.splice(userIndex + 1, 0, assistantMessage);
+                            }
+                            console.log('New messages array after inserting assistant message:', newMessages);
+                            return newMessages;
+                          }
+                          const newMessages = [...prev, assistantMessage];
+                          console.log('New messages array after fallback adding:', newMessages);
+                          return newMessages;
+                        }
+                      });
+                       
+                      assistantMessageCreated = true;
+                    } else {
+                      // 更新现有助手消息的内容
+                      setMessages(prev => {
+                        const updatedMessages = prev.map(msg => 
+                          msg.id === assistantMessageId 
+                            ? { 
+                                ...msg, 
+                                content: fullAnswer, 
+                                citations: isFinalChunk ? citations : undefined, 
+                                ragReference: isFinalChunk ? ragReference : undefined 
+                              } 
+                            : msg
+                        );
+                        console.log('Messages array after updating assistant message:', updatedMessages);
+                        return updatedMessages;
+                      });
+                    }
+                  }
+                } catch (error) {
+                  console.log('SSE JSON parsing error:', error);
+                  // 继续处理，不中断整个流程
+                }
               }
             }
+            
+            // 清理已处理的事件，只保留最后一个可能不完整的事件
+            if (events.length > 0) {
+              accumulatedResponse = events[events.length - 1];
+            }
+          }
+        }
+      } catch (error) {
+        console.error('SSE reading error:', error);
+        // 即使有错误，也要确保isLoading被设置为false
+        setIsLoading(false);
+      } finally {
+        // 确保释放reader资源
+        if (reader) {
+          try {
+            await reader.cancel();
           } catch (e) {
-            console.error("Failed to parse message for reference matching:", e);
+            // 忽略取消时的错误
           }
         }
-        
-        // 如果找到了匹配的索引，使用该索引对应的引用；否则使用最后一个引用
-        const referenceToUse = assistantMessageIndex >= 0 && assistantMessageIndex < references.length 
-          ? references[assistantMessageIndex]
-          : references[references.length - 1];
-        
-        // 确保referenceToUse和documents存在且不为空
-        if (!referenceToUse?.documents || referenceToUse.documents.length === 0) {
-          console.log("No valid documents found in reference");
-          return;
-        }
-        
-        // 处理文档引用
-        const citations = referenceToUse.documents.map((doc, docIndex) => ({
-          id: docIndex + 1,
-          text: doc.text,
-          // 确保metadata包含Answer组件需要的字段
-          metadata: {
-            ...doc.metadata,
-            // 使用documentId作为document_id
-            document_id: doc.id,
-            // 使用knowledgebaseId作为kb_id
-            kb_id: data.knowledgebaseId,
-            // 添加知识库名称（如果有）或使用知识库ID作为名称
-            knowledge_base_name: data.knowledgebaseName || `知识库 ${data.knowledgebaseId}`,
-            // 添加文件名（如果有doc.name）或使用文档ID作为文件名
-            file_name: doc.name || `文档 ${doc.id}`
-          }
-        }));
-        
-        // 为助手消息添加引用标记，以便在UI中显示引用信息
-          let contentWithCitations = assistantMessage.content || '';
-          if (citations && citations.length > 0) {
-            // 只有当确实有引用时才添加引用标记
-            const citationMarkers = citations.map(citation => `[citation](${citation.id})`).join(', ');
-            contentWithCitations += `\n\n参考资料来源：${citationMarkers}`;
-          }
-        
-        // 更新助手消息
-        assistantMessage = {
-          ...assistantMessage,
-          content: contentWithCitations,
-          citations: citations || []
-        };
-        
-        // 重新设置消息列表，确保使用更新后的助手消息
-        setMessages(prev => {
-          // 找到最后一条消息（助手消息）并更新它
-          const newMessages = [...prev];
-          if (newMessages.length > 0) {
-            newMessages[newMessages.length - 1] = assistantMessage;
-          }
-          return newMessages;
+        setIsLoading(false);
+      }
+      
+    } catch (error) {
+      setIsLoading(false);
+      console.error("发送消息失败:", error);
+      toast({
+        variant: "destructive",
+        title: "错误",
+        description: `发送消息失败: ${error instanceof Error ? error.message : '未知错误'}`
+      });
+    }
+  };
+
+  // 使用useEffect监听messages变化来处理接收到的消息
+  useEffect(() => {
+    if (messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage.role === 'assistant') {
+        setCurrentBotMessage({
+          content: lastMessage.content,
+          citations: lastMessage.citations
         });
       }
-      
-    } catch (error) {
-      console.error('Failed to send message:', error);
-      toast({
-        title: "Error",
-        description: "发送消息失败",
-        variant: "destructive",
-      });
-    } finally {
-      // 使用setInput清空输入框
-      setInput('');
-      // 同时通过ref直接清空输入框元素，确保输入框被清空
-      if (inputRef.current) {
-        inputRef.current.value = '';
-      }
     }
+  }, [messages, setCurrentBotMessage]);
+
+  // 自动滚动到底部
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // 使用useRef和useEffect确保在React 18严格模式下只调用一次fetchChat
-  const hasFetchedChat = useRef(false);
-  
+  // 组件挂载时获取聊天历史
   useEffect(() => {
-    if (!hasFetchedChat.current) {
-      hasFetchedChat.current = true;
-      fetchChat();
-    }
-  }, []);
-
-  // 消息更新时滚动到底部
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  // 调用指定的API接口加载聊天记录
-  const fetchChat = async () => {
-    try {
-      console.log(`Fetching chat data from API for chat ID: ${params.id}`);
-      
-      // 使用全局API配置调用接口
-      const response = await api.get("/chat/rag/msg/list", {
-        params: {
-          conversationId: params.id
-        }
-      });
-      
-      // 解析API返回的数据
-      // 注意：这里根据用户提供的实际数据结构进行了调整
-      const data = response.success ? response.data : response;
-      
-      // 解析嵌套的JSON字符串消息
-      let chatMessages = [];
-      if (data.message) {
-        try {
-          // message字段是JSON字符串，需要解析
-          chatMessages = JSON.parse(data.message);
-        } catch (e) {
-          console.error("Failed to parse message JSON string:", e);
-          chatMessages = [];
-        }
-      }
-      
-      // 解析嵌套的JSON字符串引用
-      let references = [];
-      if (data.reference) {
-        try {
-          // reference字段是JSON字符串，需要解析
-          references = JSON.parse(data.reference);
-        } catch (e) {
-          console.error("Failed to parse reference JSON string:", e);
-          references = [];
-        }
-      }
-      
-      // 转换为应用需要的Message格式
-      const messagesToSet = chatMessages.map((msg, index) => {
-        // 为助手消息添加引用
-        if (msg.role === 'ASSISTANT' && references.length > 0) {
-          // 对于历史消息，我们假设references数组中的索引与chatMessages数组中的索引相对应
-          // 但要确保索引不越界
-          const referenceToUse = index < references.length 
-            ? references[index]
-            : references.find(ref => ref?.documents && ref.documents.length > 0) || null;
-          
-          // 确保referenceToUse和documents存在且不为空
-          if (!referenceToUse?.documents || referenceToUse.documents.length === 0) {
-            // 如果没有有效的引用文档，直接返回消息，不添加引用
-            return {
-              id: msg.id || `msg-${index}`,
-              role: 'assistant',
-              content: msg.content || '',
-              citations: []
-            };
+    const fetchChatHistory = async () => {
+      try {
+        setLoadingChat(true);
+        
+        // 使用公共API配置获取聊天记录
+        const responseData = await api.get('/chat/rag/msg/list', {
+          params: {
+            conversationId: params.id
           }
-          
-          // 处理文档引用
-          const citations = referenceToUse.documents.map((doc, docIndex) => ({
-            id: docIndex + 1,
-            text: doc.text,
-            // 确保metadata包含Answer组件需要的字段
-            metadata: {
-              ...doc.metadata,
-              // 使用documentId作为document_id
-              document_id: doc.id,
-              // 使用knowledgebaseId作为kb_id
-              kb_id: data.knowledgebaseId,
-              // 添加知识库名称（如果有）或使用知识库ID作为名称
-              knowledge_base_name: data.knowledgebaseName || `知识库 ${data.knowledgebaseId}`,
-              // 添加文件名（如果有doc.name）或使用文档ID作为文件名
-              file_name: doc.name || `文档 ${doc.id}`
-            }
+        });
+        
+        // 设置聊天标题
+        setChatTitle(responseData?.name || `对话 #${params.id.substring(0, 8)}`);
+        
+        // 转换聊天历史为自定义Message类型格式
+        if (responseData?.message && responseData.message.length > 0) {
+          const formattedMessages = responseData.message.map((msg: any) => ({
+            id: msg.id || `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            content: msg.content,
+            role: msg.role === 'USER' ? 'user' : 'assistant',
+            createdAt: new Date(msg.createdAt),
+            citations: msg.citations,
+            ragReference: msg.ragReference,
           }));
-          
-          // 为助手消息添加引用标记，以便在UI中显示引用信息
-          let contentWithCitations = msg.content || '';
-          if (citations && citations.length > 0) {
-            // 只有当确实有引用时才添加引用标记，为每个引用生成对应的标记
-            const citationMarkers = citations.map(citation => `[citation](${citation.id})`).join(', ');
-            contentWithCitations += `\n\n参考资料来源：${citationMarkers}`;
-          }
-          
-          return {
-            id: msg.id || `msg-${index}`,
-            role: 'assistant',
-            content: contentWithCitations,
-            citations: citations || []
-          };
+          setMessages(formattedMessages);
+        } else {
+          // 如果没有历史消息，添加欢迎消息
+          setMessages([
+            {
+              id: 'welcome-msg',
+              role: 'assistant' as const,
+              content: '您好！我是知识库小助手。请问有什么可以帮助您的？',
+              createdAt: new Date()
+            }
+          ]);
         }
         
-        return {
-          id: msg.id || `msg-${index}`,
-          role: msg.role === 'ASSISTANT' ? 'assistant' : 'user',
-          content: msg.content || '',
-          citations: []
-        };
-      });
-      
-      setMessages(messagesToSet);
-    } catch (error) {
-      console.error("Failed to load chat data from API:", error);
-      toast({
-        title: "Error",
-        description: "加载聊天数据失败",
-        variant: "destructive",
-      });
-      router.push("/dashboard/chat");
-    }
-  };
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  const processMessageContent = (message: Message): Message => {
-    if (message.role !== "assistant" || !message.content) return message;
-
-    try {
-      if (!message.content.includes("__LLM_RESPONSE__")) {
-        return message;
+      } catch (error) {
+        console.error("获取聊天记录失败:", error);
+        toast({ 
+          variant: "destructive", 
+          title: "错误", 
+          description: "获取聊天记录失败，请稍后重试"
+        });
+        
+        // 错误时也显示欢迎消息
+        setMessages([
+          {
+            id: 'welcome-msg',
+            role: 'assistant' as const,
+            content: '您好！我是知识库小助手。请问有什么可以帮助您的？',
+            createdAt: new Date()
+          }
+        ]);
+      } finally {
+        setLoadingChat(false);
+        scrollToBottom();
       }
+    };
 
-      const [base64Part, responseText] =
-        message.content.split("__LLM_RESPONSE__");
+    fetchChatHistory();
+  }, [params.id, toast]);
 
-      const contextData = base64Part
-        ? (JSON.parse(atob(base64Part.trim())) as {
-            context: Array<{
-              page_content: string;
-              metadata: Record<string, any>;
-            }>;
-          })
-        : null;
-
-      const citations: Citation[] =
-        contextData?.context.map((citation, index) => ({
-          id: index + 1,
-          text: citation.page_content,
-          metadata: citation.metadata,
-        })) || [];
-
-      return {
-        ...message,
-        content: responseText || "",
-        citations,
-      };
-    } catch (e) {
-      console.error("Failed to process message:", e);
-      return message;
-    }
+  // 处理输入变化
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInput(e.target.value);
   };
 
-  // 全新实现的markdownParse函数，避免正则表达式语法问题
-  const markdownParse = (text: string) => {
-    let result = text;
+  // 处理消息反馈
+  const handleFeedback = (messageId: string, isHelpful: boolean) => {
+    // 实际项目中，这里应该发送反馈到服务器
+    console.log(`Message ${messageId} feedback: ${isHelpful ? 'helpful' : 'not helpful'}`);
     
-    // 替换模式1: [[Citation -> [citation
-    result = result.split('[[Citation').join('[citation');
-    result = result.split('[[citation').join('[citation');
-    
-    // 替换模式2: Citation:123]] -> citation:123]
-    result = result.replace(/Citation:(\d+)]]/g, 'citation:$1]');
-    result = result.replace(/citation:(\d+)]]/g, 'citation:$1]');
-    
-    // 替换模式3: [[Citation:123]] -> [Citation:123]
-    result = result.replace(/\[\[Citation:(\d+)]]/g, '[Citation:$1]');
-    result = result.replace(/\[\[citation:(\d+)]]/g, '[citation:$1]');
-    
-    // 替换模式4: [Citation:123] -> [citation](123)
-    result = result.replace(/\[Citation:(\d+)]/g, '[citation]($1)');
-    result = result.replace(/\[citation:(\d+)]/g, '[citation]($1)');
-    
-    return result;
-  };
-
-  const processedMessages = useMemo(() => {
-    return messages.map((message) => {
-      if (message.role !== "assistant" || !message.content) return message;
-
-      try {
-        if (!message.content.includes("__LLM_RESPONSE__")) {
-          return {
-            ...message,
-            content: markdownParse(message.content),
-          };
-        }
-
-        const [base64Part, responseText] =
-          message.content.split("__LLM_RESPONSE__");
-
-        const contextData = base64Part
-          ? (JSON.parse(atob(base64Part.trim())) as {
-              context: Array<{
-                page_content: string;
-                metadata: Record<string, any>;
-              }>;
-            })
-          : null;
-
-        const citations: Citation[] =
-          contextData?.context.map((citation, index) => ({
-            id: index + 1,
-            text: citation.page_content,
-            metadata: citation.metadata,
-          })) || [];
-
-        return {
-          ...message,
-          content: markdownParse(responseText || ""),
-          citations,
-        };
-      } catch (e) {
-        console.error("Failed to process message:", e);
-        return message;
-      }
+    toast({ 
+      title: isHelpful ? "感谢反馈" : "我们会改进", 
+      description: isHelpful ? "很高兴能帮到您！" : "感谢您的宝贵意见，我们会努力改进。" 
     });
-  }, [messages]);
+  };
+
+  // 自动滚动到底部
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, currentBotMessage, isLoading]);
+
+  // 返回上一页
+  const handleBack = () => {
+    router.push("/dashboard/chat");
+  };
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col h-[calc(100vh-5rem)] relative">
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-[80px]">
-          {processedMessages.map((message) =>
-            message.role === "assistant" ? (
-              <div
-                key={message.id}
-                className="flex justify-start items-start space-x-2"
-              >
-                <div className="w-8 h-8 flex items-center justify-center">
-                  <img
-                    src="/logo.png"
-                    className="h-8 w-8 rounded-full"
-                    alt="logo"
-                  />
+      <div className="flex flex-col h-[calc(100vh-4rem)]">
+        {/* 聊天标题栏 */}
+        <div className="border-b border-input p-4 flex items-center justify-between bg-background">
+          <div className="flex items-center gap-3">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={handleBack} 
+              className="h-8 w-8 rounded-full"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <h1 className="text-xl font-semibold">{chatTitle}</h1>
+          </div>
+          <div className="text-sm text-muted-foreground">
+            对话 ID: {params.id}
+          </div>
+        </div>
+
+        {/* 聊天内容区域 */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-background scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
+          {loadingChat ? (
+            <div className="space-y-4 animate-pulse">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className="flex items-start gap-3">
+                  <div className="h-10 w-10 rounded-full bg-secondary/10 flex-shrink-0" />
+                  <div className="space-y-2">
+                    <div className="h-4 w-32 bg-secondary/20 rounded" />
+                    <div className="space-y-2">
+                      <div className="h-4 w-full bg-secondary/20 rounded" />
+                      <div className="h-4 w-3/4 bg-secondary/20 rounded" />
+                    </div>
+                  </div>
                 </div>
-                <div className="max-w-[80%] rounded-lg px-4 py-2 text-accent-foreground">
-                  <Answer
-                    key={message.id}
-                    markdown={message.content}
-                    citations={message.citations}
-                  />
-                </div>
+              ))}
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
+              <div className="h-24 w-24 rounded-full bg-secondary/10 flex items-center justify-center mb-4">
+                <MessageSquare className="h-10 w-10 text-secondary" />
               </div>
-            ) : (
-              <div
-                key={message.id}
-                className="flex justify-end items-start space-x-2"
-              >
-                <div className="max-w-[80%] rounded-lg px-4 py-2 bg-primary text-primary-foreground">
-                  {message.content}
+              <h3 className="text-xl font-semibold">开始对话</h3>
+              <p className="text-muted-foreground max-w-md">
+                请在下方输入您的问题，我们的AI助手将为您提供帮助，并引用相关文档信息。
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {messages.map((message) => (
+                <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} gap-3 py-2`}>
+                  {message.role === 'assistant' && (
+                    <div className="h-10 w-10 flex-shrink-0 rounded-full bg-secondary/10 p-2 text-secondary flex items-center justify-center shadow-sm transition-all duration-200 hover:scale-105">
+                      <Bot className="h-5 w-5" />
+                    </div>
+                  )}
+                  <div className={`max-w-[80%] ${message.role === 'user' ? 'order-1' : 'order-2'}`}>
+                    <Card className={`overflow-hidden transition-all duration-200 hover:shadow-md ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-card/95'}`}>
+                      <CardHeader className="p-4 pb-0">
+                        {message.role === 'user' && (
+                          <div className="flex justify-between items-center">
+                            <CardTitle className="text-sm font-medium">您</CardTitle>
+                          </div>
+                        )}
+                        {message.role === 'assistant' && (
+                          <div className="flex justify-between items-center">
+                            <CardTitle className="text-sm font-medium">AI助手</CardTitle>
+                          </div>
+                        )}
+                      </CardHeader>
+                      <CardContent className="p-4">
+                        {message.role === 'user' ? (
+                          <p className="text-sm">{message.content}</p>
+                        ) : (
+                          <Answer 
+                            content={message.content} 
+                            citations={message.citations} 
+                            ragReference={message.ragReference} 
+                          />
+                        )}
+                      </CardContent>
+                      {message.role === 'assistant' && (
+                        <div className="px-4 pb-4 flex items-center gap-2 justify-end">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => handleFeedback(message.id, true)} 
+                            className="h-7 w-7 rounded-full hover:bg-primary/10"
+                          >
+                            <ThumbsUp className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => handleFeedback(message.id, false)} 
+                            className="h-7 w-7 rounded-full hover:bg-primary/10"
+                          >
+                            <ThumbsDown className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      )}
+                    </Card>
+                  </div>
+                  {message.role === 'user' && (
+                    <div className="h-10 w-10 flex-shrink-0 rounded-full bg-primary/10 p-2 text-primary flex items-center justify-center shadow-sm transition-all duration-200 hover:scale-105 order-3">
+                      <User className="h-5 w-5" />
+                    </div>
+                  )}
                 </div>
-                <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-                  <User className="h-5 w-5 text-primary-foreground" />
-                </div>
-              </div>
-            )
-          )}
-          <div className="flex justify-start">
-            {isLoading &&
-              processedMessages[processedMessages.length - 1]?.role !=
-                "assistant" && (
-                <div className="max-w-[80%] rounded-lg px-4 py-2 text-accent-foreground">
-                  <div className="flex items-center space-x-1">
-                    <div className="w-2 h-2 rounded-full bg-primary animate-bounce" />
-                    <div className="w-2 h-2 rounded-full bg-primary animate-bounce [animation-delay:0.2s]" />
-                    <div className="w-2 h-2 rounded-full bg-primary animate-bounce [animation-delay:0.4s]" />
+              ))}
+              
+              {/* 正在输入指示器 */}
+              {isLoading && (
+                <div className="flex justify-start gap-3 py-2 animate-fadeIn">
+                  <div className="h-10 w-10 flex-shrink-0 rounded-full bg-secondary/10 p-2 text-secondary flex items-center justify-center shadow-sm">
+                    <Bot className="h-5 w-5" />
+                  </div>
+                  <div className="max-w-[80%] bg-muted/30 rounded-lg px-4 py-3 text-accent-foreground">
+                    <div className="flex items-center space-x-1.5">
+                      <div className="w-2 h-2 rounded-full bg-primary animate-bounce" />
+                      <div className="w-2 h-2 rounded-full bg-primary animate-bounce [animation-delay:0.2s]" />
+                      <div className="w-2 h-2 rounded-full bg-primary animate-bounce [animation-delay:0.4s]" />
+                      <span className="text-xs text-muted-foreground ml-2">AI助手正在输入...</span>
+                    </div>
                   </div>
                 </div>
               )}
-          </div>
-          <div ref={messagesEndRef} />
+              
+              <div ref={messagesEndRef} />
+            </div>
+          )}
         </div>
-        <form
-          onSubmit={handleSubmit}
-          className="border-t p-4 flex items-center space-x-4 bg-background absolute bottom-0 left-0 right-0"
-        >
-          <input
-            ref={inputRef}
-            id="chat-input"
-            value={input}
-            onChange={handleInputChange}
-            placeholder="Type your message..."
-            className="flex-1 min-w-0 h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          />
-          <button
-            type="submit"
-            disabled={isLoading || !input.trim()}
-            className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
+
+        {/* 输入表单 */}
+        <div className="border-t border-input p-4 bg-background shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+          <form 
+            onSubmit={handleChatSubmit} 
+            className="flex items-center space-x-3"
           >
-            <Send className="h-4 w-4" />
-          </button>
-        </form>
+            <input
+              ref={inputRef}
+              id="chat-input"
+              value={input}
+              onChange={handleInputChange}
+              placeholder="输入您的问题..."
+              className="flex-1 min-w-0 h-12 rounded-md border border-input bg-background px-4 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-all duration-200 hover:border-primary/50"
+              disabled={loadingChat}
+              autoComplete="off"
+            />
+            <Button
+              type="submit"
+              disabled={isLoading || !input.trim() || loadingChat}
+              className="h-12 px-6 rounded-md transition-all duration-200 group bg-primary hover:bg-primary/90 hover:shadow-md disabled:opacity-50 disabled:hover:shadow-none"
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  <Send className="h-4 w-4 group-hover:translate-x-0.5 transition-transform duration-200" />
+                </>
+              )}
+            </Button>
+          </form>
+          {input.trim() && (
+            <p className="text-xs text-muted-foreground mt-2 ml-1 animate-fadeIn">按 Enter 发送消息</p>
+          )}
+        </div>
       </div>
     </DashboardLayout>
   );

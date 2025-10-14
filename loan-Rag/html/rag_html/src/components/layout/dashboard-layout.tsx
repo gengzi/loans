@@ -69,11 +69,11 @@ export default function DashboardLayout({
 
           {/* Navigation */}
           <nav className="flex-1 space-y-2 px-4 py-6">
-            {navigation.map((item) => {
+            {navigation.map((item, index) => {
               const isActive = pathname.startsWith(item.href);
               return (
                 <Link
-                  key={item.name}
+                  key={`${item.name}-${index}`}
                   href={item.href}
                   className={`group flex items-center rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200 ${
                     isActive
