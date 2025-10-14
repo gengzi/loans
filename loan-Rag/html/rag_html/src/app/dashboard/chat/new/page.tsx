@@ -61,7 +61,7 @@ export default function NewChatPage() {
         kbId: selectedKB.toString(),
       });
 
-      router.push(`/dashboard/chat/${data.id}`);
+      router.push(`/dashboard/chat/${data}`);
     } catch (error) {
       console.error("创建对话失败:", error);
       if (error instanceof ApiError) {

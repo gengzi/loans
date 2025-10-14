@@ -6,6 +6,7 @@ import rehypeRaw from "rehype-raw";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { File } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatDocumentUrl } from '@/lib/utils';
 
 interface Citation {
   id: number;
@@ -34,9 +35,10 @@ const Answer: React.FC<AnswerProps> = ({ content, citations, ragReference, isStr
         id: index + 1,
         text: ref.text || '',
         metadata: {
-          title: ref.documentUrl || `引用文档 ${index + 1}`,
+          title: ref.documentName || `引用文档 ${index + 1}`,
           source: ref.contentType || '文档',
           page: ref.pageRange,
+          url: ref.documentUrl,
           documentId: ref.documentId
         }
       }));
@@ -65,6 +67,14 @@ const Answer: React.FC<AnswerProps> = ({ content, citations, ragReference, isStr
                     <CardTitle className="text-sm font-medium">
                       {citation.metadata.title || `文档 ${citation.id}`}
                     </CardTitle>
+                    <a
+                      href={formatDocumentUrl(citation.metadata.url)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs font-medium text-primary/80"
+                    >
+                      查看文件
+                    </a>
                   </div>
                   <span className="text-xs font-medium text-primary/80">
                     [引用 {citation.id}]

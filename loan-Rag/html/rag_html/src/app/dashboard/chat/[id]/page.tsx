@@ -168,9 +168,10 @@ export default function ChatPage({ params }: { params: { id: string } }) {
                         id: index + 1,
                         text: ref.text || '',
                         metadata: {
-                          title: ref.documentUrl || `引用文档 ${index + 1}`,
+                          title: ref.documentName || `引用文档 ${index + 1}`,
                           source: ref.contentType || '文档',
                           page: ref.pageRange,
+                          url: ref.documentUrl,
                           documentId: ref.documentId,
                           // 保留原始metadata中的其他字段
                           ...(ref.metadata || {})
