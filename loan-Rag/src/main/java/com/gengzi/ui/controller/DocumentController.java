@@ -1,4 +1,4 @@
-package com.gengzi.controller;
+package com.gengzi.ui.controller;
 
 
 import com.gengzi.embedding.load.pdf.OcrPdfReader;
@@ -7,7 +7,8 @@ import com.gengzi.request.AddDocumentByS3;
 import com.gengzi.request.KnowledgebaseCreateReq;
 import com.gengzi.response.KnowledgebaseResponse;
 import com.gengzi.response.Result;
-import com.gengzi.service.KnowledgeService;
+import com.gengzi.ui.service.DocumentService;
+import com.gengzi.ui.service.KnowledgeService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -31,6 +32,9 @@ public class DocumentController {
 
     @Autowired
     private KnowledgeService knowledgeService;
+
+    @Autowired
+    private DocumentService documentService;
 
 
     /**
@@ -69,6 +73,12 @@ public class DocumentController {
     }
 
 
+    /**
+     * 从s3存储中添加文档到知识库的s3桶中
+     *
+     * @param addDocumentByS3 代添加文件的s3配置信息
+     * @return
+     */
     @PostMapping("/document/add")
     @ResponseBody
     public Result<?> documentAdd(@RequestBody AddDocumentByS3 addDocumentByS3) {
@@ -82,10 +92,23 @@ public class DocumentController {
         return null;
     }
 
-    @PostMapping("/document/embedding")
-    public Result<Void> documentToEmbedding(@RequestParam String filePath) {
+    @PostMapping("/document/embedding/pdf")
+    public Result<Void> documentToEmbeddingByPdf(@RequestParam String filePath) {
 //        pdfReaderTool.pdfReader(filePath);
-        pyPdfReader.pdfParse(filePath);
-        return Result.success("等待解析完成");
+//        pyPdfReader.pdfParse(filePath);
+        return Result.successMessage("等待解析完成");
+    }
+
+
+    /**
+     * 根据文档id进行embedding
+     *
+     * @param documentId 文档id
+     * @return
+     */
+    @PostMapping("/document/embedding")
+    public Result<Void> documentToEmbedding(@RequestParam String documentId) {
+        documentService.documentToEmbedding(documentId);
+        return Result.successMessage("等待解析完成");
     }
 }

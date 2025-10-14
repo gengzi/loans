@@ -21,6 +21,9 @@ public class RagReference {
      */
     private String chatid;
 
+    /**
+     * 引用文档块信息
+     */
     private List<ReferenceDocument> reference;
 
     /**
@@ -30,12 +33,12 @@ public class RagReference {
      * @return
      */
     public static RagReference listDocumentToRagReference(List<Document> documents) {
-
         RagReference ragReference = new RagReference();
         ragReference.setReference(documents.stream().map(document -> {
             ReferenceDocument referenceDocument = new ReferenceDocument();
             referenceDocument.setChunkId(document.getId());
             referenceDocument.setDocumentId((String) document.getMetadata().get(DocumentMetadataMap.DOCUMENT_ID));
+            referenceDocument.setDocumentName((String) document.getMetadata().get(DocumentMetadataMap.DOCUMENT_NAME));
             referenceDocument.setText(document.getText());
             referenceDocument.setScore(String.valueOf(document.getScore()));
             referenceDocument.setPageRange((String) document.getMetadata().get(DocumentMetadataMap.PAGE_RANGE));
@@ -49,3 +52,4 @@ public class RagReference {
 
 
 }
+

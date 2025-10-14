@@ -1,4 +1,4 @@
-package com.gengzi.chat;
+package com.gengzi.config.chat;
 
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;

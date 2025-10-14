@@ -1,4 +1,4 @@
-package com.gengzi.service;
+package com.gengzi.ui.service;
 
 
 import com.gengzi.request.UserLoginReq;

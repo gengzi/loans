@@ -1,11 +1,11 @@
-package com.gengzi.service.impl;
+package com.gengzi.ui.service.impl;
 
 import com.gengzi.dao.repository.UserRepository;
 import com.gengzi.request.UserLoginReq;
 import com.gengzi.response.JwtResponse;
 import com.gengzi.security.JwtTokenProvider;
 import com.gengzi.security.UserPrincipal;
-import com.gengzi.service.UserService;
+import com.gengzi.ui.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;

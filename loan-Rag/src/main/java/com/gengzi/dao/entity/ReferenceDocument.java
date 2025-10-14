@@ -15,6 +15,15 @@ public class ReferenceDocument {
      */
     private String documentId;
 
+    /**
+     * 文档名称
+     */
+    private String documentName;
+
+    /**
+     * 文档预览链接
+     */
+    private String documentUrl;
 
     /**
      * 文本段落
@@ -38,8 +47,4 @@ public class ReferenceDocument {
     private String contentType;
 
 
-    /**
-     * 文档预览链接
-     */
-    private String documentUrl;
 }

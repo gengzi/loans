@@ -1,18 +1,20 @@
-package com.gengzi.service.impl;
+package com.gengzi.ui.service.impl;
 
 
+import com.gengzi.config.S3Properties;
 import com.gengzi.dao.Document;
 import com.gengzi.dao.Knowledgebase;
 import com.gengzi.dao.User;
 import com.gengzi.dao.repository.DocumentRepository;
 import com.gengzi.dao.repository.KnowledgebaseRepository;
 import com.gengzi.dao.repository.UserRepository;
+import com.gengzi.enums.FileProcessStatusEnum;
 import com.gengzi.request.AddDocumentByS3;
 import com.gengzi.request.KnowledgebaseCreateReq;
 import com.gengzi.response.KnowledgebaseResponse;
 import com.gengzi.s3.S3ClientUtils;
 import com.gengzi.security.UserPrincipal;
-import com.gengzi.service.KnowledgeService;
+import com.gengzi.ui.service.KnowledgeService;
 import com.gengzi.utils.IdUtils;
 import com.gengzi.utils.UserDetails;
 import jakarta.persistence.criteria.Predicate;
@@ -43,6 +45,10 @@ public class KnowledgeServiceImpl implements KnowledgeService {
 
     @Autowired
     private S3ClientUtils s3ClientUtils;
+
+
+    @Autowired
+    private S3Properties s3Properties;
 
     @Override
     public List<KnowledgebaseResponse> getKnowledgebase() {
@@ -121,7 +127,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
                 document.setLocation(s3Object.key());
                 document.setSize(s3Object.size());
                 document.setType(s3Object.storageClassAsString());
-                document.setStatus("0");
+                document.setStatus(String.valueOf(FileProcessStatusEnum.UN_PROCESSED.getCode()));
                 document.setRun("1");
                 document.setCreateTime(System.currentTimeMillis());
                 document.setCreateDate(Instant.now());
@@ -140,8 +146,13 @@ public class KnowledgeServiceImpl implements KnowledgeService {
                 documentRepository.save(document);
                 // 上传
                 s3ClientUtils.copyObject( addDocumentByS3.getBucket(), s3Object.key(),
-                        "rag", s3Object.key());
+                        s3Properties.getDefaultBucketName(), s3Object.key());
+
             }
+
+            Knowledgebase knowledgebase = knowledgebaseRepository.findById(addDocumentByS3.getKbId()).get();
+            knowledgebase.setDocNum(knowledgebase.getDocNum() + s3Objects.size());
+            knowledgebaseRepository.save(knowledgebase);
         }
 
 

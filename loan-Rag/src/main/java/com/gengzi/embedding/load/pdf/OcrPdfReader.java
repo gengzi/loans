@@ -48,13 +48,14 @@ public class OcrPdfReader {
     @Autowired
     private S3ClientUtils s3ClientUtils;
 
-    public void pdfParse(String filePath) {
+    public void pdfParse(String filePath, String documentId) {
+        // 针对pdf的处理
         // 根据文件地址获取流信息
         // 获取pdf的每一页信息
         // 获取filepath 对应的属性
         String defaultBucketName = s3Properties.getDefaultBucketName();
         HeadObjectResponse headObjectResponse = s3ClientUtils.headObject(defaultBucketName, filePath);
-        FileContext fileContext = FileContext.from(headObjectResponse, defaultBucketName, filePath);
+        FileContext fileContext = FileContext.from(headObjectResponse, defaultBucketName, filePath, documentId);
         // 根据每页图片信息调用ocr模型，获取解析后的文本和元信息
         URL url = s3ClientUtils.generatePresignedUrl(defaultBucketName, filePath);
         fileContext.setFileUrl(url);

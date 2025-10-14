@@ -28,25 +28,25 @@ public class PdfReaderTool {
      * @param filePath 对象存储中文件的路径
      */
     public void pdfReader(String filePath) {
-        PDDocument pdDocument = null;
-        try {
-            pdDocument = rulesPdfReader.readerPdf(filePath);
-            PdfParseQualityEvaluator pdfParseQualityEvaluator = new PdfParseQualityEvaluator(pdDocument);
-            if (!pdfParseQualityEvaluator.evaluate()) {
-                logger.info(pdDocument + ": 规则模型解析结果");
-            } else {
-                ocrPdfReader.pdfParse(filePath);
-            }
-        } catch (Exception e) {
-            // 发生异常，直接ocr识别
-            ocrPdfReader.pdfParse(filePath);
-        } finally {
-            try {
-                pdDocument.close();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }
+//        PDDocument pdDocument = null;
+//        try {
+//            pdDocument = rulesPdfReader.readerPdf(filePath);
+//            PdfParseQualityEvaluator pdfParseQualityEvaluator = new PdfParseQualityEvaluator(pdDocument);
+//            if (!pdfParseQualityEvaluator.evaluate()) {
+//                logger.info(pdDocument + ": 规则模型解析结果");
+//            } else {
+//                ocrPdfReader.pdfParse(filePath);
+//            }
+//        } catch (Exception e) {
+//            // 发生异常，直接ocr识别
+//            ocrPdfReader.pdfParse(filePath);
+//        } finally {
+//            try {
+//                pdDocument.close();
+//            } catch (IOException e) {
+//                throw new RuntimeException(e);
+//            }
+//        }
 
 
     }

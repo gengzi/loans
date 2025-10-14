@@ -1,10 +1,10 @@
-package com.gengzi.controller;
+package com.gengzi.ui.controller;
 
 
 import com.gengzi.request.UserLoginReq;
 import com.gengzi.response.JwtResponse;
 import com.gengzi.response.Result;
-import com.gengzi.service.UserService;
+import com.gengzi.ui.service.UserService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;

@@ -78,6 +78,11 @@ public class DocumentMetadataMap {
      */
     public static final String PAGE_RANGE = "pageRange";
 
+    /**
+     * 文档名称
+     */
+    public static final String DOCUMENT_NAME = "documentName";
+
     // ============================= 元数据字段 =============================
     /**
      * 原始文档唯一标识，自动生成UUID
@@ -169,6 +174,12 @@ public class DocumentMetadataMap {
      */
     private String pageRange;
 
+
+    /**
+     * 文档名称
+     */
+    private String documentName;
+
     // ============================= 构造方法 =============================
 
     /**
@@ -177,7 +188,8 @@ public class DocumentMetadataMap {
      * @param contentType 文档格式类型
      * @param isValid     内容是否有效
      */
-    public DocumentMetadataMap(String documentId, String contentType, boolean isValid, String pageRange) {
+    public DocumentMetadataMap(String documentName,String documentId, String contentType, boolean isValid, String pageRange) {
+        this.documentName = documentName;
         this.documentId = documentId; //
         this.createdAt = LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME); // 默认为当前时间
         this.contentType = contentType;
@@ -205,6 +217,7 @@ public class DocumentMetadataMap {
 
         // 初始化对象（使用必选字段）
         DocumentMetadataMap metadata = new DocumentMetadataMap(
+                (String) metadataMap.get(DOCUMENT_NAME),
                 (String) metadataMap.get(SOURCE),
                 (String) metadataMap.get(CONTENT_TYPE),
                 (Boolean) metadataMap.get(IS_VALID),
@@ -244,6 +257,7 @@ public class DocumentMetadataMap {
         Map<String, Object> metadataMap = new HashMap<>();
 
         // 核心必选字段（强制添加）
+        metadataMap.put(DOCUMENT_NAME, documentName);
         metadataMap.put(DOCUMENT_ID, documentId);
         metadataMap.put(CONTENT_TYPE, contentType);
         metadataMap.put(CREATED_AT, createdAt);

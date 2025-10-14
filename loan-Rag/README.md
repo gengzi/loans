@@ -48,12 +48,31 @@ secret-key: infini_rag_flow
         "properties": {
             "content": {
                 "type": "text",
-                "fields": {
-                    "keyword": {
-                        "type": "keyword",
-                        "ignore_above": 256
-                    }
-                }
+                "analyzer": "standard"
+            },
+            "content_ltks": {
+                "type": "text",
+                "analyzer": "whitespace"
+            },
+            "content_sm_ltks": {
+                "type": "text",
+                "analyzer": "whitespace"
+            },
+            "create_time": {
+                "type": "date",
+                "format": "yyyy-MM-dd HH:mm:ss"
+            },
+            "create_timestamp_flt": {
+                "type": "float"
+            },
+            "doc_id": {
+                "type": "keyword"
+            },
+            "doc_type_kwd": {
+                "type": "keyword"
+            },
+            "docnm_kwd": {
+                "type": "keyword"
             },
             "id": {
                 "type": "text",
@@ -64,12 +83,48 @@ secret-key: infini_rag_flow
                     }
                 }
             },
+            "img_id": {
+                "type": "keyword"
+            },
+            "kb_id": {
+                "type": "keyword"
+            },
             "metadata": {
                 "properties": {
+                    "contentType": {
+                        "type": "text",
+                        "fields": {
+                            "keyword": {
+                                "type": "keyword",
+                                "ignore_above": 256
+                            }
+                        }
+                    },
                     "convertedTimestamp": {
                         "type": "long"
                     },
+                    "createdAt": {
+                        "type": "date"
+                    },
+                    "documentId": {
+                        "type": "text",
+                        "fields": {
+                            "keyword": {
+                                "type": "keyword",
+                                "ignore_above": 256
+                            }
+                        }
+                    },
                     "documentType": {
+                        "type": "text",
+                        "fields": {
+                            "keyword": {
+                                "type": "keyword",
+                                "ignore_above": 256
+                            }
+                        }
+                    },
+                    "excerpt_keywords": {
                         "type": "text",
                         "fields": {
                             "keyword": {
@@ -96,6 +151,18 @@ secret-key: infini_rag_flow
                     "isParagraphStart": {
                         "type": "boolean"
                     },
+                    "isValid": {
+                        "type": "boolean"
+                    },
+                    "next_section_summary": {
+                        "type": "text",
+                        "fields": {
+                            "keyword": {
+                                "type": "keyword",
+                                "ignore_above": 256
+                            }
+                        }
+                    },
                     "outputImageCount": {
                         "type": "long"
                     },
@@ -111,7 +178,34 @@ secret-key: infini_rag_flow
                     "pageNumber": {
                         "type": "long"
                     },
+                    "pageRange": {
+                        "type": "text",
+                        "fields": {
+                            "keyword": {
+                                "type": "keyword",
+                                "ignore_above": 256
+                            }
+                        }
+                    },
+                    "prev_section_summary": {
+                        "type": "text",
+                        "fields": {
+                            "keyword": {
+                                "type": "keyword",
+                                "ignore_above": 256
+                            }
+                        }
+                    },
                     "requestLogId": {
+                        "type": "text",
+                        "fields": {
+                            "keyword": {
+                                "type": "keyword",
+                                "ignore_above": 256
+                            }
+                        }
+                    },
+                    "section_summary": {
                         "type": "text",
                         "fields": {
                             "keyword": {
@@ -122,7 +216,6 @@ secret-key: infini_rag_flow
                     },
                     "sourceFileUrl": {
                         "type": "text",
-                        "copy_to": "content_tokens",  
                         "fields": {
                             "keyword": {
                                 "type": "keyword",
@@ -132,7 +225,23 @@ secret-key: infini_rag_flow
                     }
                 }
             },
-         "content_tokens": {"type": "text", "analyzer": "ik_smart"},
+            "pageNumInt": {
+                "type": "text",
+                "fields": {
+                    "keyword": {
+                        "type": "keyword",
+                        "ignore_above": 256
+                    }
+                }
+            },
+            "page_num_int": {
+                "type": "keyword",
+                "index": false
+            },
+            "position_int": {
+                "type": "keyword",
+                "index": false
+            },
             "q_1024_vec": {
                 "type": "dense_vector",
                 "dims": 1024,
@@ -146,6 +255,18 @@ secret-key: infini_rag_flow
                         "oversample": 3
                     }
                 }
+            },
+            "title_sm_tks": {
+                "type": "text",
+                "analyzer": "whitespace"
+            },
+            "title_tks": {
+                "type": "text",
+                "analyzer": "whitespace"
+            },
+            "top_int": {
+                "type": "keyword",
+                "index": false
             }
         }
     }

@@ -1,6 +1,5 @@
-package com.gengzi.service;
+package com.gengzi.ui.service;
 
-import com.gengzi.dao.Knowledgebase;
 import com.gengzi.request.AddDocumentByS3;
 import com.gengzi.request.KnowledgebaseCreateReq;
 import com.gengzi.response.KnowledgebaseResponse;

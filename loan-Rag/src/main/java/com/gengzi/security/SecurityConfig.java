@@ -1,7 +1,7 @@
 package com.gengzi.security;
 
 
-import com.gengzi.service.RagUserDetailsService;
+import com.gengzi.ui.service.RagUserDetailsService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;

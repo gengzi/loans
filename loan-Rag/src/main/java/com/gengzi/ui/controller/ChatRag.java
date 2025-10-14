@@ -1,4 +1,4 @@
-package com.gengzi.controller;
+package com.gengzi.ui.controller;
 
 
 import com.gengzi.request.RagChatCreateReq;
@@ -47,9 +47,8 @@ public class ChatRag {
     private ChatRagService chatRagService;
 
     @PostMapping("/chat/rag/create")
-    public Result<Boolean> chatRagCreate(@RequestBody RagChatCreateReq req) {
-        chatRagService.chatRagCreate(req);
-        return Result.success(true);
+    public Result<?> chatRagCreate(@RequestBody RagChatCreateReq req) {
+        return Result.success(chatRagService.chatRagCreate(req));
     }
 
     /**
@@ -61,7 +60,7 @@ public class ChatRag {
     }
 
 
-    @PostMapping(value = "/chat/rag" ,  produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @PostMapping(value = "/chat/rag", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<ChatAnswerResponse> chatRag(@RequestBody RagChatReq req) {
         return chatRagService.chatRag(req);
     }

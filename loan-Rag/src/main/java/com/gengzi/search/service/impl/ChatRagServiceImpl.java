@@ -26,7 +26,6 @@ import org.springframework.ai.rag.advisor.RetrievalAugmentationAdvisor;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -112,7 +111,9 @@ public class ChatRagServiceImpl implements ChatRagService {
                     chatAnswerResponse.setAnswer(chatResponse.getResult().getOutput().getText());
                     Map<String, Object> context = chatClientResponse.context();
                     List<Document> documents = (List<Document>) context.get(RetrievalAugmentationAdvisor.DOCUMENT_CONTEXT);
-                    chatAnswerResponse.setReference(RagReference.listDocumentToRagReference(documents));
+                    RagReference ragReference = RagReference.listDocumentToRagReference(documents);
+                    chatAnswerResponse.setReference(ragReference);
+                    done.setReference(ragReference);
                     // 返回用户问题后，还需要拼接上参考的文档信息，文档链接
                     return chatAnswerResponse;
                 }).concatWith(Mono.just(done));
@@ -125,7 +126,7 @@ public class ChatRagServiceImpl implements ChatRagService {
      * @param req
      */
     @Override
-    public void chatRagCreate(RagChatCreateReq req) {
+    public String chatRagCreate(RagChatCreateReq req) {
         // 向会话表插入一条会话信息
         // 会话id
         String conversationId = IdUtils.generate();
@@ -147,6 +148,7 @@ public class ChatRagServiceImpl implements ChatRagService {
                 .reference("[]")
                 .userId(UserDetails.getUser().getId())
                 .build());
+        return conversationId;
     }
 
     /**
@@ -185,10 +187,9 @@ public class ChatRagServiceImpl implements ChatRagService {
             Conversation conversation = conversationRepositoryById.get();
             conversationDetailsResponse.setId(conversationId);
             conversationDetailsResponse.setName(conversation.getName());
-
             String reference = conversation.getReference();
+            // 获取引用文档信息
             List<RagReference> ragReferences = JSONUtil.toList(reference, RagReference.class);
-
             // 将引入的文档信息转换成 rag 引用信息
             String message = conversation.getMessage();
             List<RagChatMessage> ragChatMessages = JSONUtil.toList(message, RagChatMessage.class);
@@ -201,7 +202,6 @@ public class ChatRagServiceImpl implements ChatRagService {
                 }
             }
             conversationDetailsResponse.setMessage(ragChatMessages);
-//            conversationDetailsResponse.setReference(conversation.getReference());
             conversationDetailsResponse.setUpdateTime(conversation.getUpdateTime());
             conversationDetailsResponse.setUpdateDate(conversation.getUpdateDate());
             conversationDetailsResponse.setCreateTime(conversation.getCreateTime());

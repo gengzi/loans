@@ -36,7 +36,7 @@ public class Result<T> {
     /**
      * 成功返回（无业务数据，仅返回状态和消息）
      */
-    public static <T> Result<T> success(String message) {
+    public static <T> Result<T> successMessage(String message) {
         Result<T> result = new Result<>();
         result.setCode(ResultCode.SUCCESS.getCode());
         result.setSuccess(true);

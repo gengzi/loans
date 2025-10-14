@@ -22,11 +22,12 @@ public class FileContext {
     // 标识某一个文件的唯一id，通过文件路径得到
     private String fileId;
     private URL fileUrl;
+    private String documentId;
 
     private FileContext(String eTag, long contentLength, String contentType,
                         Instant lastModified, String versionId, String storageClass,
                         Map<String, String> userMetadata, boolean isDeleteMarker,
-                        String bucketName, String key) {
+                        String bucketName, String key, String documentId) {
         this.eTag = eTag;
         this.contentLength = contentLength;
         this.contentType = contentType;
@@ -42,7 +43,7 @@ public class FileContext {
     /**
      * 从HeadObjectResponse构建元数据对象
      */
-    public static FileContext from(HeadObjectResponse headResponse, String bucketName, String key) {
+    public static FileContext from(HeadObjectResponse headResponse, String bucketName, String key, String documentId) {
         return new FileContext(
                 headResponse.eTag(),
                 headResponse.contentLength(),
@@ -53,8 +54,17 @@ public class FileContext {
                 headResponse.metadata(),
                 headResponse.deleteMarker() == null ? false : true,
                 bucketName,
-                key
+                key,
+                documentId
         );
+    }
+
+    public String getDocumentId() {
+        return documentId;
+    }
+
+    public void setDocumentId(String documentId) {
+        this.documentId = documentId;
     }
 
     public String getFileId() {

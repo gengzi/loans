@@ -1,4 +1,4 @@
-package com.gengzi.chat;
+package com.gengzi.config.chat;
 
 
 import com.gengzi.advisor.MessageChatRecordAdvisor;

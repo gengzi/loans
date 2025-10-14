@@ -1,7 +1,9 @@
 package com.gengzi.model;
 
 import com.gengzi.context.FileContext;
+import com.gengzi.dao.repository.DocumentRepository;
 import com.gengzi.embedding.split.TextSplitterTool;
+import com.gengzi.enums.FileProcessStatusEnum;
 import com.gengzi.request.LayoutParsingRequest;
 import com.gengzi.response.LayoutParsingResponse;
 import com.gengzi.vector.es.EsVectorDocumentConverter;
@@ -20,6 +22,7 @@ import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
@@ -52,6 +55,11 @@ public class PPStructureV3Tool {
     @Autowired
     private SummaryEnricherMetadataByChatModel summaryEnricherMetadataByChatModel;
 
+
+    @Autowired
+    private DocumentRepository documentRepository;
+
+
     @Autowired
     public PPStructureV3Tool(RestTemplate restTemplate, @Qualifier("asyncTaskExecutor") ThreadPoolTaskExecutor threadPoolTaskExecutor) {
         this.restTemplate = restTemplate;
@@ -66,6 +74,7 @@ public class PPStructureV3Tool {
      * @return 异步任务标识（可用于前端轮询查询结果）
      */
 
+    @Transactional(rollbackFor = Exception.class)
     public CompletableFuture<LayoutParsingResponse> asyncParsePdf(FileContext fileContext) {
         // 1. 构建入参对象
         LayoutParsingRequest request = new LayoutParsingRequest();
@@ -97,6 +106,10 @@ public class PPStructureV3Tool {
                         List<Document> convert1 = EsVectorDocumentConverter.convert(splitDocuments, fileContext);
 
                         vectorStore.add(convert1);
+
+                        // 将文档标记为已处理
+
+                        documentRepository.updateChunkNumAndStatusById(fileContext.getDocumentId(), splitDocuments.size(), String.valueOf(FileProcessStatusEnum.PROCESS_SUCCESS.getCode()));
 
                     } else {
                         logger.error("异步解析失败！错误信息：{}", response != null ? response.getErrorMsg() : "未知错误");

@@ -22,7 +22,7 @@ public interface ChatRagService {
     Flux<ChatAnswerResponse> chatRag(RagChatReq ragChatReq);
 
 
-    void chatRagCreate(RagChatCreateReq req);
+    String chatRagCreate(RagChatCreateReq req);
 
     List<ConversationResponse> chatRagAll();
 
