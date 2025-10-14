@@ -1,5 +1,6 @@
 package com.gengzi.response;
 
+import com.gengzi.dao.entity.RagChatMessage;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
@@ -7,6 +8,7 @@ import lombok.Value;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * DTO for {@link com.gengzi.dao.Conversation}
@@ -24,7 +26,7 @@ public class ConversationDetailsResponse implements Serializable {
     String dialogId;
     @Size(max = 255)
     String name;
-    String message;
+    List<RagChatMessage> message;
     String reference;
     @Size(max = 255)
     String userId;

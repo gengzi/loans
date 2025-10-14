@@ -155,8 +155,8 @@ public class MessageChatRecordAdvisor implements BaseAdvisor {
             String reference = conversation.getReference();
             if (StrUtil.isNotBlank(reference)) {
                 List<RagReference> list = JSONUtil.toList(reference, RagReference.class);
-                RagReference ragReference = new RagReference();
-                ragReference.setDocuments(documents);
+                RagReference ragReference = RagReference.listDocumentToRagReference(documents);
+                ragReference.setChatid(chatId);
                 list.add(ragReference);
                 conversation.setReference(JSONUtil.toJsonStr(list));
             }

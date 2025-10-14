@@ -12,7 +12,7 @@ public class RagChatMessage {
     private String id;
     private String role;
     private String conversationId;
-    private List<String> docIds;
+    private RagReference ragReference;
     private String answer;
     private long createdAt;
     private String prompt;

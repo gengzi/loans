@@ -2,8 +2,10 @@ package com.gengzi.search.service;
 
 import com.gengzi.request.RagChatCreateReq;
 import com.gengzi.request.RagChatReq;
+import com.gengzi.response.ChatAnswerResponse;
 import com.gengzi.response.ConversationDetailsResponse;
 import com.gengzi.response.ConversationResponse;
+import org.springframework.http.codec.ServerSentEvent;
 import reactor.core.publisher.Flux;
 
 import java.util.List;
@@ -17,7 +19,7 @@ public interface ChatRagService {
      * @param ragChatReq rag对话参数
      * @return
      */
-    Flux<String> chatRag(RagChatReq ragChatReq);
+    Flux<ChatAnswerResponse> chatRag(RagChatReq ragChatReq);
 
 
     void chatRagCreate(RagChatCreateReq req);

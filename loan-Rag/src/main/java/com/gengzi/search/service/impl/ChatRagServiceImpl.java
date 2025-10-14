@@ -1,11 +1,15 @@
 package com.gengzi.search.service.impl;
 
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONUtil;
 import com.gengzi.context.RagChatContext;
 import com.gengzi.dao.Conversation;
+import com.gengzi.dao.entity.RagChatMessage;
+import com.gengzi.dao.entity.RagReference;
 import com.gengzi.dao.repository.ConversationRepository;
 import com.gengzi.request.RagChatCreateReq;
 import com.gengzi.request.RagChatReq;
+import com.gengzi.response.ChatAnswerResponse;
 import com.gengzi.response.ConversationDetailsResponse;
 import com.gengzi.response.ConversationResponse;
 import com.gengzi.search.service.ChatRagService;
@@ -13,21 +17,28 @@ import com.gengzi.security.UserPrincipal;
 import com.gengzi.utils.IdUtils;
 import com.gengzi.utils.UserDetails;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.client.ChatClientResponse;
 import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.chat.messages.MessageType;
 import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.document.Document;
+import org.springframework.ai.rag.advisor.RetrievalAugmentationAdvisor;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -57,7 +68,7 @@ public class ChatRagServiceImpl implements ChatRagService {
      * @return
      */
     @Override
-    public Flux<String> chatRag(RagChatReq ragChatReq) {
+    public Flux<ChatAnswerResponse> chatRag(RagChatReq ragChatReq) {
 
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         UserPrincipal details = (UserPrincipal) authentication.getPrincipal();
@@ -76,21 +87,36 @@ public class ChatRagServiceImpl implements ChatRagService {
         String conversationId = ragChatReq.getConversationId();
         String chatId = IdUtils.generate();
         RagChatContext ragChatContext = new RagChatContext(chatId, conversationId, userId);
-        Flux<String> content = chatClientByRag.prompt()
+//        Flux<String> content = chatClientByRag.prompt()
+//                .user(question)
+//                .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, conversationId))
+//                .advisors(advisorSpec -> advisorSpec.param(RagChatContext.RAG_CHAT_CONTEXT, ragChatContext))
+//                .stream()
+//                .content();
+        Flux<ChatClientResponse> chatClientResponseFlux = chatClientByRag.prompt()
                 .user(question)
                 .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, conversationId))
                 .advisors(advisorSpec -> advisorSpec.param(RagChatContext.RAG_CHAT_CONTEXT, ragChatContext))
                 .stream()
-                .content();
-        Flux<ChatResponse> chatResponseFlux = chatClientByRag.prompt()
-                .user(question)
-                .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, conversationId))
-                .advisors(advisorSpec -> advisorSpec.param(RagChatContext.RAG_CHAT_CONTEXT, ragChatContext))
-                .stream()
-                .chatResponse();
+                .chatClientResponse();
+        ChatAnswerResponse done = new ChatAnswerResponse();
+        done.setAnswer("[DONE]");
 
-        // 返回用户问题后，还需要拼接上参考的文档信息，文档链接
-        return content;
+
+        return chatClientResponseFlux.index()
+                .map(result -> {
+                    long sequenceNumber = result.getT1() + 1;
+                    ChatClientResponse chatClientResponse = result.getT2();
+                    ChatAnswerResponse chatAnswerResponse = new ChatAnswerResponse();
+                    ChatResponse chatResponse = chatClientResponse.chatResponse();
+                    chatAnswerResponse.setAnswer(chatResponse.getResult().getOutput().getText());
+                    Map<String, Object> context = chatClientResponse.context();
+                    List<Document> documents = (List<Document>) context.get(RetrievalAugmentationAdvisor.DOCUMENT_CONTEXT);
+                    chatAnswerResponse.setReference(RagReference.listDocumentToRagReference(documents));
+                    // 返回用户问题后，还需要拼接上参考的文档信息，文档链接
+                    return chatAnswerResponse;
+                }).concatWith(Mono.just(done));
+
     }
 
     /**
@@ -159,8 +185,23 @@ public class ChatRagServiceImpl implements ChatRagService {
             Conversation conversation = conversationRepositoryById.get();
             conversationDetailsResponse.setId(conversationId);
             conversationDetailsResponse.setName(conversation.getName());
-            conversationDetailsResponse.setMessage(conversation.getMessage());
-            conversationDetailsResponse.setReference(conversation.getReference());
+
+            String reference = conversation.getReference();
+            List<RagReference> ragReferences = JSONUtil.toList(reference, RagReference.class);
+
+            // 将引入的文档信息转换成 rag 引用信息
+            String message = conversation.getMessage();
+            List<RagChatMessage> ragChatMessages = JSONUtil.toList(message, RagChatMessage.class);
+            for (RagChatMessage ragChatMessage : ragChatMessages) {
+                if (MessageType.ASSISTANT.name().equals(ragChatMessage.getRole())) {
+                    String id = ragChatMessage.getId();
+                    ragReferences.stream().filter(ragReference -> ragReference.getChatid().equals(id))
+                            .findFirst()
+                            .ifPresent(ragReference -> ragChatMessage.setRagReference(ragReference));
+                }
+            }
+            conversationDetailsResponse.setMessage(ragChatMessages);
+//            conversationDetailsResponse.setReference(conversation.getReference());
             conversationDetailsResponse.setUpdateTime(conversation.getUpdateTime());
             conversationDetailsResponse.setUpdateDate(conversation.getUpdateDate());
             conversationDetailsResponse.setCreateTime(conversation.getCreateTime());

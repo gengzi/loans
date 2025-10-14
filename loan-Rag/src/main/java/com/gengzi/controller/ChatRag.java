@@ -3,6 +3,7 @@ package com.gengzi.controller;
 
 import com.gengzi.request.RagChatCreateReq;
 import com.gengzi.request.RagChatReq;
+import com.gengzi.response.ChatAnswerResponse;
 import com.gengzi.response.Result;
 import com.gengzi.search.service.ChatRagService;
 import com.gengzi.search.service.IntentAnalysisRagService;
@@ -14,6 +15,7 @@ import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 
@@ -59,8 +61,8 @@ public class ChatRag {
     }
 
 
-    @PostMapping("/chat/rag")
-    public Flux<String> chatRag(@RequestBody RagChatReq req) {
+    @PostMapping(value = "/chat/rag" ,  produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<ChatAnswerResponse> chatRag(@RequestBody RagChatReq req) {
         return chatRagService.chatRag(req);
     }
 
