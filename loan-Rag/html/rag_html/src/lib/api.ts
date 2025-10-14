@@ -11,8 +11,8 @@ export class ApiError extends Error {
   }
 }
 
-// 后端API基础URL，指向Spring Boot服务
-const BASE_URL = 'http://localhost:8883';
+// 导入API配置
+import API_CONFIG from './config';
 
 export async function fetchApi(url: string, options: FetchOptions = {}) {  
   const { data, headers: customHeaders = {}, params, ...restOptions } = options;  // 解构出params
@@ -20,11 +20,11 @@ export async function fetchApi(url: string, options: FetchOptions = {}) {
   // Get token from localStorage
   let token = '';
   if (typeof window !== 'undefined') {
-    token = localStorage.getItem('token') || '';
+    token = localStorage.getItem(API_CONFIG.AUTH.TOKEN_KEY) || '';
   }
 
   const headers: Record<string, string> = {
-    ...(token && { Authorization: `Bearer ${token}` }),
+    ...(token && { Authorization: `${API_CONFIG.AUTH.AUTH_HEADER_PREFIX} ${token}` }),
     ...customHeaders,
   };
 
@@ -53,7 +53,7 @@ export async function fetchApi(url: string, options: FetchOptions = {}) {
 
   try {
     // 构建完整的API请求URL
-    let fullUrl = url.startsWith('http') ? url : `${BASE_URL}${url}`;
+    let fullUrl = url.startsWith('http') ? url : `${API_CONFIG.BASE_URL}${url}`;
     
     // 处理params参数，构建查询字符串
     if (params) {
@@ -79,8 +79,8 @@ export async function fetchApi(url: string, options: FetchOptions = {}) {
 
     if (response.status === 401) {
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('token');
-        window.location.href = '/login';
+        localStorage.removeItem(API_CONFIG.AUTH.TOKEN_KEY);
+        window.location.href = API_CONFIG.AUTH.UNAUTHORIZED_REDIRECT_URL;
       }
       throw new ApiError(401, '未授权 - 请重新登录');
     }

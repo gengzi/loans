@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { FileText, Eye, Code } from "lucide-react";
 import { FileIcon, defaultStyles } from "react-file-icon";
 import { api, ApiError } from "@/lib/api";
+import API_CONFIG from "@/lib/config";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,8 @@ export function DocumentList({ knowledgeBaseId }: DocumentListProps) {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(10);
   const [totalDocuments, setTotalDocuments] = useState<number>(0);
+  // 用于防止useEffect重复调用
+  const initialLoadRef = useRef(false);
 
   const fetchDocuments = async (page: number = 1, pageSize: number = 10) => {
     try {
@@ -53,7 +56,7 @@ export function DocumentList({ knowledgeBaseId }: DocumentListProps) {
       // 只调用分页API，移除回退逻辑
       // 注意：API使用0-based索引，所以需要减1
       const apiPage = page - 1;
-      const response = await api.get(`/api/knowledge-base/documents`, {
+      const response = await api.get(`${API_CONFIG.API_PREFIX}${API_CONFIG.ENDPOINTS.DOCUMENT.KNOWLEDGE_BASE_DOCUMENTS}`, {
         params: {
           kbId: knowledgeBaseId,
           page: apiPage,
@@ -83,10 +86,30 @@ export function DocumentList({ knowledgeBaseId }: DocumentListProps) {
   };
 
   // 处理解析操作
-  const handleParse = (documentId: string) => {
-    // 解析逻辑 - 当前先打印日志
-    console.log(`Parsing document with id: ${documentId}`);
-    // 可以根据需要添加实际的解析API调用
+  const handleParse = async (documentId: string) => {
+    try {
+      // 调用后端解析API - 使用配置文件中的设置
+      const response = await api.post(
+        `${API_CONFIG.ENDPOINTS.DOCUMENT.EMBEDDING}`,
+        null,
+        {
+          headers: API_CONFIG.DEFAULT_HEADERS,
+          params: {
+            documentId: documentId
+          }
+        }
+      );
+      
+      // 解析成功，重新加载文档列表
+      fetchDocuments(currentPage, itemsPerPage);
+      console.log(`解析文档成功: ${documentId}`);
+    } catch (error) {
+      console.error(`调用解析API时发生错误:`, error);
+      if (error instanceof ApiError) {
+        // 可以在这里添加更友好的错误提示
+        console.error(`解析文档失败: ${error.message}`);
+      }
+    }
   };
 
   // 处理查看操作 - 跳转到文档分块详情页
@@ -96,7 +119,13 @@ export function DocumentList({ knowledgeBaseId }: DocumentListProps) {
   };
 
   useEffect(() => {
-    fetchDocuments(currentPage, itemsPerPage);
+    // 在首次渲染时，由于React的严格模式可能会触发两次
+    // 使用ref标记来确保只执行一次API调用
+    if (initialLoadRef.current) {
+      fetchDocuments(currentPage, itemsPerPage);
+    } else {
+      initialLoadRef.current = true;
+    }
   }, [knowledgeBaseId, currentPage, itemsPerPage]);
 
   const handlePageChange = (page: number) => {
@@ -193,14 +222,19 @@ export function DocumentList({ knowledgeBaseId }: DocumentListProps) {
               <TableCell>
                 <Badge
                   variant={
-                    doc.status === "0" || doc.progress === 100
+                    doc.status === "2"
                       ? "secondary" // Green for completed
-                      : doc.status === "1" || doc.progress < 100
+                      : doc.status === "1"
                       ? "default" // Default for processing
-                      : "destructive" // Red for failed
+                      : doc.status === "3"
+                      ? "destructive" // Red for failed
+                      : "outline" // Outline for unprocessed
                   }
                 >
-                  {doc.status === "0" ? "已完成" : doc.status === "1" ? "处理中" : "失败"}
+                  {doc.status === "0" ? "未处理" : 
+                   doc.status === "1" ? "处理中" : 
+                   doc.status === "2" ? "处理完成" : 
+                   doc.status === "3" ? "处理失败" : "未知"}
                 </Badge>
               </TableCell>
               <TableCell>
@@ -210,22 +244,24 @@ export function DocumentList({ knowledgeBaseId }: DocumentListProps) {
                     size="icon"
                     className="h-8 w-8"
                     onClick={() => handleView(doc.id)}
-                    disabled={doc.status !== "0" && doc.progress !== 100}
+                    disabled={doc.status !== "2"}
                     title="查看"
                   >
                     <Eye className="h-4 w-4" />
                   </Button>
                   
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => handleParse(doc.id)}
-                    disabled={doc.status !== "0" && doc.progress !== 100}
-                    title="解析"
-                  >
-                    <Code className="h-4 w-4" />
-                  </Button>
+                  {/* 只在未处理(0)和处理失败(3)状态下显示解析按钮 */}
+                  {(doc.status === "0" || doc.status === "3") && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => handleParse(doc.id)}
+                      title="解析"
+                    >
+                      <Code className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               </TableCell>
             </TableRow>

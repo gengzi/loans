@@ -30,7 +30,7 @@ export default function DashboardLayout({
   const navigation = [
     { name: "知识库", href: "/dashboard/knowledge", icon: Book },
     { name: "对话", href: "/dashboard/chat", icon: MessageSquare },
-    { name: "API 密钥", href: "/dashboard/api-keys", icon: User },
+    // { name: "API 密钥", href: "/dashboard/api-keys", icon: User },
   ];
 
   return (

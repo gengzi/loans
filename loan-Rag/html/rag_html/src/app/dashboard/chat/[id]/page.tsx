@@ -124,7 +124,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
             const events = accumulatedResponse.split('\n\n');
             
             // 处理每个完整的事件
-            for (let i = 0; i < events.length; i++) {
+            for (let i = 0; i < events.length - 1; i++) { // 只处理前n-1个完整事件
               const event = events[i].trim();
               if (!event) continue;
               
@@ -138,14 +138,17 @@ export default function ChatPage({ params }: { params: { id: string } }) {
                   
                   // 检查是否是结束标记
                   if (parsedData.answer === '[DONE]') {
+                    
                     setIsLoading(false);
                     return;
                   }
                   
                   // 获取答案内容
                   if (parsedData.answer && parsedData.answer !== '[DONE]') {
-                    // 累积答案内容，而不是直接替换
-                    fullAnswer += parsedData.answer;
+                    // 检查当前答案块是否已存在于fullAnswer的结尾（简单去重）
+                    if (!fullAnswer.endsWith(parsedData.answer)) {
+                      fullAnswer += parsedData.answer;
+                    }
                     
                     // 添加调试日志，查看接收到的answer内容
                     console.log('Received answer chunk:', parsedData.answer);
