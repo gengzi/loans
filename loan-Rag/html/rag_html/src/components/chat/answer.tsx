@@ -1,12 +1,11 @@
-import React from "react";
+import React, { useState } from 'react';
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import rehypeRaw from "rehype-raw";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { File } from "lucide-react";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { File, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatDocumentUrl } from '@/lib/utils';
 
 interface Citation {
   id: number;
@@ -67,14 +66,21 @@ const Answer: React.FC<AnswerProps> = ({ content, citations, ragReference, isStr
                     <CardTitle className="text-sm font-medium">
                       {citation.metadata.title || `文档 ${citation.id}`}
                     </CardTitle>
-                    <a
-                      href={formatDocumentUrl(citation.metadata.url)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs font-medium text-primary/80"
+                    <button
+                      onClick={() => {
+                        // 在新窗口打开文件预览
+                        if (citation.metadata.documentId) {
+                          // 假设文件预览路由为 /file-preview/:documentId
+                          const previewUrl = `/file-preview/${citation.metadata.documentId}`;
+                          window.open(previewUrl, '_blank');
+                        }
+                      }}
+                      className="text-xs font-medium text-primary/80 hover:text-primary transition-colors flex items-center gap-1"
+                      aria-label="查看文件"
                     >
+                      <Eye className="h-3 w-3" />
                       查看文件
-                    </a>
+                    </button>
                   </div>
                   <span className="text-xs font-medium text-primary/80">
                     [引用 {citation.id}]
@@ -87,7 +93,7 @@ const Answer: React.FC<AnswerProps> = ({ content, citations, ragReference, isStr
                 </div>
               </CardHeader>
               <CardContent className="p-3 pt-2">
-                <p className="text-xs text-muted-foreground line-clamp-3 bg-background/30 p-2 rounded-md">
+                <p className="text-xs text-muted-foreground max-h-[120px] overflow-y-auto bg-background/30 p-2 rounded-md">
                   {citation.text}
                 </p>
               </CardContent>
