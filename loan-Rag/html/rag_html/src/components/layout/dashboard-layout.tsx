@@ -28,9 +28,9 @@ export default function DashboardLayout({
   };
 
   const navigation = [
-    { name: "Knowledge Base", href: "/dashboard/knowledge", icon: Book },
-    { name: "Chat", href: "/dashboard/chat", icon: MessageSquare },
-    { name: "API Keys", href: "/dashboard/api-keys", icon: User },
+    { name: "知识库", href: "/dashboard/knowledge", icon: Book },
+    { name: "对话", href: "/dashboard/chat", icon: MessageSquare },
+    { name: "API 密钥", href: "/dashboard/api-keys", icon: User },
   ];
 
   return (
@@ -47,9 +47,7 @@ export default function DashboardLayout({
 
       {/* Sidebar */}
       <div
-        className={`fixed inset-y-0 left-0 z-40 w-64 transform bg-card border-r transition-transform duration-200 ease-in-out lg:translate-x-0 ${
-          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        className={`fixed inset-y-0 left-0 z-40 w-64 transform bg-card border-r transition-transform duration-200 ease-in-out lg:translate-x-0 ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"}`}
       >
         <div className="flex h-full flex-col">
           {/* Sidebar header */}
@@ -75,18 +73,14 @@ export default function DashboardLayout({
                 <Link
                   key={`${item.name}-${index}`}
                   href={item.href}
-                  className={`group flex items-center rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200 ${
-                    isActive
-                      ? "bg-gradient-to-r from-primary/10 to-primary/5 text-primary shadow-sm"
-                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground hover:shadow-sm"
-                  }`}
+                  className={`group flex items-center rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200 ${isActive
+                    ? "bg-gradient-to-r from-primary/10 to-primary/5 text-primary shadow-sm"
+                    : "text-muted-foreground hover:bg-accent/50 hover:text-foreground hover:shadow-sm"}`}
                 >
                   <item.icon
-                    className={`mr-3 h-5 w-5 transition-transform duration-200 ${
-                      isActive
-                        ? "text-primary scale-110"
-                        : "group-hover:scale-110"
-                    }`}
+                    className={`mr-3 h-5 w-5 transition-transform duration-200 ${isActive
+                      ? "text-primary scale-110"
+                      : "group-hover:scale-110"}`}
                   />
                   <span className="font-medium">{item.name}</span>
                   {isActive && (
@@ -103,7 +97,7 @@ export default function DashboardLayout({
               className="flex w-full items-center rounded-lg px-3 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors duration-200"
             >
               <LogOut className="mr-3 h-4 w-4" />
-              Sign out
+              退出登录
             </button>
           </div>
         </div>
@@ -124,17 +118,17 @@ export const dashboardConfig = {
   mainNav: [],
   sidebarNav: [
     {
-      title: "Knowledge Base",
+      title: "知识库",
       href: "/dashboard/knowledge",
       icon: "database",
     },
     {
-      title: "Chat",
+      title: "对话",
       href: "/dashboard/chat",
       icon: "messageSquare",
     },
     {
-      title: "API Keys",
+      title: "API 密钥",
       href: "/dashboard/api-keys",
       icon: "key",
     },

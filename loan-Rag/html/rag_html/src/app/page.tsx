@@ -7,25 +7,25 @@ export default function Home() {
         {/* Hero Section */}
         <div className="text-center space-y-8 mb-24">
           <h1 className="text-6xl sm:text-7xl font-bold tracking-tight text-black">
-            RAG Web UI
+            RAG Web界面
           </h1>
           <p className="text-xl sm:text-2xl text-gray-500 max-w-3xl mx-auto font-light leading-relaxed">
-            Experience the next generation of AI interaction.
+            体验下一代AI交互。
             <br />
-            Powerful. Intuitive. Revolutionary.
+            强大。直观。革命性。
           </p>
           <div className="flex flex-col sm:flex-row gap-6 justify-center items-center mt-12">
             <Link
               href="/register"
               className="px-8 py-4 bg-blue-600 text-white rounded-full text-lg font-medium transition-all duration-300 hover:bg-blue-700 w-full sm:w-auto"
             >
-              Get Started
+              开始使用
             </Link>
             <Link
               href="/login"
               className="px-8 py-4 bg-gray-200 text-gray-800 rounded-full text-lg font-medium transition-all duration-300 hover:bg-gray-300 w-full sm:w-auto"
             >
-              Sign In
+              登录
             </Link>
             <a
               href="https://github.com/JohannLai/rag-web-ui"
@@ -46,23 +46,23 @@ export default function Home() {
               rel="noopener noreferrer"
             >
               <img
-                alt="GitHub stars"
+                alt="GitHub 星标"
                 src="https://img.shields.io/github/stars/JohannLai/rag-web-ui?style=social"
                 className="h-6"
               />
             </a>
             <img
-              alt="License"
+              alt="许可证"
               src="https://img.shields.io/github/license/JohannLai/rag-web-ui"
               className="h-6"
             />
             <img
-              alt="Python version"
+              alt="Python 版本"
               src="https://img.shields.io/badge/python-3.9+-blue.svg"
               className="h-6"
             />
             <img
-              alt="Node version"
+              alt="Node 版本"
               src="https://img.shields.io/badge/node-%3E%3D18-green.svg"
               className="h-6"
             />
@@ -88,12 +88,10 @@ export default function Home() {
               </svg>
             </div>
             <h3 className="text-2xl font-semibold text-black mb-4">
-              Powerful RAG Engine
+              强大的RAG引擎
             </h3>
             <p className="text-gray-500 leading-relaxed">
-              Harness the power of state-of-the-art AI models with our
-              advanced retrieval and generation system. Built for performance
-              and scalability.
+              利用最先进的AI模型的强大功能，我们的先进检索和生成系统为性能和可扩展性而构建。
             </p>
           </div>
 
@@ -114,11 +112,10 @@ export default function Home() {
               </svg>
             </div>
             <h3 className="text-2xl font-semibold text-black mb-4">
-              Seamless Integration
+              无缝集成
             </h3>
             <p className="text-gray-500 leading-relaxed">
-              Effortlessly connect with your existing tech stack. Our flexible
-              API and comprehensive SDK make integration a breeze.
+              轻松连接到您现有的技术栈。我们灵活的API和全面的SDK使集成变得简单。
             </p>
           </div>
 
@@ -139,26 +136,25 @@ export default function Home() {
               </svg>
             </div>
             <h3 className="text-2xl font-semibold text-black mb-4">
-              Real-time Analytics
+              实时分析
             </h3>
             <p className="text-gray-500 leading-relaxed">
-              Gain deep insights into your RAG system's performance with our
-              comprehensive analytics dashboard and monitoring tools.
+              通过我们全面的分析仪表盘和监控工具，深入了解您的RAG系统性能。
             </p>
           </div>
         </div>
 
         {/* Call to Action */}
         <div className="text-center bg-gray-100 rounded-3xl p-16">
-          <h2 className="text-4xl font-bold mb-6">Ready to get started?</h2>
+          <h2 className="text-4xl font-bold mb-6">准备好开始了吗？</h2>
           <p className="text-xl text-gray-500 mb-8 max-w-2xl mx-auto">
-            Join thousands of developers who are already building the future with RAG Web UI.
+            加入数千名已经使用RAG Web UI构建未来的开发者行列。
           </p>
           <Link
             href="/register"
             className="px-8 py-4 bg-blue-600 text-white rounded-full text-lg font-medium transition-all duration-300 hover:bg-blue-700"
           >
-            Try it for free
+            免费试用
           </Link>
         </div>
       </div>

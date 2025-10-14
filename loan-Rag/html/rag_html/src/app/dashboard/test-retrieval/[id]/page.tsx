@@ -38,10 +38,10 @@ export default function TestPage({ params }: { params: { id: string } }) {
         const data = await api.get(`/api/knowledge-base/${params.id}`);
         setKnowledgeBase(data);
       } catch (error) {
-        console.error("Failed to fetch knowledge base:", error);
+        console.error("获取知识库失败:", error);
         if (error instanceof ApiError) {
           toast({
-            title: "Error",
+            title: "错误",
             description: error.message,
             variant: "destructive",
           });
@@ -55,8 +55,8 @@ export default function TestPage({ params }: { params: { id: string } }) {
   const handleTest = async () => {
     if (!query) {
       toast({
-        title: "Please fill in all fields",
-        description: "Please enter query text",
+        title: "请填写所有字段",
+        description: "请输入查询文本",
         variant: "destructive",
       });
       return;
@@ -72,6 +72,7 @@ export default function TestPage({ params }: { params: { id: string } }) {
 
       setResults(data.results);
     } catch (error) {
+      console.error("测试检索失败:", error);
       toast({
         title: "测试失败",
         description: error instanceof Error ? error.message : "未知错误",
@@ -143,10 +144,10 @@ export default function TestPage({ params }: { params: { id: string } }) {
                     <SelectValue placeholder="返回数量" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="1">Top 1</SelectItem>
-                    <SelectItem value="3">Top 3</SelectItem>
-                    <SelectItem value="5">Top 5</SelectItem>
-                    <SelectItem value="10">Top 10</SelectItem>
+                    <SelectItem value="1">顶部 1</SelectItem>
+                    <SelectItem value="3">顶部 3</SelectItem>
+                    <SelectItem value="5">顶部 5</SelectItem>
+                    <SelectItem value="10">顶部 10</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

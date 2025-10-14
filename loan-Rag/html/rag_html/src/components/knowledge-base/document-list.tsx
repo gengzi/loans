@@ -75,7 +75,7 @@ export function DocumentList({ knowledgeBaseId }: DocumentListProps) {
       if (error instanceof ApiError) {
         setError(error.message);
       } else {
-        setError("Failed to fetch documents");
+        setError("获取文档失败");
       }
     } finally {
       setLoading(false);
@@ -114,7 +114,7 @@ export function DocumentList({ knowledgeBaseId }: DocumentListProps) {
         <div className="space-y-4">
           <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin mx-auto"></div>
           <p className="text-muted-foreground animate-pulse">
-            Loading documents...
+            加载文档中...
           </p>
         </div>
       </div>
@@ -137,9 +137,9 @@ export function DocumentList({ knowledgeBaseId }: DocumentListProps) {
             <FileText className="w-10 h-10 text-muted-foreground" />
           </div>
           <div className="space-y-2">
-            <h3 className="text-xl font-semibold">No documents yet</h3>
+            <h3 className="text-xl font-semibold">暂无文档</h3>
             <p className="text-muted-foreground">
-              Upload your first document to start building your knowledge base.
+              上传您的第一个文档，开始构建您的知识库。
             </p>
           </div>
         </div>
@@ -152,11 +152,11 @@ export function DocumentList({ knowledgeBaseId }: DocumentListProps) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Size</TableHead>
-            <TableHead>Created</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Actions</TableHead>
+            <TableHead>名称</TableHead>
+            <TableHead>大小</TableHead>
+            <TableHead>创建时间</TableHead>
+            <TableHead>状态</TableHead>
+            <TableHead>操作</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -200,7 +200,7 @@ export function DocumentList({ knowledgeBaseId }: DocumentListProps) {
                       : "destructive" // Red for failed
                   }
                 >
-                  {doc.status === "0" ? "Completed" : doc.status === "1" ? "Processing" : "Failed"}
+                  {doc.status === "0" ? "已完成" : doc.status === "1" ? "处理中" : "失败"}
                 </Badge>
               </TableCell>
               <TableCell>
@@ -211,7 +211,7 @@ export function DocumentList({ knowledgeBaseId }: DocumentListProps) {
                     className="h-8 w-8"
                     onClick={() => handleView(doc.id)}
                     disabled={doc.status !== "0" && doc.progress !== 100}
-                    title="View"
+                    title="查看"
                   >
                     <Eye className="h-4 w-4" />
                   </Button>
@@ -222,7 +222,7 @@ export function DocumentList({ knowledgeBaseId }: DocumentListProps) {
                     className="h-8 w-8"
                     onClick={() => handleParse(doc.id)}
                     disabled={doc.status !== "0" && doc.progress !== 100}
-                    title="Parse"
+                    title="解析"
                   >
                     <Code className="h-4 w-4" />
                   </Button>

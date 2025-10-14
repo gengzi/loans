@@ -16,7 +16,7 @@ const Breadcrumb = () => {
       const isLast = index === paths.length - 1;
 
       // Handle dynamic routes with [id]
-      const displayLabel = path.match(/^\[.*\]$/) ? "Details" : label;
+      const displayLabel = path.match(/^\[.*\]$/) ? "详情" : label;
 
       return {
         href,

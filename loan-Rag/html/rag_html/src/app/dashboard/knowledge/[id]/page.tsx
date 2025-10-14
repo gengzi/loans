@@ -30,20 +30,19 @@ export default function KnowledgeBasePage() {
   return (
     <DashboardLayout>
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Knowledge Base</h1>
+        <h1 className="text-3xl font-bold">知识库详情</h1>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button>
               <PlusIcon className="w-4 h-4 mr-2" />
-              Add Document
+              添加文档
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-4xl">
             <DialogHeader>
-              <DialogTitle>Add Document</DialogTitle>
+              <DialogTitle>添加文档</DialogTitle>
               <DialogDescription>
-                Upload a document to your knowledge base. Supported formats:
-                PDF, DOCX, Markdown, and Text files.
+                上传文档到您的知识库。支持的格式：PDF、DOCX、Markdown 和文本文档。
               </DialogDescription>
             </DialogHeader>
             <DocumentUploadSteps

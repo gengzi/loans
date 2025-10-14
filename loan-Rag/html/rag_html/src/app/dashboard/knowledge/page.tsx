@@ -54,10 +54,10 @@ export default function KnowledgeBasePage() {
       const data = await api.get("/api/knowledge-base");
       setKnowledgeBases(data);
     } catch (error) {
-      console.error("Failed to fetch knowledge bases:", error);
+      console.error("获取知识库失败:", error);
       if (error instanceof ApiError) {
         toast({
-          title: "Error",
+          title: "错误",
           description: error.message,
           variant: "destructive",
         });
@@ -68,20 +68,20 @@ export default function KnowledgeBasePage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this knowledge base?"))
+    if (!confirm("确定要删除这个知识库吗?"))
       return;
     try {
       await api.delete(`/api/knowledge-base/${id}`);
       setKnowledgeBases((prev) => prev.filter((kb) => kb.id !== id));
       toast({
-        title: "Success",
-        description: "Knowledge base deleted successfully",
+        title: "成功",
+        description: "知识库删除成功",
       });
     } catch (error) {
-      console.error("Failed to delete knowledge base:", error);
+      console.error("删除知识库失败:", error);
       if (error instanceof ApiError) {
         toast({
-          title: "Error",
+          title: "错误",
           description: error.message,
           variant: "destructive",
         });
@@ -95,10 +95,10 @@ export default function KnowledgeBasePage() {
         <div className="flex justify-between items-center">
           <div>
             <h2 className="text-3xl font-bold tracking-tight">
-              Knowledge Bases
+              知识库管理
             </h2>
             <p className="text-muted-foreground">
-              Manage your knowledge bases and documents
+              管理您的知识库和文档
             </p>
           </div>
           <Link
@@ -106,7 +106,7 @@ export default function KnowledgeBasePage() {
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
           >
             <Plus className="mr-2 h-4 w-4" />
-            New Knowledge Base
+            新建知识库
           </Link>
         </div>
 
@@ -120,10 +120,10 @@ export default function KnowledgeBasePage() {
                 <div>
                   <h3 className="text-lg font-semibold">{kb.name}</h3>
                   <p className="text-sm text-muted-foreground">
-                    {kb.description || "No description"}
+                    {kb.description || "无描述"}
                   </p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    {kb.docNum} documents •
+                    {kb.docNum} 个文档 •
                     {new Date(kb.createDate).toLocaleDateString()}
                   </p>
                 </div>
@@ -152,13 +152,13 @@ export default function KnowledgeBasePage() {
 
               {kb.docNum > 0 && (
                 <div className="border-t pt-4">
-                  <h4 className="text-sm font-medium mb-2">Documents</h4>
+                  <h4 className="text-sm font-medium mb-2">文档</h4>
                   <div className="flex items-center gap-2">
                     <Link
                       href={`/dashboard/knowledge/${kb.id}`}
                       className="inline-flex items-center text-sm text-primary hover:underline"
                     >
-                      View all {kb.docNum} documents
+                      查看全部 {kb.docNum} 个文档
                       <ArrowRight className="ml-1 h-3 w-3" />
                     </Link>
                   </div>
@@ -170,7 +170,7 @@ export default function KnowledgeBasePage() {
           {!loading && knowledgeBases.length === 0 && (
             <div className="text-center py-12">
               <p className="text-muted-foreground">
-                No knowledge bases found. Create one to get started.
+                未找到知识库。请创建一个开始使用。
               </p>
             </div>
           )}
@@ -180,7 +180,7 @@ export default function KnowledgeBasePage() {
               <div className="space-y-4">
                 <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin mx-auto"></div>
                 <p className="text-muted-foreground animate-pulse">
-                  Loading knowledge bases...
+                  加载知识库中...
                 </p>
               </div>
             </div>

@@ -82,7 +82,7 @@ export async function fetchApi(url: string, options: FetchOptions = {}) {
         localStorage.removeItem('token');
         window.location.href = '/login';
       }
-      throw new ApiError(401, 'Unauthorized - Please log in again');
+      throw new ApiError(401, '未授权 - 请重新登录');
     }
 
     if (!response.ok) {
@@ -90,7 +90,7 @@ export async function fetchApi(url: string, options: FetchOptions = {}) {
       console.error(`API request failed with status: ${response.status}`, errorData);
       throw new ApiError(
         response.status,
-        errorData.message || errorData.detail || 'An error occurred'
+        errorData.message || errorData.detail || '发生错误'
       );
     }
 
@@ -103,7 +103,7 @@ export async function fetchApi(url: string, options: FetchOptions = {}) {
       if (responseData.code !== 200 || !responseData.success) {
         throw new ApiError(
           responseData.code || 400,
-          responseData.message || 'API request failed'
+          responseData.message || 'API请求失败'
         );
       }
       // 返回data字段的内容
@@ -116,7 +116,7 @@ export async function fetchApi(url: string, options: FetchOptions = {}) {
     if (error instanceof ApiError) {
       throw error;
     }
-    throw new ApiError(500, 'Network error or server is unreachable');
+    throw new ApiError(500, '网络错误或服务器不可达');
   }
 }
 

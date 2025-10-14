@@ -19,7 +19,7 @@ export default function RegisterPage() {
     if (!emailRegex.test(email)) {
       setValidationErrors((prev) => ({
         ...prev,
-        email: "Please enter a valid email address",
+        email: "请输入有效的电子邮箱地址",
       }));
       return false;
     }
@@ -31,28 +31,28 @@ export default function RegisterPage() {
     if (password.length < 8) {
       setValidationErrors((prev) => ({
         ...prev,
-        password: "Password must be at least 8 characters long",
+        password: "密码至少需要8个字符",
       }));
       return false;
     }
     if (!/[A-Z]/.test(password)) {
       setValidationErrors((prev) => ({
         ...prev,
-        password: "Password must contain at least one uppercase letter",
+        password: "密码必须包含至少一个大写字母",
       }));
       return false;
     }
     if (!/[a-z]/.test(password)) {
       setValidationErrors((prev) => ({
         ...prev,
-        password: "Password must contain at least one lowercase letter",
+        password: "密码必须包含至少一个小写字母",
       }));
       return false;
     }
     if (!/[0-9]/.test(password)) {
       setValidationErrors((prev) => ({
         ...prev,
-        password: "Password must contain at least one number",
+        password: "密码必须包含至少一个数字",
       }));
       return false;
     }
@@ -78,7 +78,7 @@ export default function RegisterPage() {
     if (password !== confirmPassword) {
       setValidationErrors((prev) => ({
         ...prev,
-        confirmPassword: "Passwords do not match",
+        confirmPassword: "两次输入的密码不一致",
       }));
       return;
     }
@@ -99,7 +99,7 @@ export default function RegisterPage() {
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
-        setError("Registration failed");
+        setError("注册失败");
       }
     }
   };
@@ -110,11 +110,9 @@ export default function RegisterPage() {
         <div className="bg-white rounded-lg shadow-md p-8 space-y-6">
           <div className="text-center">
             <h1 className="text-3xl font-bold text-gray-900">
-              Welcome To RAG Web UI
-            </h1>
+              欢迎使用RAG Web UI </h1>
             <p className="mt-2 text-sm text-gray-600">
-              Create your account to get started
-            </p>
+              创建您的账户开始使用 </p>
           </div>
 
           <form className="space-y-6" onSubmit={handleSubmit}>
@@ -124,15 +122,14 @@ export default function RegisterPage() {
                   htmlFor="username"
                   className="block text-sm font-medium text-gray-700"
                 >
-                  Username
-                </label>
+                  用户名 </label>
                 <input
                   id="username"
                   name="username"
                   type="text"
                   required
                   className="mt-1 block w-full px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Enter your username"
+                  placeholder="输入您的用户名"
                 />
               </div>
 
@@ -141,8 +138,7 @@ export default function RegisterPage() {
                   htmlFor="email"
                   className="block text-sm font-medium text-gray-700"
                 >
-                  Email
-                </label>
+                  电子邮箱 </label>
                 <input
                   id="email"
                   name="email"
@@ -153,7 +149,7 @@ export default function RegisterPage() {
                       ? "border-red-300"
                       : "border-gray-300"
                   } shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
-                  placeholder="Enter your email"
+                  placeholder="输入您的电子邮箱"
                   onChange={(e) => validateEmail(e.target.value)}
                 />
                 {validationErrors.email && (
@@ -168,8 +164,7 @@ export default function RegisterPage() {
                   htmlFor="password"
                   className="block text-sm font-medium text-gray-700"
                 >
-                  Password
-                </label>
+                  密码 </label>
                 <input
                   id="password"
                   name="password"
@@ -180,7 +175,7 @@ export default function RegisterPage() {
                       ? "border-red-300"
                       : "border-gray-300"
                   } shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
-                  placeholder="Create a password"
+                  placeholder="创建密码"
                   onChange={(e) => validatePassword(e.target.value)}
                 />
                 {validationErrors.password && (
@@ -195,8 +190,7 @@ export default function RegisterPage() {
                   htmlFor="confirmPassword"
                   className="block text-sm font-medium text-gray-700"
                 >
-                  Confirm Password
-                </label>
+                  确认密码 </label>
                 <input
                   id="confirmPassword"
                   name="confirmPassword"
@@ -207,7 +201,7 @@ export default function RegisterPage() {
                       ? "border-red-300"
                       : "border-gray-300"
                   } shadow-sm focus:ring-2 focus:ring-gray-500 focus:border-gray-500`}
-                  placeholder="Confirm your password"
+                  placeholder="确认您的密码"
                 />
                 {validationErrors.confirmPassword && (
                   <p className="mt-1 text-sm text-red-600">
@@ -227,8 +221,7 @@ export default function RegisterPage() {
               type="submit"
               className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
             >
-              Create Account
-            </button>
+              创建账户 </button>
           </form>
 
           <div className="text-center">
@@ -236,8 +229,7 @@ export default function RegisterPage() {
               href="/login"
               className="text-sm font-medium text-gray-600 hover:text-gray-500"
             >
-              Already have an account? Sign in
-            </Link>
+              已有账户？登录 </Link>
           </div>
         </div>
       </div>
