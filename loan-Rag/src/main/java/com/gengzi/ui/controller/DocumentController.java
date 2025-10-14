@@ -5,6 +5,7 @@ import com.gengzi.embedding.load.pdf.OcrPdfReader;
 import com.gengzi.embedding.load.pdf.PdfReaderTool;
 import com.gengzi.request.AddDocumentByS3;
 import com.gengzi.request.KnowledgebaseCreateReq;
+import com.gengzi.response.DocumentPreviewResponse;
 import com.gengzi.response.KnowledgebaseResponse;
 import com.gengzi.response.Result;
 import com.gengzi.ui.service.DocumentService;
@@ -14,9 +15,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @Tag(name = "doc管理", description = "doc管理")
@@ -110,5 +114,26 @@ public class DocumentController {
     public Result<Void> documentToEmbedding(@RequestParam String documentId) {
         documentService.documentToEmbedding(documentId);
         return Result.successMessage("等待解析完成");
+    }
+
+
+    /**
+     * 根据文档id获取文档内容
+     *
+     * @param documentId 文档id
+     * @return
+     */
+    @GetMapping("/document/{documentId}")
+    public ResponseEntity<?> documentPreview(@PathVariable String documentId) {
+        try {
+            DocumentPreviewResponse documentPreviewResponse = documentService.documentPreview(documentId);
+            return ResponseEntity.ok(documentPreviewResponse);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "失败"));
+        }
     }
 }

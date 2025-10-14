@@ -7,7 +7,10 @@ import com.gengzi.dao.repository.DocumentRepository;
 import com.gengzi.embedding.load.pdf.OcrPdfReader;
 import com.gengzi.enums.FileProcessStatusEnum;
 import com.gengzi.enums.S3FileType;
+import com.gengzi.response.DocumentPreviewResponse;
+import com.gengzi.response.ResultCode;
 import com.gengzi.s3.S3ClientUtils;
+import com.gengzi.security.BusinessException;
 import com.gengzi.ui.service.DocumentService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -65,5 +68,26 @@ public class DocumentServiceImpl implements DocumentService {
                 break;
             // 不需要default，因为枚举已覆盖所有可能
         }
+    }
+
+    /**
+     * @param documentId
+     * @return
+     */
+    @Override
+    public DocumentPreviewResponse documentPreview(String documentId) {
+        Optional<Document> documentOptional = documentRepository.findById(documentId);
+        if (!documentOptional.isPresent()) {
+            throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
+        }
+        DocumentPreviewResponse documentPreviewResponse = new DocumentPreviewResponse();
+        Document document = documentOptional.get();
+        String file = document.getLocation();
+        HeadObjectResponse headObjectResponse = s3ClientUtils.headObject(s3Properties.getDefaultBucketName(), file);
+        URL url = s3ClientUtils.generatePresignedUrl(s3Properties.getDefaultBucketName(), file);
+        String contentType = headObjectResponse.contentType();
+        documentPreviewResponse.setContentType(contentType);
+        documentPreviewResponse.setUrl(url.toString());
+        return documentPreviewResponse;
     }
 }

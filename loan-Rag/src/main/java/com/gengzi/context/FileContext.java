@@ -38,6 +38,7 @@ public class FileContext {
         this.isDeleteMarker = isDeleteMarker;
         this.bucketName = bucketName;
         this.key = key;
+        this.documentId = documentId;
     }
 
     /**

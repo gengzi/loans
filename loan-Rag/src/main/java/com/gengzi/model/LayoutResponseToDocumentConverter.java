@@ -126,6 +126,7 @@ public class LayoutResponseToDocumentConverter {
 
     private List<Document> concatenate_markdown_pages(List<LayoutParsingPageItem> pageItems, FileContext fileContext) {
         String fileId = fileContext.getFileId();
+        String documentId = fileContext.getDocumentId();
         ArrayList<Document> documents = new ArrayList<>();
         HashMap<Integer, Document> pageMetadataMap = new HashMap<>();
         for (int pageNumber = 0; pageNumber < pageItems.size(); pageNumber++) {
@@ -134,7 +135,7 @@ public class LayoutResponseToDocumentConverter {
             AtomicReference<String> md = new AtomicReference<>(layoutParsingPageItem.getMarkdown().getText().trim());
             if (StrUtil.isBlankIfStr(md.get())) {
                 // 拼接下一页的md文件信息，判断是否有图片，进行图片内容的替换
-                DocumentMetadataMap documentMetadataMap = new DocumentMetadataMap(fileContext.getFileName(), fileId, ContentType.APPLICATION_PDF.getMimeType(),
+                DocumentMetadataMap documentMetadataMap = new DocumentMetadataMap(fileContext.getFileName(), documentId, ContentType.APPLICATION_PDF.getMimeType(),
                         true, String.valueOf(pageNumber));
                 pageMetadataMap.put(pageNumber, new Document(md.get(), documentMetadataMap.toMap()));
                 continue;
@@ -152,7 +153,7 @@ public class LayoutResponseToDocumentConverter {
                         md.set(DivImageReplacer.replaceDivWithImage(md.get(), imageKey, imageContent.get(imageKey)));
                     }
                 });
-                DocumentMetadataMap currentDocumentMetadataMap = new DocumentMetadataMap(fileContext.getFileName(), fileId, ContentType.APPLICATION_PDF.getMimeType(),
+                DocumentMetadataMap currentDocumentMetadataMap = new DocumentMetadataMap(fileContext.getFileName(), documentId, ContentType.APPLICATION_PDF.getMimeType(),
                         true, String.valueOf(pageNumber));
 
                 boolean isEnd = ((pageNumber < pageItems.size() - 1) && layoutParsingPageItem.getMarkdown().getIsEnd() && pageItems.get(pageNumber + 1).getMarkdown().getIsStart());
@@ -251,8 +252,8 @@ public class LayoutResponseToDocumentConverter {
     /**
      * 构建单页Document的元数据（存储额外信息，便于后续处理）
      */
-    private Map<String, Object> buildMetadata(String fileName, String fileId, int pageNum) {
-        DocumentMetadataMap documentMetadataMap = new DocumentMetadataMap(fileName, fileId, ContentType.APPLICATION_PDF.getMimeType(), true, String.valueOf(pageNum));
+    private Map<String, Object> buildMetadata(String fileName, String documentId, int pageNum) {
+        DocumentMetadataMap documentMetadataMap = new DocumentMetadataMap(fileName, documentId, ContentType.APPLICATION_PDF.getMimeType(), true, String.valueOf(pageNum));
         documentMetadataMap.setPageRange(String.valueOf(pageNum));
         return documentMetadataMap.toMap();
 
