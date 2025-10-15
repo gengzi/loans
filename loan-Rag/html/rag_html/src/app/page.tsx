@@ -233,9 +233,12 @@ export default function Home() {
       
       console.log("fetchDocuments - 响应数据:", response);
 
-      // 检查响应是否是对象格式，可能包含data和total字段
-      const responseData = Array.isArray(response) ? response : response.data || response;
-      const totalCount = response.total || response.totalCount || responseData.length;
+      // 解析新的响应格式，确保正确获取数据和分页信息
+      const responseData = response?.data || [];
+      const totalCount = response?.total || responseData.length;
+      const totalPages = response?.totalPages || Math.ceil(totalCount / size) || 1;
+      const currentPageNum = response?.page || page;
+      const responsePageSize = response?.size || size;
 
       // 转换响应格式为前端展示所需的结构
       const transformedDocs = responseData.map((item: any, index: number) => ({
@@ -254,8 +257,8 @@ export default function Home() {
 
       setDocuments(transformedDocs);
       setTotalDocuments(totalCount);
-      setCurrentPage(page);
-      setPageSize(size);
+      setCurrentPage(currentPageNum);
+      setPageSize(responsePageSize);
     } catch (error) {
       console.error('获取文档失败:', error);
       setHasError(true);
@@ -413,13 +416,13 @@ export default function Home() {
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="text-lg font-semibold">相关文件 ({totalDocuments})</h2>
                   <div className="flex items-center text-sm text-gray-500">
-                    <span className="mr-2">文件类型:</span>
+                    {/* <span className="mr-2">文件类型:</span>
                     <select className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-md border border-white/30 dark:border-gray-700/50 rounded-md px-2 py-1 text-sm">
                       <option>全部</option>
                       <option>PDF</option>
                       <option>Markdown</option>
                       <option>Word</option>
-                    </select>
+                    </select> */}
                   </div>
                 </div>
                 
