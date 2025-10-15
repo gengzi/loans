@@ -50,6 +50,11 @@ public class ChatClientConfig {
                 messageChatRecordAdvisor, advisor).build();
     }
 
+    @Bean
+    public ChatClient deepseekChatClientByRagSearch(OpenAiChatModel chatModel) {
+        return ChatClient.builder(chatModel).defaultAdvisors(advisor).build();
+    }
+
     /**
      * 不执行rag流程
      *

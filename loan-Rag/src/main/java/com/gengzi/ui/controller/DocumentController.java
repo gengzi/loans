@@ -4,6 +4,7 @@ package com.gengzi.ui.controller;
 import com.gengzi.embedding.load.pdf.OcrPdfReader;
 import com.gengzi.embedding.load.pdf.PdfReaderTool;
 import com.gengzi.request.AddDocumentByS3;
+import com.gengzi.request.DocumentSearchReq;
 import com.gengzi.request.KnowledgebaseCreateReq;
 import com.gengzi.response.DocumentPreviewResponse;
 import com.gengzi.response.KnowledgebaseResponse;
@@ -136,4 +137,12 @@ public class DocumentController {
                     .body(Map.of("error", "失败"));
         }
     }
+
+
+    @PostMapping("/document/search")
+    public Map<String, Object> search(@RequestBody DocumentSearchReq req) {
+       return documentService.search(req);
+    }
+
+
 }

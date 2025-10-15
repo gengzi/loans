@@ -9,6 +9,7 @@ import com.gengzi.dao.entity.RagReference;
 import com.gengzi.dao.repository.ConversationRepository;
 import com.gengzi.request.RagChatCreateReq;
 import com.gengzi.request.RagChatReq;
+import com.gengzi.request.RagChatSearchReq;
 import com.gengzi.response.ChatAnswerResponse;
 import com.gengzi.response.ConversationDetailsResponse;
 import com.gengzi.response.ConversationResponse;
@@ -55,6 +56,9 @@ public class ChatRagServiceImpl implements ChatRagService {
     @Qualifier("deepseekChatClientByRag")
     private ChatClient chatClientByRag;
 
+    @Autowired
+    @Qualifier("deepseekChatClientByRagSearch")
+    private ChatClient chatClientByRagSearch;
 
     @Autowired
     private ConversationRepository conversationRepository;
@@ -119,6 +123,36 @@ public class ChatRagServiceImpl implements ChatRagService {
                     return chatAnswerResponse;
                 }).concatWith(Mono.just(done));
 
+    }
+
+
+    @Override
+    public Flux<ChatAnswerResponse> chatSearch(RagChatSearchReq req) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        UserPrincipal details = (UserPrincipal) authentication.getPrincipal();
+        final String userId = details.getId();
+        Flux<ChatClientResponse> chatClientResponseFlux = chatClientByRagSearch.prompt()
+                .user(req.getQuery())
+                .system("你是一个专注于知识库问答的 RAG（检索增强生成）助手，所有回答必须严格遵循以下规则：\\n\\n### 1. 核心目标 \\n- 仅基于用户提供的知识库内容生成回答，不依赖外部常识或个人记忆。\\n- 回答需精准匹配知识库信息，避免添加未提及的推测、延伸或主观观点。\\n\\n### 2. 知识边界处理 \\n- 若用户问题可从知识库中找到直接或间接答案，需先引用相关内容要点，再组织成自然语言回复。\\n- 若知识库中无相关信息，需明确告知用户 “当前知识库暂未涵盖该问题的相关内容”，不随意编造答案。\\n- 若知识库内容存在冲突或歧义，需列出不同观点并说明 “知识库中对此问题存在多种表述”，不强行统一结论。\\n\\n### 3. 输出格式要求 \\n- 回答结构清晰，优先分点阐述核心信息（若内容较多）。\\n- 关键数据、定义或结论需明确标注来源（如 “根据知识库中《XX 文档》第 X 点”），增强可信度。\\n- 语言简洁易懂，避免使用过于专业的术语；若必须使用，需结合知识库内容给出解释。\\n\\n### 4. 交互原则 \\n- 若用户问题模糊，需先询问补充信息（如 “为更精准回答，请明确你想了解的是 XX 领域 / XX 场景下的内容”），再基于知识库回应。\\n- 不主动扩展话题，仅围绕用户问题及知识库内容展开，确保对话聚焦。")
+                .stream()
+                .chatClientResponse();
+        ChatAnswerResponse done = new ChatAnswerResponse();
+        done.setAnswer("[DONE]");
+        return chatClientResponseFlux.index()
+                .map(result -> {
+                    long sequenceNumber = result.getT1() + 1;
+                    ChatClientResponse chatClientResponse = result.getT2();
+                    ChatAnswerResponse chatAnswerResponse = new ChatAnswerResponse();
+                    ChatResponse chatResponse = chatClientResponse.chatResponse();
+                    chatAnswerResponse.setAnswer(chatResponse.getResult().getOutput().getText());
+                    Map<String, Object> context = chatClientResponse.context();
+                    List<Document> documents = (List<Document>) context.get(RetrievalAugmentationAdvisor.DOCUMENT_CONTEXT);
+                    RagReference ragReference = RagReference.listDocumentToRagReference(documents);
+                    chatAnswerResponse.setReference(ragReference);
+                    done.setReference(ragReference);
+                    // 返回用户问题后，还需要拼接上参考的文档信息，文档链接
+                    return chatAnswerResponse;
+                }).concatWith(Mono.just(done));
     }
 
     /**

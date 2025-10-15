@@ -2,6 +2,7 @@ package com.gengzi.search.service;
 
 import com.gengzi.request.RagChatCreateReq;
 import com.gengzi.request.RagChatReq;
+import com.gengzi.request.RagChatSearchReq;
 import com.gengzi.response.ChatAnswerResponse;
 import com.gengzi.response.ConversationDetailsResponse;
 import com.gengzi.response.ConversationResponse;
@@ -20,6 +21,14 @@ public interface ChatRagService {
      * @return
      */
     Flux<ChatAnswerResponse> chatRag(RagChatReq ragChatReq);
+
+    /**
+     * rag对话
+     *
+     * @param ragChatReq rag对话参数
+     * @return
+     */
+    Flux<ChatAnswerResponse> chatSearch(RagChatSearchReq ragChatReq);
 
 
     String chatRagCreate(RagChatCreateReq req);

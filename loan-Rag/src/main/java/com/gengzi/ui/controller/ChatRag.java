@@ -3,6 +3,7 @@ package com.gengzi.ui.controller;
 
 import com.gengzi.request.RagChatCreateReq;
 import com.gengzi.request.RagChatReq;
+import com.gengzi.request.RagChatSearchReq;
 import com.gengzi.response.ChatAnswerResponse;
 import com.gengzi.response.Result;
 import com.gengzi.search.service.ChatRagService;
@@ -65,15 +66,26 @@ public class ChatRag {
      * @param req
      * @return
      */
-    @PostMapping(value = "/chat/rag", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<ChatAnswerResponse> chatRag(@RequestBody RagChatReq req) {
-        return chatRagService.chatRag(req);
+    @PostMapping(value = "/chat/search", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<ChatAnswerResponse> chatSearch(@RequestBody RagChatSearchReq req) {
+        return chatRagService.chatSearch(req);
     }
 
 
     @GetMapping("/chat/rag/msg/list")
     public Result<?> chatRagMsgList(@RequestParam String conversationId) {
         return Result.success(chatRagService.chatRagMsgList(conversationId));
+    }
+
+
+    /**
+     * 知识库检索
+     * @param req
+     * @return
+     */
+    @PostMapping(value = "/chat/rag", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<ChatAnswerResponse> chatRag(@RequestBody RagChatReq req) {
+        return chatRagService.chatRag(req);
     }
 
 
