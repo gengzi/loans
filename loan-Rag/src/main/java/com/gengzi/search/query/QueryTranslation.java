@@ -41,6 +41,7 @@ public class QueryTranslation implements QueryTransformer {
     @Override
     public Query transform(Query query) {
         logger.info("查询翻译-用户问题:{} ", query.text());
+
         String text = query.text();
         SystemMessage systemMessage = new SystemMessage(sysPromptStr);
         UserMessage userMessage = new UserMessage(text);

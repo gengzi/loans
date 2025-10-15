@@ -60,6 +60,11 @@ public class ChatRag {
     }
 
 
+    /**
+     * 知识库聊天
+     * @param req
+     * @return
+     */
     @PostMapping(value = "/chat/rag", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<ChatAnswerResponse> chatRag(@RequestBody RagChatReq req) {
         return chatRagService.chatRag(req);
