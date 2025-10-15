@@ -344,6 +344,11 @@ export default function Home() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') {
+                handleSearch();
+              }
+            }}
             className="w-full py-4 px-16 pr-40 rounded-full border border-white/30 glass glass-hover bg-white/80 dark:bg-gray-800/80 text-gray-800 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-opacity-30 transition-all duration-300"
             placeholder="请输入您的问题"
           />

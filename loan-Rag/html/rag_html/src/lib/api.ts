@@ -77,12 +77,14 @@ export async function fetchApi(url: string, options: FetchOptions = {}) {
     console.log(`API response status: ${response.status}`);
     console.log(`API response headers:`, response.headers);
 
-    if (response.status === 401) {
+    // 401和403状态码都需要跳转到登录页
+    if (response.status === 401 || response.status === 403) {
       if (typeof window !== 'undefined') {
         localStorage.removeItem(API_CONFIG.AUTH.TOKEN_KEY);
         window.location.href = API_CONFIG.AUTH.UNAUTHORIZED_REDIRECT_URL;
       }
-      throw new ApiError(401, '未授权 - 请重新登录');
+      const errorMessage = response.status === 401 ? '未授权 - 请重新登录' : '权限不足 - 请重新登录';
+      throw new ApiError(response.status, errorMessage);
     }
 
     if (!response.ok) {
