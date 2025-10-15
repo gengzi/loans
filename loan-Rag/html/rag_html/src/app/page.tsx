@@ -7,7 +7,7 @@ export default function Home() {
         {/* Hero Section */}
         <div className="text-center space-y-8 mb-24">
           <h1 className="text-6xl sm:text-7xl font-bold tracking-tight text-black">
-            RAG Web界面
+            RAG
           </h1>
           <p className="text-xl sm:text-2xl text-gray-500 max-w-3xl mx-auto font-light leading-relaxed">
             体验下一代AI交互。
@@ -148,7 +148,7 @@ export default function Home() {
         <div className="text-center bg-gray-100 rounded-3xl p-16">
           <h2 className="text-4xl font-bold mb-6">准备好开始了吗？</h2>
           <p className="text-xl text-gray-500 mb-8 max-w-2xl mx-auto">
-            加入数千名已经使用RAG Web UI构建未来的开发者行列。
+            加入数千名已经使用RAG构建未来的开发者行列。
           </p>
           <Link
             href="/register"

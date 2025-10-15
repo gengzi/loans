@@ -110,7 +110,7 @@ export default function RegisterPage() {
         <div className="bg-white rounded-lg shadow-md p-8 space-y-6">
           <div className="text-center">
             <h1 className="text-3xl font-bold text-gray-900">
-              欢迎使用RAG Web UI </h1>
+              欢迎使用RAG </h1>
             <p className="mt-2 text-sm text-gray-600">
               创建您的账户开始使用 </p>
           </div>
