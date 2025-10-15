@@ -123,3 +123,41 @@
 .animate-pulseSoft {
   animation: pulseSoft 2s infinite;
 }
+
+/* iOS 17 动态玻璃效果 */
+@layer utilities {
+  /* 基础玻璃效果 */
+  .glass {
+    @apply bg-white/70 dark:bg-gray-900/70 backdrop-blur-xl border border-white/20 dark:border-gray-800/50 shadow-lg transition-all duration-300;
+  }
+  
+  /* 强化玻璃效果 */
+  .glass-strong {
+    @apply bg-white/80 dark:bg-gray-900/80 backdrop-blur-2xl border border-white/30 dark:border-gray-800/60 shadow-xl transition-all duration-300;
+  }
+  
+  /* 弱玻璃效果 */
+  .glass-light {
+    @apply bg-white/50 dark:bg-gray-900/50 backdrop-blur-md border border-white/10 dark:border-gray-800/30 shadow-md transition-all duration-300;
+  }
+  
+  /* 玻璃效果悬停状态 */
+  .glass-hover:hover {
+    @apply bg-white/90 dark:bg-gray-900/90 border-white/40 dark:border-gray-700/70 shadow-xl transition-all duration-300;
+  }
+  
+  /* 玻璃效果活跃状态 */
+  .glass-active {
+    @apply bg-white/95 dark:bg-gray-800/95 border-white/50 dark:border-gray-700/80 shadow-2xl transition-all duration-300;
+  }
+  
+  /* 渐变背景 */
+  .ios-gradient {
+    @apply bg-gradient-to-br from-purple-50/80 to-blue-50/80 dark:from-purple-900/20 dark:to-blue-900/20;
+  }
+  
+  /* 微妙阴影 */
+  .ios-shadow {
+    @apply shadow-[0_4px_30px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_30px_rgba(0,0,0,0.2)];
+  }
+}
