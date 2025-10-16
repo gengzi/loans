@@ -91,13 +91,18 @@ export default function UploadPage({ params }: { params: { id: string } }) {
 
   const handleUpload = async (file: File) => {
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("knowledgeId", params.id);
+    formData.append("files", file);
 
     try {
-      const result: UploadResult = await api.post(
-        `/api/knowledge-base/${params.id}/documents/upload`,
+      // 由于batch-upload接口可能返回单个对象或数组，我们需要处理两种情况
+      const response = await api.post(
+        `/api/knowledge-base/batch-upload`,
         formData
       );
+      // 确保results是数组格式
+      const results = Array.isArray(response) ? response : [response];
+      const result = results.find(r => r.file_name === file.name) || results[0];
 
       setFiles((prev) =>
         prev.map((f) =>

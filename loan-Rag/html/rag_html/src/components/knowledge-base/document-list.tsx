@@ -60,8 +60,7 @@ export function DocumentList({ knowledgeBaseId }: DocumentListProps) {
         params: {
           kbId: knowledgeBaseId,
           page: apiPage,
-          size: pageSize,
-          sort: 'createDate'
+          size: pageSize
         }
       });
       

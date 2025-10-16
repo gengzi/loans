@@ -186,7 +186,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
                     // 创建助手消息对象
                     const assistantMessage = {
                       id: assistantMessageId,
-                      content: fullAnswer || '暂无内容', // 确保内容不为空
+                      content: fullAnswer || '...', // 确保内容不为空
                       role: 'assistant' as const,
                       createdAt: new Date(),
                       // 只在最后一次处理流数据时包含引用信息

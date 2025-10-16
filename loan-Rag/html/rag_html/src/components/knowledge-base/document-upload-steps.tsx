@@ -141,17 +141,23 @@ export function DocumentUploadSteps({
     setIsLoading(true);
     try {
       const formData = new FormData();
+      // 添加knowledgeId参数
+      formData.append("knowledgeId", knowledgeBaseId);
+      // 添加files参数
       pendingFiles.forEach((fileStatus) => {
         formData.append("files", fileStatus.file);
       });
 
-      const data = (await api.post(
-        `/api/knowledge-base/${knowledgeBaseId}/documents/upload`,
+      const response = await api.post(
+        `/api/knowledge-base/batch-upload`,
         formData,
         {
           headers: {},
         }
-      )) as UploadResult[];
+      );
+      
+      // 确保data是数组格式
+      const data = Array.isArray(response) ? response : [response];
 
       // Update file statuses
       setFiles((prev) =>
