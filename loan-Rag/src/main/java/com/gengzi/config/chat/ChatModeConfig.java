@@ -3,19 +3,31 @@ package com.gengzi.config.chat;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.api.OpenAiApi;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+
+/**
+ * 自定义构建对话模型配置
+ */
 @Configuration
 public class ChatModeConfig {
 
+
+    @Autowired
+    private ChatModeParamsConfig config;
+
     @Bean
     public OpenAiChatModel openAiChatModel() {
-        OpenAiApi openApi = OpenAiApi.builder().apiKey("sk-ltrjtwcekfkowwmdqghjzgfkjhylcocxibuuviorbnfzvqqj")
-                .baseUrl("https://api.siliconflow.cn").build();
+        OpenAiApi openApi = OpenAiApi.builder().apiKey(config.getApiKey())
+                .baseUrl(config.getBaseUrl()).build();
         return OpenAiChatModel.builder()
                 .openAiApi(openApi)
-                .defaultOptions(OpenAiChatOptions.builder().model("deepseek-ai/DeepSeek-V3").build())
+                .defaultOptions(OpenAiChatOptions.builder()
+                        .model(config.getModel()).
+                        temperature(config.getTemperature())
+                        .build())
                 .build();
     }
 }

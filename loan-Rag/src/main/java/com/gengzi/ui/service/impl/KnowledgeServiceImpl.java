@@ -24,6 +24,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
 import java.time.Instant;
@@ -102,7 +104,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
                 predicates.add(cb.equal(root.get("kbId"), kbId));
             }
             // 添加排序：按 updateTime 倒序（如果需要按 createTime 排序，替换字段名即可）
-            query.orderBy(cb.desc(root.get("createDate")));
+            query.orderBy(cb.desc(root.get("createTime")));
             // 组合所有条件
             return cb.and(predicates.toArray(new Predicate[0]));
         };
@@ -117,7 +119,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     @Override
     public void documentAdd(AddDocumentByS3 addDocumentByS3) {
         List<S3Object> s3Objects = s3ClientUtils.listFilesInDirectory(addDocumentByS3.getBucket(), addDocumentByS3.getKey());
-        if (s3Objects != null && !s3Objects.isEmpty()){
+        if (s3Objects != null && !s3Objects.isEmpty()) {
             for (S3Object s3Object : s3Objects) {
                 // 入库
                 Document document = new Document();
@@ -145,7 +147,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
                 document.setCreatedBy(UserDetails.getUser().getId());
                 documentRepository.save(document);
                 // 上传
-                s3ClientUtils.copyObject( addDocumentByS3.getBucket(), s3Object.key(),
+                s3ClientUtils.copyObject(addDocumentByS3.getBucket(), s3Object.key(),
                         s3Properties.getDefaultBucketName(), s3Object.key());
 
             }
@@ -156,5 +158,69 @@ public class KnowledgeServiceImpl implements KnowledgeService {
         }
 
 
+    }
+
+
+    /**
+     * @param addDocumentByS3
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void documentCreate(AddDocumentByS3 addDocumentByS3) {
+        HeadObjectResponse headObjectResponse = s3ClientUtils.headObject(addDocumentByS3.getBucket(), addDocumentByS3.getKey());
+
+        if (headObjectResponse != null) {
+            // 入库
+            Document document = new Document();
+            document.setId(IdUtils.generateDocumentId());
+            document.setKbId(addDocumentByS3.getKbId());
+            document.setName(addDocumentByS3.getKey().substring(addDocumentByS3.getKey().lastIndexOf("/") + 1));
+            document.setLocation(addDocumentByS3.getKey());
+            document.setSize(headObjectResponse.contentLength());
+            document.setType(headObjectResponse.contentType());
+            document.setStatus(String.valueOf(FileProcessStatusEnum.UN_PROCESSED.getCode()));
+            document.setRun("1");
+            document.setCreateTime(System.currentTimeMillis());
+            document.setCreateDate(Instant.now());
+            document.setUpdateTime(System.currentTimeMillis());
+            document.setUpdateDate(Instant.now());
+            document.setSuffix(addDocumentByS3.getKey().substring(addDocumentByS3.getKey().lastIndexOf(".") + 1));
+            document.setTokenNum(0);
+            document.setChunkNum(0);
+            document.setProgress(0.0f);
+            document.setProgressMsg("");
+            document.setProcessBeginAt(Instant.now());
+            document.setProcessDuration(0.0f);
+            document.setMetaFields("");
+            document.setThumbnail("");
+            document.setCreatedBy(UserDetails.getUser().getId());
+            documentRepository.save(document);
+            Knowledgebase knowledgebase = knowledgebaseRepository.findById(addDocumentByS3.getKbId()).get();
+            knowledgebase.setDocNum(knowledgebase.getDocNum() + 1);
+            knowledgebaseRepository.save(knowledgebase);
+        }
+    }
+
+    /**
+     * @param knowledgeId
+     * @param files
+     */
+    @Override
+    public void uploadFile(String knowledgeId, MultipartFile[] files) {
+        // 2. 批量处理文件上传
+        List<String> fileUrls = new ArrayList<>();
+        for (MultipartFile file : files) {
+            // 2.1 单个文件校验：文件大小、类型
+            if (file.isEmpty()) {
+                continue; // 跳过空文件
+            }
+            // 2.2 上传文件到s3
+            try {
+                s3ClientUtils.putObjectByMultipartFile(s3Properties.getDefaultBucketName(), file.getOriginalFilename(), file);
+                // 写入数据库
+                documentCreate(new AddDocumentByS3(s3Properties.getDefaultBucketName(), file.getOriginalFilename(), knowledgeId));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
     }
 }

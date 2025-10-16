@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
+import org.springframework.web.multipart.MultipartFile;
 import reactor.core.publisher.Flux;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
 import software.amazon.awssdk.core.async.AsyncResponseTransformer;
@@ -25,10 +26,7 @@ import java.net.URL;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 
 @Component
 public class S3ClientUtils {
@@ -166,9 +164,7 @@ public class S3ClientUtils {
      * @return 文件列表（包含文件名和相关信息）
      */
     public List<S3Object> listFilesInDirectory(String bucketName, String directoryPath) {
-
         List<S3Object> s3Objects = new ArrayList<>();
-
         ListObjectsV2Publisher objectsAttributes = getObjectsAttributes(bucketName, directoryPath);
         SdkPublisher<S3Object> contents = objectsAttributes.contents();
         Flux.from(contents).doOnNext(s3Object -> {
@@ -176,6 +172,21 @@ public class S3ClientUtils {
         }).then().block();
 
         return s3Objects;
+    }
+
+
+    public void putObjectByMultipartFile(String bucketName, String key, MultipartFile file) throws IOException {
+        PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                .bucket(bucketName)
+                .key(key)
+                .contentType(file.getContentType())
+                .contentLength(file.getSize())
+                .build();
+
+        // 使用AsyncRequestBody.fromInputStream异步处理文件流
+        CompletableFuture<PutObjectResponse> putObjectResponseCompletableFuture = s3Client.putObject(putObjectRequest,
+                AsyncRequestBody.fromInputStream(file.getInputStream(), file.getSize(), Executors.newScheduledThreadPool(10)));
+        putObjectResponseCompletableFuture.join();
     }
 
 

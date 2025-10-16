@@ -56,7 +56,7 @@ public class RagRetrievalAugmenttationAdvisor {
                         // 相似度
                         .similarityThreshold(0.60)
                         // topk
-                        .topK(6)
+                        .topK(7)
                         // 使用的向量数据库
                         .vectorStore(vectorStore)
                         .build())

@@ -9,6 +9,7 @@ import com.gengzi.request.KnowledgebaseCreateReq;
 import com.gengzi.response.DocumentPreviewResponse;
 import com.gengzi.response.KnowledgebaseResponse;
 import com.gengzi.response.Result;
+import com.gengzi.response.ResultCode;
 import com.gengzi.ui.service.DocumentService;
 import com.gengzi.ui.service.KnowledgeService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -19,7 +20,9 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -75,6 +78,24 @@ public class DocumentController {
                                          @PageableDefault(page = 0, size = 10) Pageable pageable) {
         Page<?> documents = knowledgeService.documents(kbId, pageable);
         return Result.success(documents);
+    }
+
+
+    /**
+     * 批量文件上传接口
+     *
+     * @param files 前端传递的批量文件（参数名需与前端一致，如"files"）
+     * @return 上传成功的文件URL列表
+     */
+    @PostMapping("/api/knowledge-base/batch-upload")
+    public Result<?> batchUpload(@RequestParam("knowledgeId") String knowledgeId, @RequestParam("files") MultipartFile[] files) {
+        // 1. 基础校验：文件数组为空
+        if (files == null || files.length == 0) {
+            return Result.fail(ResultCode.FILE_UPLOAD_EMPTY.getCode(), ResultCode.FILE_UPLOAD_EMPTY.getMessage());
+        }
+        knowledgeService.uploadFile(knowledgeId, files);
+        // 4. 返回成功结果（包含所有上传成功的文件URL）
+        return Result.success(true);
     }
 
 
@@ -141,7 +162,7 @@ public class DocumentController {
 
     @PostMapping("/document/search")
     public Map<String, Object> search(@RequestBody DocumentSearchReq req) {
-       return documentService.search(req);
+        return documentService.search(req);
     }
 
 

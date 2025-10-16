@@ -2,10 +2,8 @@ package com.gengzi.context;
 
 import lombok.Data;
 
-import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -82,6 +80,11 @@ public class DocumentMetadataMap {
      * 文档名称
      */
     public static final String DOCUMENT_NAME = "documentName";
+
+    /**
+     * 文件ID
+     */
+    public static final String FILE_ID = "fileId";
 
     // ============================= 元数据字段 =============================
     /**
@@ -180,6 +183,12 @@ public class DocumentMetadataMap {
      */
     private String documentName;
 
+
+    /**
+     * 文件ID
+     */
+    private String fileId;
+
     // ============================= 构造方法 =============================
 
     /**
@@ -188,8 +197,9 @@ public class DocumentMetadataMap {
      * @param contentType 文档格式类型
      * @param isValid     内容是否有效
      */
-    public DocumentMetadataMap(String documentName,String documentId, String contentType, boolean isValid, String pageRange) {
+    public DocumentMetadataMap(String documentName, String documentId, String fileId, String contentType, boolean isValid, String pageRange) {
         this.documentName = documentName;
+        this.fileId = fileId;
         this.documentId = documentId; //
         this.createdAt = LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME); // 默认为当前时间
         this.contentType = contentType;
@@ -208,17 +218,18 @@ public class DocumentMetadataMap {
      */
     public static DocumentMetadataMap fromMap(Map<String, Object> metadataMap) {
         // 验证必选字段是否存在，确保元数据完整性
-        if (!metadataMap.containsKey(SOURCE) || !metadataMap.containsKey(CONTENT_TYPE) ||
-                !metadataMap.containsKey(CATEGORY) || !metadataMap.containsKey(LANGUAGE) ||
-                !metadataMap.containsKey(CHUNK_INDEX) || !metadataMap.containsKey(TOTAL_CHUNKS) ||
-                !metadataMap.containsKey(IS_VALID)) {
-            throw new IllegalArgumentException("Map中缺少必要的元数据字段，请检查是否包含source、contentType、category等必选字段");
+        if ( !metadataMap.containsKey(FILE_ID) ||
+                !metadataMap.containsKey(DOCUMENT_NAME) || !metadataMap.containsKey(DOCUMENT_ID) ||
+                !metadataMap.containsKey(CONTENT_TYPE) || !metadataMap.containsKey(IS_VALID) ||
+                !metadataMap.containsKey(PAGE_RANGE)) {
+            throw new IllegalArgumentException("Map中缺少必要的元数据字段，请检查是否包含必选字段");
         }
 
         // 初始化对象（使用必选字段）
         DocumentMetadataMap metadata = new DocumentMetadataMap(
                 (String) metadataMap.get(DOCUMENT_NAME),
-                (String) metadataMap.get(SOURCE),
+                (String) metadataMap.get(DOCUMENT_ID),
+                (String) metadataMap.get(FILE_ID),
                 (String) metadataMap.get(CONTENT_TYPE),
                 (Boolean) metadataMap.get(IS_VALID),
                 (String) metadataMap.get(PAGE_RANGE)
@@ -263,6 +274,7 @@ public class DocumentMetadataMap {
         metadataMap.put(CREATED_AT, createdAt);
         metadataMap.put(PAGE_RANGE, pageRange);
         metadataMap.put(IS_VALID, isValid);
+        metadataMap.put(FILE_ID, fileId);
 
         if (source != null) {
             metadataMap.put(SOURCE, source);

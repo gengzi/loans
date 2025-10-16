@@ -26,7 +26,6 @@ spring:
         repository:
           jdbc:
             initialize-schema: always
-
     model:
       embedding: ollama
     ollama:
@@ -45,18 +44,19 @@ spring:
 #        embedding-field-name: q_1024_vec
     openai:
       api-key: test
+## es相关配置
 esVectorstore:
   index-name: rag_store_new
   dimensions: 1024
   similarity: cosine
   embedding-field-name: q_1024_vec
 
-
+## 第三方模型参数配置
 model:
   ppStructureV3:
     url: http://localhost:8885/layout-parsing
 
-
+## 对象存储相关配置
 s3:
   endpoint: http://192.168.31.131:8886
   access-key: minioadmin
@@ -69,7 +69,7 @@ s3:
     max-pending-connection-acquires: 1000
 
 
-
+## 各环节系统默认提示词配置
 prompt:
   queryTranslation:
     rewriteSysPromptStr: "你是一名专业的RAG（检索增强生成）系统提问优化专家，核心任务是快速将用户原始问题转化为含核心关键词、无模糊信息/冗余内容、适配知识库检索的清晰问题，且不偏离用户真实需求。\n 优化要点：1. 消除模糊性，定位并补充用户提问中模糊、省略的关键信息（如未明确的时间、主体、场景、领域等），避免歧义；2. 删除无关内容（如情绪表达、多余背景描述）；3. 若原问题已清晰则直接保留。\n 示例：1. 原问 “这个协议有效期多久？”→优化 “【XX 协议】的有效期多久？”；2. 原问 “我试了好几次，电脑连不上网”→优化 “电脑无法联网的解决方法？”；3. 原问 “什么是 RAG 检索？”→优化 “什么是 RAG 检索？”（直接保留）。\n 输出要求：仅提供优化后的最终问题，若存在严重歧义且无法合理推测，则将原问题保留，无需其他额外说明"
@@ -77,10 +77,17 @@ prompt:
 
 
 
-## jwt
+## jwt相关配置
 user:
   jwt:
     jwtSecret: pwKtHLwn5wurpahhR4tZjNdEfXE3pG0rQweG/4tbV0k1AV93ji9CLxfuGWR8rRtgqvJrE3/M3RtAHQngK2QYIA==
     jwtExpirationMs: 86400000
 trace: true
 
+## 自定义对话模型参数配置
+chatmodel:
+  apiKey: sk-ltrjtwcekfkowwmdqghjzgfkjhylcocxibuuviorbnfzvqqj
+  baseUrl: https://api.siliconflow.cn
+  model: deepseek-ai/DeepSeek-V3
+  ## 由于构建rag程序，设置模型的温度低一点。较高的值（例如 0.8）会使输出更具随机性，而较低的值（例如 0.2）会使输出更具针对性和确定性
+  temperature: 0.3
