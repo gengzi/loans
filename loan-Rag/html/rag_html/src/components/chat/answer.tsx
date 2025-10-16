@@ -60,7 +60,7 @@ const Code = ({ className, children, ...props }: any) => {
   
   if (isCodeBlock) {
     const [copied, setCopied] = useState(false);
-    const codeRef = React.useRef<HTMLPreElement>(null);
+    const codeRef = useRef<HTMLPreElement>(null);
     
     // 提取语言
     const language = className.replace(/language-/, '') || 'code';
@@ -82,7 +82,7 @@ const Code = ({ className, children, ...props }: any) => {
     
     return (
       <div className="my-4 rounded-md overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm">
-        {/* 代码块头部 - 更现代的设计 */}
+        {/* 代码块头部 */}
         <div className="bg-gray-50 dark:bg-gray-800 px-4 py-2 flex justify-between items-center">
           <div className="flex items-center space-x-2">
             <div className="w-3 h-3 rounded-full bg-red-500"></div>
@@ -103,7 +103,7 @@ const Code = ({ className, children, ...props }: any) => {
           {/* 行号列 */}
           <div className="bg-gray-50 dark:bg-gray-800 text-right pr-1.5 pl-1.5 py-1 border-r border-gray-200 dark:border-gray-700 select-none">
             {lineNumbers.map(num => (
-              <div key={num} className="text-gray-500 dark:text-gray-400 font-mono text-[14px] leading-none">
+              <div key={num} className="text-gray-500 dark:text-gray-400 font-mono leading-none" style={{ fontSize: '14px',padding:'1px' }}>
                 {num}
               </div>
             ))}
@@ -121,7 +121,7 @@ const Code = ({ className, children, ...props }: any) => {
     );
   }
   
-  // 内联代码样式 - 更柔和的设计
+  // 内联代码样式
   return (
     <code 
       className="bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded-md text-sm font-mono text-gray-800 dark:text-gray-200"
