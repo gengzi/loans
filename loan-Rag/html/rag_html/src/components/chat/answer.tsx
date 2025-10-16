@@ -11,6 +11,46 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { File, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// 自定义表格组件来确保正确的边框样式
+const CustomTable = ({ children, ...props }: any) => (
+  <table 
+    {...props} 
+    className="border border-gray-300 border-collapse w-full"
+  >
+    {children}
+  </table>
+);
+
+const CustomThead = ({ children, ...props }: any) => (
+  <thead {...props}>
+    {children}
+  </thead>
+);
+
+const CustomTr = ({ children, ...props }: any) => (
+  <tr {...props}>
+    {children}
+  </tr>
+);
+
+const CustomTh = ({ children, ...props }: any) => (
+  <th 
+    {...props} 
+    className="border border-gray-300 px-4 py-2 bg-gray-50 font-semibold text-left"
+  >
+    {children}
+  </th>
+);
+
+const CustomTd = ({ children, ...props }: any) => (
+  <td 
+    {...props} 
+    className="border border-gray-300 px-4 py-2"
+  >
+    {children}
+  </td>
+);
+
 interface Citation {
   id: number;
   text: string;
@@ -116,6 +156,13 @@ const Answer: React.FC<AnswerProps> = ({ content, citations, ragReference, isStr
             <ReactMarkdown
               remarkPlugins={[remarkGfm, remarkMath]}
               rehypePlugins={[rehypeRaw, rehypeHighlight, rehypeKatex]}
+              components={{
+                table: CustomTable,
+                thead: CustomThead,
+                tr: CustomTr,
+                th: CustomTh,
+                td: CustomTd
+              }}
             >
               {content}
             </ReactMarkdown>
