@@ -157,7 +157,10 @@ public class LayoutResponseToDocumentConverter {
                 DocumentMetadataMap currentDocumentMetadataMap = new DocumentMetadataMap(fileContext.getFileName(), documentId, fileContext.getFileId(), ContentType.APPLICATION_PDF.getMimeType(),
                         true, String.valueOf(pageNumber));
 
-                boolean isEnd = ((pageNumber < pageItems.size() - 1) && layoutParsingPageItem.getMarkdown().getIsEnd() && pageItems.get(pageNumber + 1).getMarkdown().getIsStart());
+                // 两种截断方式：第一种判断当前页结尾是否end就划分完成
+                boolean isEnd = ((pageNumber < pageItems.size() - 1) && layoutParsingPageItem.getMarkdown().getIsEnd());
+                // 第二种：不仅判断当前页结尾是否end 还判断下一页开始是否为开始模块
+                // boolean isEnd = ((pageNumber < pageItems.size() - 1) && layoutParsingPageItem.getMarkdown().getIsEnd() && pageItems.get(pageNumber + 1).getMarkdown().getIsStart());
 
                 boolean isLastPage = (pageNumber == pageItems.size() - 1);
 
