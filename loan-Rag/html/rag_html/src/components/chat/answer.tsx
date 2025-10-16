@@ -103,7 +103,7 @@ const Code = ({ className, children, ...props }: any) => {
           {/* 行号列 */}
           <div className="bg-gray-50 dark:bg-gray-800 text-right pr-1.5 pl-1.5 py-1 border-r border-gray-200 dark:border-gray-700 select-none">
             {lineNumbers.map(num => (
-              <div key={num} className="text-gray-500 dark:text-gray-400 font-mono leading-none" style={{ fontSize: '14px', padding: '1px' }}>
+              <div key={num} className="text-gray-500 dark:text-gray-400 font-mono text-[14px] leading-none">
                 {num}
               </div>
             ))}
