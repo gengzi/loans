@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -7,8 +7,10 @@ import rehypeRaw from "rehype-raw";
 import rehypeKatex from "rehype-katex";
 // 导入katex官方CSS文件
 import 'katex/dist/katex.min.css';
+// 导入highlight.js样式
+import 'highlight.js/styles/github.css';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { File, Eye } from "lucide-react";
+import { File, Eye, CopyIcon as Copy, CheckCircle as Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // 自定义表格组件来确保正确的边框样式
@@ -50,6 +52,85 @@ const CustomTd = ({ children, ...props }: any) => (
     {children}
   </td>
 );
+
+// 简单的代码组件实现，兼容ReactMarkdown
+const Code = ({ className, children, ...props }: any) => {
+  // 检查是否是代码块（有language-前缀的类名）
+  const isCodeBlock = className && className.includes('language-');
+  
+  if (isCodeBlock) {
+    const [copied, setCopied] = useState(false);
+    const codeRef = React.useRef<HTMLPreElement>(null);
+    
+    // 提取语言
+    const language = className.replace(/language-/, '') || 'code';
+    
+    // 复制代码
+    const handleCopy = () => {
+      if (codeRef.current) {
+        const text = codeRef.current.textContent || '';
+        navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    };
+    
+    // 创建行号
+    const text = String(children).trim();
+    const lines = text.split('\n').length;
+    const lineNumbers = Array.from({ length: lines }, (_, i) => i + 1);
+    
+    return (
+      <div className="my-4 rounded-md overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm">
+        {/* 代码块头部 - 更现代的设计 */}
+        <div className="bg-gray-50 dark:bg-gray-800 px-4 py-2 flex justify-between items-center">
+          <div className="flex items-center space-x-2">
+            <div className="w-3 h-3 rounded-full bg-red-500"></div>
+            <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+            <div className="w-3 h-3 rounded-full bg-green-500"></div>
+            <span className="ml-2 text-xs font-medium text-gray-600 dark:text-gray-300">{language}</span>
+          </div>
+          <button 
+            onClick={handleCopy}
+            className="p-1.5 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+            aria-label="复制代码"
+          >
+            {copied ? <Check size={16} className="text-green-500" /> : <Copy size={16} />}
+          </button>
+        </div>
+        {/* 代码内容和行号 */}
+        <div className="bg-white dark:bg-gray-900 flex">
+          {/* 行号列 */}
+          <div className="bg-gray-50 dark:bg-gray-800 text-right pr-1.5 pl-1.5 py-1 border-r border-gray-200 dark:border-gray-700 select-none">
+            {lineNumbers.map(num => (
+              <div key={num} className="text-gray-500 dark:text-gray-400 font-mono leading-none" style={{ fontSize: '14px',padding:'1px' }}>
+                {num}
+              </div>
+            ))}
+          </div>
+          {/* 代码内容 */}
+          <pre 
+            ref={codeRef}
+            className="flex-1 p-1 overflow-x-auto font-mono text-gray-800 dark:text-gray-300"
+            style={{ lineHeight: '1.1', margin: 0, padding: '4px', fontSize: '14px' }}
+          >
+            <code className={className} style={{ lineHeight: '1.1', margin: 0, padding: 0, fontSize: '14px' }}>{children}</code>
+          </pre>
+        </div>
+      </div>
+    );
+  }
+  
+  // 内联代码样式 - 更柔和的设计
+  return (
+    <code 
+      className="bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded-md text-sm font-mono text-gray-800 dark:text-gray-200"
+      {...props}
+    >
+      {children}
+    </code>
+  );
+};
 
 interface Citation {
   id: number;
@@ -155,14 +236,15 @@ const Answer: React.FC<AnswerProps> = ({ content, citations, ragReference, isStr
         <div className="prose prose-sm max-w-none text-accent-foreground prose-headings:font-medium prose-headings:text-base prose-p:my-2 prose-li:my-1 prose-code:bg-muted/50 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-ol:pl-5 prose-ul:pl-5 break-words">
             <ReactMarkdown
               remarkPlugins={[remarkGfm, remarkMath]}
-              rehypePlugins={[rehypeRaw, rehypeHighlight, rehypeKatex]}
-              components={{
-                table: CustomTable,
-                thead: CustomThead,
-                tr: CustomTr,
-                th: CustomTh,
-                td: CustomTd
-              }}
+                rehypePlugins={[rehypeRaw, rehypeHighlight, rehypeKatex]}
+                components={{
+                  table: CustomTable,
+                  thead: CustomThead,
+                  tr: CustomTr,
+                  th: CustomTh,
+                  td: CustomTd,
+                  code: Code
+                }}
             >
               {content}
             </ReactMarkdown>
