@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
 import rehypeHighlight from "rehype-highlight";
 import rehypeRaw from "rehype-raw";
+import rehypeKatex from "rehype-katex";
+// 导入katex官方CSS文件
+import 'katex/dist/katex.min.css';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { File, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -21,6 +25,7 @@ interface AnswerProps {
 }
 
 const Answer: React.FC<AnswerProps> = ({ content, citations, ragReference, isStreaming }) => {
+  
   // 处理引用信息，合并citations和ragReference
   const getCitations = () => {
     // 首先使用传入的citations
@@ -105,18 +110,19 @@ const Answer: React.FC<AnswerProps> = ({ content, citations, ragReference, isStr
   };
 
   return (
-    <div className={cn("space-y-2", isStreaming && "animate-pulse")}>
-      <div className="prose prose-sm max-w-none text-accent-foreground prose-headings:font-medium prose-headings:text-base prose-p:my-2 prose-li:my-1 prose-code:bg-muted/50 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-ol:pl-5 prose-ul:pl-5">
-        <ReactMarkdown
-          remarkPlugins={[remarkGfm]}
-          rehypePlugins={[rehypeRaw, rehypeHighlight]}
-        >
-          {content}
-        </ReactMarkdown>
+      <div className={cn("space-y-2", isStreaming && "animate-pulse")}>
+        {/* 为数学公式添加局部样式容器 */}
+        <div className="prose prose-sm max-w-none text-accent-foreground prose-headings:font-medium prose-headings:text-base prose-p:my-2 prose-li:my-1 prose-code:bg-muted/50 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-ol:pl-5 prose-ul:pl-5 break-words">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm, remarkMath]}
+              rehypePlugins={[rehypeRaw, rehypeHighlight, rehypeKatex]}
+            >
+              {content}
+            </ReactMarkdown>
+        </div>
+        {renderCitations()}
       </div>
-      {renderCitations()}
-    </div>
-  );
-};
+    );
+  };
 
 export default Answer;

@@ -20,9 +20,12 @@ import API_CONFIG from "@/lib/config";
 // 导入Markdown解析库
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeRaw from 'rehype-raw';
+import rehypeKatex from 'rehype-katex';
 import 'highlight.js/styles/github.css';
+import 'katex/dist/katex.min.css';
 
 export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -404,8 +407,8 @@ export default function Home() {
                       {aiSummary && (
                         <div className="prose dark:prose-invert prose-headings:text-gray-800 dark:prose-headings:text-gray-200 prose-p:text-gray-700 dark:prose-p:text-gray-300 prose-strong:text-gray-900 dark:prose-strong:text-white prose-code:bg-gray-100 dark:prose-code:bg-gray-800 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-purple-700 dark:prose-code:text-purple-400 prose-code:before:content-[''] prose-code:after:content-['']">
                           <ReactMarkdown 
-                            remarkPlugins={[remarkGfm]} 
-                            rehypePlugins={[rehypeRaw, rehypeHighlight]}
+                            remarkPlugins={[remarkGfm, remarkMath]} 
+                            rehypePlugins={[rehypeRaw, rehypeHighlight, rehypeKatex]}
                           >
                             {aiSummary}
                           </ReactMarkdown>

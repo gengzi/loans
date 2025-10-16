@@ -415,7 +415,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
         </div>
 
         {/* 聊天内容区域 */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-background scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
+        <div className="flex-1 p-4 space-y-6 bg-background">
           {loadingChat ? (
             <div className="space-y-4 animate-pulse">
               {Array.from({ length: 3 }).map((_, index) => (
