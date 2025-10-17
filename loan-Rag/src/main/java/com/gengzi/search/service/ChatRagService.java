@@ -22,6 +22,15 @@ public interface ChatRagService {
      */
     Flux<ChatAnswerResponse> chatRag(RagChatReq ragChatReq);
 
+
+    /**
+     * rag对话评估
+     *
+     * @param ragChatReq rag对话参数
+     * @return
+     */
+    ChatAnswerResponse chatRagEvaluate(RagChatReq ragChatReq);
+
     /**
      * rag对话
      *

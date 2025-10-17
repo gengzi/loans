@@ -30,3 +30,11 @@
 对于检索需要优化，保证搜索结果的稳定性和准确性
 
 ```
+
+## rag评估
+```angular2html
+SELECT GROUP_CONCAT(
+  DISTINCT REPLACE(REPLACE(document_id, '[', ''), ']', '')
+) AS merged_document_ids 
+FROM rag_db.evaluate_data;
+```

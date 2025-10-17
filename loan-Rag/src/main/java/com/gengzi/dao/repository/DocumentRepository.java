@@ -10,6 +10,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Repository
 public interface DocumentRepository extends JpaRepository<Document, String>, JpaSpecificationExecutor<Document> {
 
@@ -22,4 +24,6 @@ public interface DocumentRepository extends JpaRepository<Document, String>, Jpa
     @Modifying
     int updateStatusById(String documentId, String status);
 
+
+    List<Document> findDocumentByChunkNumGreaterThan(@NotNull Integer chunkNumIsGreaterThan);
 }
