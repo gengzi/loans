@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
@@ -13,18 +13,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
-import { Search, Download, RefreshCw, PlusCircle } from 'lucide-react';
+import { Search, Download, RefreshCw, PlusCircle, X } from 'lucide-react';
 import { fetchApi } from '@/lib/api';
 
-// 模拟数据
-const evaluationData = [
-  { id: 1, 问题: '贷款申请流程', 参考答案: '贷款申请流程包括提交申请、资料审核、信用评估、审批通过和放款', 实际回答: '贷款申请流程包括提交申请、资料审核、信用评估、审批通过和放款', 准确率: '高', 完整度: '高', 相关性: '高' },
-  { id: 2, 问题: '贷款利率如何计算', 参考答案: '贷款利率根据贷款期限、贷款金额、信用等级综合计算', 实际回答: '贷款利率主要看贷款期限和金额', 准确率: '中', 完整度: '低', 相关性: '高' },
-  { id: 3, 问题: '还款方式有哪些', 参考答案: '还款方式包括等额本息、等额本金、先息后本等', 实际回答: '还款方式有等额本息和等额本金两种', 准确率: '高', 完整度: '中', 相关性: '高' },
-  { id: 4, 问题: '贷款逾期有什么影响', 参考答案: '贷款逾期会影响信用记录、产生罚息、可能被起诉', 实际回答: '贷款逾期会影响信用记录', 准确率: '高', 完整度: '低', 相关性: '高' },
-  { id: 5, 问题: '提前还款需要注意什么', 参考答案: '提前还款需要注意是否有违约金、提前多久申请', 实际回答: '提前还款需要提前申请', 准确率: '高', 完整度: '中', 相关性: '高' },
-];
+// 评估数据现在从API获取
 
 // 默认图表数据
 const defaultChartData = [
@@ -52,8 +46,110 @@ export default function RAGEvaluationPage() {
   const [radarChartData, setRadarChartData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
+  // 批次相关状态
+  const [batchNumbers, setBatchNumbers] = useState<Array<{value: string, label: string}>>([]);
+  const [selectedBatch, setSelectedBatch] = useState('all');
+  
+  // 辅助函数：解析JSON字符串
+  const parseJson = (str: string) => {
+    try {
+      return JSON.parse(str);
+    } catch {
+      return str;
+    }
+  };
+  
+  // 辅助函数：格式化时间
+  const formatTime = (timeStr: string) => {
+    try {
+      const date = new Date(timeStr);
+      return date.toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+    } catch {
+      return timeStr;
+    }
+  };
+  const [isBatchLoading, setIsBatchLoading] = useState(false);
   const [optimizationAdvice, setOptimizationAdvice] = useState<string>('');
+  
+  // 分页相关状态
+  const [evaluationData, setEvaluationData] = useState<any[]>([]);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
+  const [isDataLoading, setIsDataLoading] = useState(false);
+  
+  // 详情弹窗状态
+  const [showDetailDialog, setShowDetailDialog] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+
+  // 获取批次数据
+  const fetchBatchNumbers = async () => {
+    setIsBatchLoading(true);
+    try {
+      // 使用公共API工具函数获取批次数据
+      const response = await fetchApi('/evaluate/get/batchnums', {
+        method: 'GET'
+      });
+      
+      // 格式化批次数据为Select组件需要的格式
+      const formattedBatches = response.map((batch: string) => ({
+        value: batch,
+        label: `批次${batch}`
+      }));
+      
+      setBatchNumbers(formattedBatches);
+      return formattedBatches;
+    } catch (err) {
+      console.error('获取批次数据失败:', err);
+      return [];
+    } finally {
+      setIsBatchLoading(false);
+    }
+  };
+  
+  // 获取评估结果分页数据
+  const fetchEvaluationData = async (page = 0, batchNum = selectedBatch) => {
+    setIsDataLoading(true);
+    try {
+      // 如果选择全部批次，默认使用第一个批次
+      const targetBatchNum = batchNum === 'all' && batchNumbers.length > 0 ? batchNumbers[0].value : batchNum;
+      
+      // 使用公共API工具函数调用分页数据接口
+      const response = await fetchApi(`/evaluate/get/statistics/batchnum`, {
+        method: 'GET',
+        params: {
+          batchNum: targetBatchNum === 'all' ? '1' : targetBatchNum,
+          page: page,
+          size: pageSize
+        }
+      });
+      
+      console.log('API响应数据:', response);
+      
+      // 简化响应处理，直接使用响应数据作为评估数据
+      // 假设API直接返回数据数组
+      const data = Array.isArray(response) ? response : (response.content || []);
+      setEvaluationData(data);
+      
+      // 设置总数据量
+      setTotalItems(response.totalElements || data.length);
+      setCurrentPage(page);
+    } catch (err) {
+      console.error('获取评估数据失败:', err);
+      // 出错时使用空数据
+      setEvaluationData([]);
+      setTotalItems(0);
+    } finally {
+      setIsDataLoading(false);
+    }
+  };
 
   // 获取折线图数据
   const fetchChartData = async () => {
@@ -61,7 +157,7 @@ export default function RAGEvaluationPage() {
     setError(null);
     try {
       // 使用公共API工具函数，自动处理认证信息和基础URL
-      const responseData = await fetchApi('/evaluate/Statistics/linechart', {
+      const responseData = await fetchApi('/evaluate/statistics/linechart', {
         method: 'GET'
       });
       
@@ -137,10 +233,80 @@ export default function RAGEvaluationPage() {
     }
   };
 
+  // 使用一个ref来跟踪是否已经初始化，避免React 18严格模式下的重复渲染导致重复调用
+  const hasInitialized = React.useRef(false);
+  
   // 初始加载数据
   useEffect(() => {
-    fetchChartData();
+    // React 18严格模式下会执行两次，但我们只需要第一次执行
+    if (hasInitialized.current) return;
+    hasInitialized.current = true;
+    
+    let isMounted = true;
+    
+    const initializeData = async () => {
+      if (isMounted) {
+        try {
+          // 并行获取批次数据和图表数据
+          const [batches] = await Promise.all([
+            fetchBatchNumbers(),
+            fetchChartData()
+          ]);
+          
+          // 批次数据获取后，立即获取评估数据
+          if (batches.length > 0 || selectedBatch !== 'all') {
+            await fetchEvaluationData(0, selectedBatch);
+          }
+        } catch (error) {
+          console.error('初始化数据失败:', error);
+        }
+      }
+    };
+    
+    initializeData();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
+  
+  // 当批次或页面大小改变时重新获取数据
+  useEffect(() => {
+    let isMounted = true;
+    
+    // 只有当初始化完成后才响应批次或页面大小变化
+    if (!hasInitialized.current) return;
+    
+    const loadData = async () => {
+      if ((batchNumbers.length > 0 || selectedBatch !== 'all') && isMounted) {
+        await fetchEvaluationData(currentPage, selectedBatch);
+      }
+    };
+    
+    loadData();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedBatch, pageSize, currentPage]);
+  
+  // 处理批次选择变化
+  const handleBatchChange = (batchValue: string) => {
+    setSelectedBatch(batchValue);
+    setCurrentPage(0); // 重置为第一页
+  };
+  
+  // 处理行点击事件，打开详情弹窗
+  const handleRowClick = (item: any) => {
+    setSelectedItem(item);
+    setShowDetailDialog(true);
+  };
+  
+  // 关闭详情弹窗
+  const handleCloseDialog = () => {
+    setShowDetailDialog(false);
+    setSelectedItem(null);
+  };
 
   return (
     <DashboardLayout>
@@ -177,26 +343,16 @@ export default function RAGEvaluationPage() {
               />
             </div>
             <div className="flex items-center gap-3">
-              <Select defaultValue="all">
+              {/* 批次过滤下拉框 */}
+              <Select value={selectedBatch} onValueChange={handleBatchChange}>
                 <SelectTrigger className="h-10 w-[140px]">
-                  <SelectValue placeholder="准确率" />
+                  <SelectValue placeholder="选择批次" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">全部</SelectItem>
-                  <SelectItem value="high">高</SelectItem>
-                  <SelectItem value="medium">中</SelectItem>
-                  <SelectItem value="low">低</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select defaultValue="all">
-                <SelectTrigger className="h-10 w-[140px]">
-                  <SelectValue placeholder="完整度" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">全部</SelectItem>
-                  <SelectItem value="high">高</SelectItem>
-                  <SelectItem value="medium">中</SelectItem>
-                  <SelectItem value="low">低</SelectItem>
+                  <SelectItem value="all">全部批次</SelectItem>
+                  {batchNumbers.map((batch) => (
+                    <SelectItem key={batch.value} value={batch.value}>{batch.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -209,44 +365,97 @@ export default function RAGEvaluationPage() {
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
-                <Table>
+                <Table className="min-w-[1200px]">
                   <TableHeader>
                     <TableRow>
-                      <TableHead>ID</TableHead>
-                      <TableHead>问题</TableHead>
-                      <TableHead>参考答案</TableHead>
-                      <TableHead>实际回答</TableHead>
-                      <TableHead>准确率</TableHead>
-                      <TableHead>完整度</TableHead>
-                      <TableHead>相关性</TableHead>
+                      <TableHead className="w-[60px]">ID</TableHead>
+                      <TableHead className="min-w-[150px]">问题</TableHead>
+                      <TableHead className="min-w-[150px]">参考答案</TableHead>
+                      <TableHead className="min-w-[180px]">DocumentId</TableHead>
+                      <TableHead className="min-w-[180px]">ChunkId</TableHead>
+                      <TableHead className="min-w-[150px]">LLM回答</TableHead>
+                      <TableHead className="min-w-[180px]">LLM DocumentId</TableHead>
+                      <TableHead className="min-w-[180px]">LLM ChunkId</TableHead>
+                      <TableHead className="min-w-[120px]">创建时间</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {evaluationData.map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell className="font-medium">{item.id}</TableCell>
-                        <TableCell className="max-w-[200px] truncate">{item.问题}</TableCell>
-                        <TableCell className="max-w-[200px] truncate">{item.参考答案}</TableCell>
-                        <TableCell className="max-w-[200px] truncate">{item.实际回答}</TableCell>
-                        <TableCell>
-                          <Badge variant={item.准确率 === '高' ? 'default' : item.准确率 === '中' ? 'secondary' : 'destructive'}>
-                            {item.准确率}
-                          </Badge>
+                    {isDataLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={9} className="text-center py-10">
+                          加载中...
                         </TableCell>
-                        <TableCell>
-                          <Badge variant={item.完整度 === '高' ? 'default' : item.完整度 === '中' ? 'secondary' : 'destructive'}>
-                            {item.完整度}
-                          </Badge>
+                      </TableRow>
+                    ) : evaluationData.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={9} className="text-center py-10">
+                          暂无数据
                         </TableCell>
-                        <TableCell>
-                          <Badge variant={item.相关性 === '高' ? 'default' : item.相关性 === '中' ? 'secondary' : 'destructive'}>
-                            {item.相关性}
-                          </Badge>
+                      </TableRow>
+                    ) : evaluationData.map((item, index) => (
+                      <TableRow key={index} className="cursor-pointer hover:bg-muted transition-colors" onClick={() => handleRowClick(item)}>
+                        <TableCell className="font-medium text-nowrap py-4">{item.id || index + 1}</TableCell>
+                        <TableCell className="whitespace-normal max-w-[150px] break-words py-4">
+                          <div className="max-h-[120px] overflow-y-auto p-1">{item.question}</div>
                         </TableCell>
+                        <TableCell className="whitespace-normal max-w-[150px] break-words py-4">
+                          <div className="max-h-[120px] overflow-y-auto p-1">{item.referenceAnswer}</div>
+                        </TableCell>
+                        <TableCell className="whitespace-normal max-w-[180px] break-all py-4">
+                          <div className="max-h-[120px] overflow-y-auto text-xs p-1">
+                            {typeof item.documentId === 'string' ? JSON.stringify(parseJson(item.documentId)) : item.documentId}
+                          </div>
+                        </TableCell>
+                        <TableCell className="whitespace-normal max-w-[180px] break-all py-4">
+                          <div className="max-h-[120px] overflow-y-auto text-xs p-1">
+                            {typeof item.chunkId === 'string' ? JSON.stringify(parseJson(item.chunkId)) : item.chunkId}
+                          </div>
+                        </TableCell>
+                        <TableCell className="whitespace-normal max-w-[150px] break-words py-4">
+                          <div className="max-h-[120px] overflow-y-auto p-1">{item.llmAnswer}</div>
+                        </TableCell>
+                        <TableCell className="whitespace-normal max-w-[180px] break-all py-4">
+                          <div className="max-h-[120px] overflow-y-auto text-xs p-1">
+                            {typeof item.llmDocumentId === 'string' ? JSON.stringify(parseJson(item.llmDocumentId)) : item.llmDocumentId}
+                          </div>
+                        </TableCell>
+                        <TableCell className="whitespace-normal max-w-[180px] break-all py-4">
+                          <div className="max-h-[120px] overflow-y-auto text-xs p-1">
+                            {typeof item.llmChunkId === 'string' ? JSON.stringify(parseJson(item.llmChunkId)) : item.llmChunkId}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-nowrap py-4">{formatTime(item.createTime)}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
+                
+                {/* 分页组件 */}
+                {evaluationData.length > 0 && !isDataLoading && (
+                  <div className="flex justify-between items-center mt-4">
+                    <div className="text-sm text-muted-foreground">
+                      显示 {(currentPage * pageSize) + 1} 到 {Math.min((currentPage + 1) * pageSize, totalItems)} 条，共 {totalItems} 条
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        disabled={currentPage === 0}
+                        onClick={() => fetchEvaluationData(currentPage - 1)}
+                      >
+                        上一页
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        disabled={(currentPage + 1) * pageSize >= totalItems}
+                        onClick={() => fetchEvaluationData(currentPage + 1)}
+                      >
+                        下一页
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -387,8 +596,145 @@ export default function RAGEvaluationPage() {
           </Card>
         </TabsContent>
       </Tabs>
-    </DashboardLayout>
-  );
-}
+        
+        {/* 详情弹窗 */}
+        <Dialog open={showDetailDialog} onOpenChange={handleCloseDialog} className="max-w-[98vw]">
+          <DialogContent className="max-w-[1600px] w-[98vw] max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex justify-between items-center">
+                评估详情 (ID: {selectedItem?.id || 'N/A'})
+                <Button variant="ghost" size="icon" onClick={handleCloseDialog}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </DialogTitle>
+            </DialogHeader>
+            
+            {selectedItem && (
+              <div className="space-y-6 mt-4">
+                {/* 基本信息 */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Card>
+                    <CardHeader className="py-3">
+                      <CardTitle className="text-sm font-medium">基本信息</CardTitle>
+                    </CardHeader>
+                    <CardContent className="py-3">
+                      <div className="space-y-2 text-sm">
+                        <div>
+                          <span className="font-medium text-muted-foreground">ID:</span> {selectedItem.id}
+                        </div>
+                        <div>
+                          <span className="font-medium text-muted-foreground">创建时间:</span> {formatTime(selectedItem.createTime)}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+                
+                {/* 问题和答案 */}
+                <Card>
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-sm font-medium">问题</CardTitle>
+                  </CardHeader>
+                  <CardContent className="py-3">
+                    <div className="whitespace-pre-wrap">{selectedItem.question}</div>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-sm font-medium">参考答案</CardTitle>
+                  </CardHeader>
+                  <CardContent className="py-3">
+                    <div className="whitespace-pre-wrap">{selectedItem.referenceAnswer}</div>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-sm font-medium">LLM回答 (Markdown格式)</CardTitle>
+                  </CardHeader>
+                  <CardContent className="py-3">
+                    <div className="prose max-w-none">
+                      <ReactMarkdown
+                        components={{
+                          table: ({ node, ...props }) => (
+                            <div className="my-4 overflow-x-auto">
+                              <table className="w-full border-collapse border border-gray-200 text-sm">{props.children}</table>
+                            </div>
+                          ),
+                          th: ({ node, ...props }) => (
+                            <th className="border border-gray-200 px-3 py-2 bg-gray-50 text-left font-medium">{props.children}</th>
+                          ),
+                          td: ({ node, ...props }) => (
+                            <td className="border border-gray-200 px-3 py-2 text-left">{props.children}</td>
+                          ),
+                          h3: ({ node, ...props }) => (
+                            <h3 className="text-lg font-bold mt-4 mb-2">{props.children}</h3>
+                          ),
+                          h4: ({ node, ...props }) => (
+                            <h4 className="text-base font-bold mt-3 mb-1">{props.children}</h4>
+                          ),
+                          ul: ({ node, ...props }) => (
+                            <ul className="list-disc pl-5 mb-3">{props.children}</ul>
+                          ),
+                          li: ({ node, ...props }) => (
+                            <li className="mb-1">{props.children}</li>
+                          ),
+                          p: ({ node, ...props }) => (
+                            <p className="mb-2">{props.children}</p>
+                          )
+                        }}
+                        remarkPlugins={[remarkGfm]}
+                        rehypePlugins={[rehypeHighlight, rehypeRaw]}
+                      >
+                        {selectedItem.llmAnswer}
+                      </ReactMarkdown>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                {/* 文档和Chunk信息 */}
+                <Card>
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-sm font-medium">文档信息</CardTitle>
+                  </CardHeader>
+                  <CardContent className="py-3 space-y-4">
+                    <div>
+                      <h4 className="text-sm font-medium mb-1">参考文档 ID</h4>
+                      <div className="bg-muted p-2 rounded text-xs font-mono overflow-x-auto">
+                        {typeof selectedItem.documentId === 'string' ? JSON.stringify(parseJson(selectedItem.documentId)) : selectedItem.documentId}
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium mb-1">参考 Chunk ID</h4>
+                      <div className="bg-muted p-2 rounded text-xs font-mono overflow-x-auto">
+                        {typeof selectedItem.chunkId === 'string' ? JSON.stringify(parseJson(selectedItem.chunkId)) : selectedItem.chunkId}
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium mb-1">LLM 文档 ID</h4>
+                      <div className="bg-muted p-2 rounded text-xs font-mono overflow-x-auto">
+                        {typeof selectedItem.llmDocumentId === 'string' ? JSON.stringify(parseJson(selectedItem.llmDocumentId)) : selectedItem.llmDocumentId}
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium mb-1">LLM Chunk ID</h4>
+                      <div className="bg-muted p-2 rounded text-xs font-mono overflow-x-auto">
+                        {typeof selectedItem.llmChunkId === 'string' ? JSON.stringify(parseJson(selectedItem.llmChunkId)) : selectedItem.llmChunkId}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+            
+            <DialogFooter className="mt-4">
+              <Button onClick={handleCloseDialog}>关闭</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </DashboardLayout>
+    );
+  }
 
-// 移除了自定义的Markdown解析函数，改用react-markdown库
+  // 移除了自定义的Markdown解析函数，改用react-markdown库
