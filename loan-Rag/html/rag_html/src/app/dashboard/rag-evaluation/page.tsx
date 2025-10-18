@@ -1,5 +1,10 @@
 'use client';
 
+import { useState, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeHighlight from 'rehype-highlight';
+import rehypeRaw from 'rehype-raw';
 import DashboardLayout from '@/components/layout/dashboard-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -8,8 +13,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
 import { Search, Download, RefreshCw, PlusCircle } from 'lucide-react';
+import { fetchApi } from '@/lib/api';
 
 // 模拟数据
 const evaluationData = [
@@ -20,8 +26,8 @@ const evaluationData = [
   { id: 5, 问题: '提前还款需要注意什么', 参考答案: '提前还款需要注意是否有违约金、提前多久申请', 实际回答: '提前还款需要提前申请', 准确率: '高', 完整度: '中', 相关性: '高' },
 ];
 
-// 图表数据
-const chartData = [
+// 默认图表数据
+const defaultChartData = [
   { name: 'Mon', 准确率: 90, 完整度: 85, 相关性: 92, 一致性: 88, 及时性: 94, 可理解性: 91 },
   { name: 'Tue', 准确率: 92, 完整度: 88, 相关性: 94, 一致性: 90, 及时性: 95, 可理解性: 93 },
   { name: 'Wed', 准确率: 88, 完整度: 86, 相关性: 90, 一致性: 87, 及时性: 92, 可理解性: 90 },
@@ -42,6 +48,100 @@ const radarData = [
 ];
 
 export default function RAGEvaluationPage() {
+  const [chartData, setChartData] = useState(defaultChartData);
+  const [radarChartData, setRadarChartData] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [optimizationAdvice, setOptimizationAdvice] = useState<string>('');
+
+  // 获取折线图数据
+  const fetchChartData = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      // 使用公共API工具函数，自动处理认证信息和基础URL
+      const responseData = await fetchApi('/evaluate/Statistics/linechart', {
+        method: 'GET'
+      });
+      
+      // 转换API响应数据为图表所需格式
+      const transformedData = responseData.map((item: any) => ({
+        name: `批次${item.batchNum}`, // 使用batchNum作为x轴值
+        忠实度: parseFloat(item.faithfulnessAverageScore),
+        答案相关性: parseFloat(item.answerRelevancyAverageScore),
+        答案相似度: parseFloat(item.answerSimilarityAverageScore),
+        上下文召回率: parseFloat(item.contextRecallAverageScore),
+        上下文精确度: parseFloat(item.contextPrecisionAverageScore),
+        上下文相关性: parseFloat(item.contextRelevancyAverageScore),
+        总体评分: parseFloat(item.overallScore)
+      }));
+      
+      setChartData(transformedData);
+      
+      // 处理雷达图数据，支持多个批次对比
+      if (responseData.length > 0) {
+        // 获取最近几个批次的数据（最多显示5个批次以避免图表过于复杂）
+        const recentBatches = responseData.slice(-5);
+        
+        // 创建雷达图数据结构
+        const subjects = ['忠实度', '答案相关性', '答案相似度', '上下文召回率', '上下文精确度', '上下文相关性'];
+        const newRadarData = subjects.map(subject => {
+          const subjectData: any = { subject, fullMark: 100 };
+          
+          // 为每个批次添加对应指标的值
+          recentBatches.forEach((batch: any, index: number) => {
+            const batchKey = `batch_${recentBatches.length - index - 1}`;
+            let value = 0;
+            
+            switch(subject) {
+              case '忠实度':
+                value = parseFloat(batch.faithfulnessAverageScore) * 100;
+                break;
+              case '答案相关性':
+                value = parseFloat(batch.answerRelevancyAverageScore) * 100;
+                break;
+              case '答案相似度':
+                value = parseFloat(batch.answerSimilarityAverageScore) * 100;
+                break;
+              case '上下文召回率':
+                value = parseFloat(batch.contextRecallAverageScore) * 100;
+                break;
+              case '上下文精确度':
+                value = parseFloat(batch.contextPrecisionAverageScore) * 100;
+                break;
+              case '上下文相关性':
+                value = parseFloat(batch.contextRelevancyAverageScore) * 100;
+                break;
+            }
+            
+            subjectData[batchKey] = value;
+          });
+          
+          return subjectData;
+        });
+        
+        setRadarChartData(newRadarData);
+      }
+      
+      // 设置优化建议
+      if (responseData.length > 0 && responseData[0].directionImprovement) {
+        setOptimizationAdvice(responseData[0].directionImprovement);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '获取数据时发生错误');
+      // 出错时使用默认数据
+      setChartData(defaultChartData);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 初始加载数据
+  useEffect(() => {
+    fetchChartData();
+  }, []);
+
   return (
     <DashboardLayout>
       <div className="mb-6 flex items-center justify-between">
@@ -155,10 +255,23 @@ export default function RAGEvaluationPage() {
         <TabsContent value="statistics" className="space-y-6">
           {/* 统计图表 */}
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>评估指标趋势</CardTitle>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={fetchChartData}
+                disabled={isLoading}
+              >
+                <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
+              </Button>
             </CardHeader>
             <CardContent>
+              {error && (
+                <div className="mb-4 p-3 bg-red-50 text-red-500 rounded-md">
+                  {error}
+                </div>
+              )}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* 折线图 */}
                 <div className="h-[400px]">
@@ -169,14 +282,15 @@ export default function RAGEvaluationPage() {
                     >
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="name" />
-                      <YAxis domain={[0, 100]} />
-                      <Tooltip />
-                      <Line type="monotone" dataKey="准确率" stroke="#8884d8" strokeWidth={2} />
-                      <Line type="monotone" dataKey="完整度" stroke="#82ca9d" strokeWidth={2} />
-                      <Line type="monotone" dataKey="相关性" stroke="#ffc658" strokeWidth={2} />
-                      <Line type="monotone" dataKey="一致性" stroke="#ff8042" strokeWidth={2} />
-                      <Line type="monotone" dataKey="及时性" stroke="#0088fe" strokeWidth={2} />
-                      <Line type="monotone" dataKey="可理解性" stroke="#00C49F" strokeWidth={2} />
+                      <YAxis domain={[0, 1]} tickFormatter={(value) => `${(value * 100).toFixed(0)}%`} />
+                      <Tooltip formatter={(value: number) => `${(value * 100).toFixed(2)}%`} />
+                      <Line type="monotone" dataKey="忠实度" stroke="#8884d8" strokeWidth={2} />
+                      <Line type="monotone" dataKey="答案相关性" stroke="#82ca9d" strokeWidth={2} />
+                      <Line type="monotone" dataKey="答案相似度" stroke="#ffc658" strokeWidth={2} />
+                      <Line type="monotone" dataKey="上下文召回率" stroke="#ff8042" strokeWidth={2} />
+                      <Line type="monotone" dataKey="上下文精确度" stroke="#0088fe" strokeWidth={2} />
+                      <Line type="monotone" dataKey="上下文相关性" stroke="#00C49F" strokeWidth={2} />
+                      <Line type="monotone" dataKey="总体评分" stroke="#FF6B6B" strokeWidth={3} strokeDasharray="5 5" />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -184,12 +298,33 @@ export default function RAGEvaluationPage() {
                 {/* 雷达图 */}
                 <div className="h-[400px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
+                    <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarChartData}>
                       <PolarGrid />
                       <PolarAngleAxis dataKey="subject" />
                       <PolarRadiusAxis angle={30} domain={[0, 100]} />
-                      <Radar name="RAG性能" dataKey="A" stroke="#8884d8" fill="#8884d8" fillOpacity={0.6} />
+                      {/* 根据数据动态生成多个雷达图层 */}
+                      {Object.keys(radarChartData[0] || {}).map((key) => {
+                        if (key !== 'subject' && key !== 'fullMark') {
+                          // 为不同批次设置不同颜色
+                          const colors = ['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088fe'];
+                          const batchIndex = parseInt(key.split('_')[1]);
+                          const color = colors[batchIndex % colors.length];
+                          return (
+                            <Radar 
+                              key={key} 
+                              name={`批次${batchIndex + 1}`} 
+                              dataKey={key} 
+                              stroke={color} 
+                              fill={color} 
+                              fillOpacity={0.4} 
+                            />
+                          );
+                        }
+                        return null;
+                      })}
                       <Tooltip />
+                      {/* 添加图例 */}
+                      <Legend />
                     </RadarChart>
                   </ResponsiveContainer>
                 </div>
@@ -203,12 +338,51 @@ export default function RAGEvaluationPage() {
               <CardTitle>优化建议</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="prose max-w-none">
-                <p>优先解决缺失问题：若准确率（置信度低）或相关性较差（答非所问），优先优化提示模板（Prompt约束、模型调优等），这是用户最易感知的问题。</p>
-                <p>再解决完整度问题：若回答详尽但存在"部分遗忘"或"知识点少"，优化检索策略（调整相似度阈值、增加返回文档数量）或增加知识库覆盖面。</p>
-                <p>最后处理细节问题：如专业术语使用不当、回答逻辑混乱等，可通过优化提示词模板或微调模型参数解决。</p>
-                <p>若准确率和完整度都很高，但用户仍不满意，可能是提示词或答案格式问题，需要进一步分析用户反馈优化。</p>
-              </div>
+              {optimizationAdvice && optimizationAdvice.length > 0 ? (
+            <div className="prose max-w-none">
+              <ReactMarkdown
+                components={{
+                  table: ({ node, ...props }) => (
+                    <div className="my-4 overflow-x-auto">
+                      <table className="w-full border-collapse border border-gray-200 text-sm">{props.children}</table>
+                    </div>
+                  ),
+                  th: ({ node, ...props }) => (
+                    <th className="border border-gray-200 px-3 py-2 bg-gray-50 text-left font-medium">{props.children}</th>
+                  ),
+                  td: ({ node, ...props }) => (
+                    <td className="border border-gray-200 px-3 py-2 text-left">{props.children}</td>
+                  ),
+                  h3: ({ node, ...props }) => (
+                    <h3 className="text-lg font-bold mt-4 mb-2">{props.children}</h3>
+                  ),
+                  h4: ({ node, ...props }) => (
+                    <h4 className="text-base font-bold mt-3 mb-1">{props.children}</h4>
+                  ),
+                  ul: ({ node, ...props }) => (
+                    <ul className="list-disc pl-5 mb-3">{props.children}</ul>
+                  ),
+                  li: ({ node, ...props }) => (
+                    <li className="mb-1">{props.children}</li>
+                  ),
+                  p: ({ node, ...props }) => (
+                    <p className="mb-2">{props.children}</p>
+                  )
+                }}
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeHighlight, rehypeRaw]}
+              >
+                {optimizationAdvice}
+              </ReactMarkdown>
+            </div>
+          ) : (
+            <div className="prose max-w-none">
+              <p>优先解决缺失问题：若准确率（置信度低）或相关性较差（答非所问），优先优化提示模板（Prompt约束、模型调优等），这是用户最易感知的问题。</p>
+              <p>再解决完整度问题：若回答详尽但存在"部分遗忘"或"知识点少"，优化检索策略（调整相似度阈值、增加返回文档数量）或增加知识库覆盖面。</p>
+              <p>最后处理细节问题：如专业术语使用不当、回答逻辑混乱等，可通过优化提示词模板或微调模型参数解决。</p>
+              <p>若准确率和完整度都很高，但用户仍不满意，可能是提示词或答案格式问题，需要进一步分析用户反馈优化。</p>
+            </div>
+          )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -216,3 +390,5 @@ export default function RAGEvaluationPage() {
     </DashboardLayout>
   );
 }
+
+// 移除了自定义的Markdown解析函数，改用react-markdown库
