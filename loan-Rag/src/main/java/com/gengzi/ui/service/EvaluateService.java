@@ -14,4 +14,5 @@ public interface EvaluateService {
 
     void evaluateCalculate(String batchNum);
 
+    void evaluateStatistics(String batchNum);
 }

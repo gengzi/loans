@@ -6,10 +6,13 @@ import cn.hutool.json.JSONUtil;
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch.core.SearchRequest;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
+import com.gengzi.config.WeightOfBasicIndicators;
 import com.gengzi.dao.Document;
 import com.gengzi.dao.EvaluateDatum;
+import com.gengzi.dao.EvaluateScore;
 import com.gengzi.dao.repository.DocumentRepository;
 import com.gengzi.dao.repository.EvaluateDatumRepository;
+import com.gengzi.dao.repository.EvaluateScoreRepository;
 import com.gengzi.request.*;
 import com.gengzi.response.ChatAnswerResponse;
 import com.gengzi.search.service.ChatRagService;
@@ -25,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -43,13 +47,17 @@ public class EvaluateServiceImpl implements EvaluateService {
     @Qualifier("openAiChatModel")
     private ChatModel chatModel;
 
-
     @Autowired
     private EvaluateDatumRepository evaluateDatumRepository;
 
-
     @Autowired
     private ChatRagService chatRagService;
+
+    @Autowired
+    private WeightOfBasicIndicators weightOfBasicIndicators;
+
+    @Autowired
+    private EvaluateScoreRepository evaluateScoreRepository;
 
     /**
      * 如果是存在相关文档，请在一个批次中全部处理。保证生成的预估训练集数据的完整性
@@ -138,6 +146,88 @@ public class EvaluateServiceImpl implements EvaluateService {
         });
 
 
+    }
+
+    /**
+     * 统计评估结果
+     *
+     * @param batchNum
+     */
+    @Override
+    public void evaluateStatistics(String batchNum) {
+        String totalScore = "0";
+        String faithfulnessAverageScore = "0";
+        String answerSimilarityAverageScore = "0";
+        String answerRelevancyAverageScore = "0";
+        String contextRecallAverageScore = "0";
+        String contextPrecisionAverageScore = "0";
+        String contextRelevancyAverageScore = "0";
+
+        // 根据批次查询指标信息
+        List<EvaluateDatum> evaluateDataByBatchNum = evaluateDatumRepository.findEvaluateDataByBatchNum(batchNum);
+        String size = evaluateDataByBatchNum.size() + "";
+        for (EvaluateDatum evaluateDatum : evaluateDataByBatchNum) {
+            // 将指标信息按权重进行加权平均，计算每条的数据得分
+            saveScore(evaluateDatum);
+            // 将每项得分相加求平均，得到每项指标的得分
+            String score = evaluateDatum.getScore();
+            totalScore = NumberUtil.add(score, totalScore).toPlainString();
+            faithfulnessAverageScore = NumberUtil.add(evaluateDatum.getFaithfulness(), faithfulnessAverageScore).toPlainString();
+            answerSimilarityAverageScore = NumberUtil.add(evaluateDatum.getAnswerSimilarity(), answerSimilarityAverageScore).toPlainString();
+            answerRelevancyAverageScore = NumberUtil.add(evaluateDatum.getAnswerRelevancy(), answerRelevancyAverageScore).toPlainString();
+            contextRecallAverageScore = NumberUtil.add(evaluateDatum.getContextRecall(), contextRecallAverageScore).toPlainString();
+            contextPrecisionAverageScore = NumberUtil.add(evaluateDatum.getContextPrecision(), contextPrecisionAverageScore).toPlainString();
+            contextRelevancyAverageScore = NumberUtil.add(evaluateDatum.getContextRelevancy(), contextRelevancyAverageScore).toPlainString();
+        }
+        EvaluateScore evaluateScore = new EvaluateScore();
+        List<EvaluateScore> byBatchNum = evaluateScoreRepository.findByBatchNum(batchNum);
+        if(byBatchNum != null &&  byBatchNum.size()>0){
+            evaluateScore = byBatchNum.get(0);
+        }
+        evaluateScore.setBatchNum(batchNum);
+        evaluateScore.setCreateTime(Instant.now());
+        evaluateScore.setOverallScore(NumberUtil.div(totalScore, size, 3).toPlainString());
+        evaluateScore.setFaithfulnessAverageScore(NumberUtil.div(faithfulnessAverageScore, size, 3).toPlainString());
+        evaluateScore.setAnswerSimilarityAverageScore(NumberUtil.div(answerSimilarityAverageScore, size, 3).toPlainString());
+        evaluateScore.setAnswerRelevancyAverageScore(NumberUtil.div(answerRelevancyAverageScore, size, 3).toPlainString());
+        evaluateScore.setContextRecallAverageScore(NumberUtil.div(contextRecallAverageScore, size, 3).toPlainString());
+        evaluateScore.setContextPrecisionAverageScore(NumberUtil.div(contextPrecisionAverageScore, size, 3).toPlainString());
+        evaluateScore.setContextRelevancyAverageScore(NumberUtil.div(contextRelevancyAverageScore, size, 3).toPlainString());
+        String directionImprovement = directionImprovementByIndicator(evaluateScore);
+        evaluateScore.setDirectionImprovement(directionImprovement);
+        evaluateScore.setSize(size);
+        evaluateScoreRepository.save(evaluateScore);
+
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public void saveScore(EvaluateDatum evaluateDatum) {
+        String score = calculate(evaluateDatum);
+        evaluateDatum.setScore(score);
+        evaluateDatumRepository.save(evaluateDatum);
+    }
+
+
+    private String calculate(EvaluateDatum evaluateDatum) {
+        BigDecimal faithfulnessSocre = NumberUtil.mul(evaluateDatum.getFaithfulness(), indicatorsFormat(weightOfBasicIndicators.getFaithfulness()));
+        BigDecimal answerRelevancySocre = NumberUtil.mul(evaluateDatum.getAnswerRelevancy(), indicatorsFormat(weightOfBasicIndicators.getAnswerRelevancy()));
+        BigDecimal answerSimilaritySocre = NumberUtil.mul(evaluateDatum.getAnswerSimilarity(), indicatorsFormat(weightOfBasicIndicators.getAnswerSimilarity()));
+        BigDecimal contextRecallSocre = NumberUtil.mul(evaluateDatum.getContextRecall(), indicatorsFormat(weightOfBasicIndicators.getContextRecall()));
+        BigDecimal contextPrecisionSocre = NumberUtil.mul(evaluateDatum.getContextPrecision(), indicatorsFormat(weightOfBasicIndicators.getContextPrecision()));
+        BigDecimal contextRelevancySocre = NumberUtil.mul(evaluateDatum.getContextRelevancy(), indicatorsFormat(weightOfBasicIndicators.getContextRelevancy()));
+        BigDecimal score = NumberUtil.add(faithfulnessSocre, answerRelevancySocre, answerSimilaritySocre, contextRecallSocre, contextPrecisionSocre, contextRelevancySocre);
+        return NumberUtil.roundStr(score.toPlainString(), 3);
+
+    }
+
+
+    private String indicatorsFormat(String faithfulness) {
+        // 1. 去除百分号
+        String numStr = faithfulness.replace("%", "");
+        // 2. 转换为BigDecimal并除以100
+        BigDecimal decimal = new BigDecimal(numStr)
+                .divide(new BigDecimal("100")); // 除以100得到小数
+        return decimal.toPlainString();
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -519,6 +609,33 @@ public class EvaluateServiceImpl implements EvaluateService {
         UserMessage userMessage = new UserMessage(userPromptStr + userQuestionStr + userAnswerStr);
         String response = chatModel.call(systemMessage, userMessage);
         logger.info("答案相关性-结果：{}", response);
+        return response;
+    }
+
+    public String directionImprovementByIndicator(EvaluateScore evaluateScore) {
+        String sysPromptStr = "你是一名资深的 RAG（检索增强生成）系统优化专家，具备丰富的 RAG 评估与调优经验。请基于用户提供的 RAG 评估指标数据，按照以下逻辑输出改造指南：\n" +
+                "指标解读：先明确各指标的含义及当前表现反映的核心问题（如召回率低代表检索环节漏检相关文档，准确率低代表生成内容与参考答案偏差大等）；\n" +
+                "问题定位：结合指标间关联性分析根因（如 “精确率低但召回率高” 可能是检索策略过于宽泛，引入过多噪声文档）；\n" +
+                "改造方案：针对每个问题提供可落地的优化措施，需区分 “检索环节”“生成环节”“数据环节” 三类优化方向，每个方案说明具体操作（如检索环节调整向量模型、优化检索参数；生成环节优化 Prompt 模板、增加事实校验；数据环节清洗知识库、补充高频问题相关文档等）；\n" +
+                "优先级建议：按 “紧急性 + 投入产出比” 对改造方案排序，标注哪些是 “立即执行”，哪些是 “长期优化”；\n" +
+                "效果验证：说明每个改造方案落地后，如何通过指标复查验证效果（如召回率提升需重新统计相关文档的命中数量）。\n" +
+                "请确保指南专业、具体，避免空泛建议，需紧密结合用户提供的指标数据展开。";
+        String userPromptStr = "我正在开展 RAG 系统的评估工作，当前统计的指标如下（若部分指标未统计可说明，你基于已有指标分析）：\n";
+        String retrievalProcessIndicatorsStr = "检索环节指标：\n" +
+                "上下文召回率：" + evaluateScore.getContextRecallAverageScore() + "\n" +
+                "上下文精确度：" + evaluateScore.getContextPrecisionAverageScore() + "\n" +
+                "上下文相关性：" + evaluateScore.getContextRelevancyAverageScore() + "\n";
+        String generationProcessIndicatorsStr = "生成环节指标：\n" +
+                " 忠实度：" + evaluateScore.getFaithfulnessAverageScore() + "\n" +
+                " 答案相关性：" + evaluateScore.getAnswerRelevancyAverageScore() + "\n";
+        String comprehensiveExperienceIndicators = "综合体验指标：\n" +
+                " 综合平均得分：" + evaluateScore.getOverallScore() + "\n" +
+                " 答案相似度：" + evaluateScore.getAnswerSimilarityAverageScore() + "\n";
+
+        SystemMessage systemMessage = new SystemMessage(sysPromptStr);
+        UserMessage userMessage = new UserMessage(userPromptStr + retrievalProcessIndicatorsStr + generationProcessIndicatorsStr + comprehensiveExperienceIndicators);
+        String response = chatModel.call(systemMessage, userMessage);
+        logger.info("改进方向-结果：{}", response);
         return response;
     }
 

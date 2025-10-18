@@ -51,5 +51,13 @@ public class EvaluateController {
         evaluateService.evaluateCalculate(batchNum);
     }
 
+    /**
+     * 统计评估结果
+     */
+    @GetMapping("/evaluate/statistics")
+    public void evaluateStatistics(@RequestParam(value = "batchNum") String batchNum) {
+        evaluateService.evaluateStatistics(batchNum);
+    }
+
 
 }

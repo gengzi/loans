@@ -175,4 +175,11 @@ public class EvaluateDatum {
     @Column(name = "answer_similarity_llm_result")
     private String answerSimilarityLlmResult;
 
+    /**
+     * 综合得分
+     */
+    @Size(max = 32)
+    @Column(name = "score", length = 32)
+    private String score;
+
 }
