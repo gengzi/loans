@@ -18,4 +18,7 @@ public interface EvaluateDatumRepository extends JpaRepository<EvaluateDatum, Lo
     List<EvaluateDatum> findByLlmAnswerEqualsAndBatchNumEquals(String batchNum);
 
     List<EvaluateDatum> findEvaluateDataByBatchNum(@Size(max = 32) @NotNull String batchNum);
+
+    @Query("select distinct  e.batchNum from EvaluateDatum e")
+    List<String> findAllBatchNums();
 }

@@ -1,9 +1,13 @@
 package com.gengzi.ui.controller;
 
 
+import com.gengzi.response.Result;
 import com.gengzi.ui.service.EvaluateService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -37,9 +41,9 @@ public class EvaluateController {
      * 评估训练集和真实回答
      */
     @GetMapping("/evaluate")
-    public void evaluate(@RequestParam(value = "coonversationId") String coonversationId ,
+    public void evaluate(@RequestParam(value = "coonversationId") String coonversationId,
                          @RequestParam(value = "batchNum") String batchNum) {
-        evaluateService.evaluate(coonversationId,batchNum);
+        evaluateService.evaluate(coonversationId, batchNum);
     }
 
 
@@ -58,6 +62,44 @@ public class EvaluateController {
     public void evaluateStatistics(@RequestParam(value = "batchNum") String batchNum) {
         evaluateService.evaluateStatistics(batchNum);
     }
+
+
+    /**
+     * 获取图信息和改进指南
+     */
+    @GetMapping("/evaluate/statistics/linechart")
+    public List<?> evaluateStatisticsLineChart() {
+        return evaluateService.evaluateStatisticsLineChart();
+    }
+
+
+    /**
+     * 获取图信息和改进指南
+     */
+    @GetMapping("/evaluate/get/statistics/batchnum")
+    public Result<?> evaluateStatisticsByBatchNum(@RequestParam(value = "batchNum") String batchNum,
+                                                  @PageableDefault(page = 0, size = 10) Pageable pageable) {
+        Page<?> documents = evaluateService.evaluateStatisticsByBatchNum(batchNum,pageable);
+        return Result.success(documents);
+    }
+
+    /**
+     * 获取图信息和改进指南
+     */
+    @GetMapping("/evaluate/get/batchnums")
+    public List<?> evaluateStatisticsBatchNums() {
+        return evaluateService.evaluateStatisticsBatchNums();
+    }
+
+
+//
+//    /**
+//     * 获取折线图信息
+//     */
+//    @GetMapping("/evaluate/Statistics/radarchart")
+//    public List<?> evaluateStatisticsRadarchart() {
+//        return evaluateService.evaluateStatisticsRadarchart();
+//    }
 
 
 }

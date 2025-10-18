@@ -17,6 +17,7 @@ import com.gengzi.request.*;
 import com.gengzi.response.ChatAnswerResponse;
 import com.gengzi.search.service.ChatRagService;
 import com.gengzi.ui.service.EvaluateService;
+import jakarta.persistence.criteria.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.messages.SystemMessage;
@@ -24,6 +25,9 @@ import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -181,7 +185,7 @@ public class EvaluateServiceImpl implements EvaluateService {
         }
         EvaluateScore evaluateScore = new EvaluateScore();
         List<EvaluateScore> byBatchNum = evaluateScoreRepository.findByBatchNum(batchNum);
-        if(byBatchNum != null &&  byBatchNum.size()>0){
+        if (byBatchNum != null && byBatchNum.size() > 0) {
             evaluateScore = byBatchNum.get(0);
         }
         evaluateScore.setBatchNum(batchNum);
@@ -199,6 +203,49 @@ public class EvaluateServiceImpl implements EvaluateService {
         evaluateScoreRepository.save(evaluateScore);
 
     }
+
+    /**
+     * 获取统计折线图信息
+     *
+     * @return
+     */
+    @Override
+    public List<?> evaluateStatisticsLineChart() {
+        List<EvaluateScore> all = evaluateScoreRepository.findAll();
+        return all;
+    }
+
+    /**
+     * @param batchNum
+     * @return
+     */
+    @Override
+    public Page<?> evaluateStatisticsByBatchNum(String batchNum, Pageable pageable) {
+        // 构建动态查询条件
+        Specification<EvaluateDatum> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            // 条件1：名称模糊匹配（如果name不为空）
+            if (batchNum != null && !batchNum.isEmpty()) {
+                predicates.add(cb.equal(root.get("batchNum"), batchNum));
+            }
+            // 添加排序：按 updateTime 倒序（如果需要按 createTime 排序，替换字段名即可）
+            query.orderBy(cb.desc(root.get("createTime")));
+            // 组合所有条件
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+        return evaluateDatumRepository.findAll(spec, pageable);
+
+    }
+
+    /**
+     * @return
+     */
+    @Override
+    public List<?> evaluateStatisticsBatchNums() {
+        return evaluateDatumRepository.findAllBatchNums();
+    }
+
 
     @Transactional(rollbackFor = Exception.class)
     public void saveScore(EvaluateDatum evaluateDatum) {

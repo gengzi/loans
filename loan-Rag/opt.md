@@ -21,7 +21,7 @@
 
 
 * 问题点
-```angular2html
+```angular2html  
 -- 发现关键词可以搜索到，但是向量和关键词混合搜索不能搜索到
 
 -- 搜索 pod 没有结果，但是搜索 pod 介绍下，就能检索到 
@@ -37,4 +37,16 @@ SELECT GROUP_CONCAT(
   DISTINCT REPLACE(REPLACE(document_id, '[', ''), ']', '')
 ) AS merged_document_ids 
 FROM rag_db.evaluate_data;
+
+- 评估数据集1： 单文档的单文本块或者跨文本块，样本数据
+- 评估数据集2： 多文档的跨文本块，样本数据
+- 评估数据集3： 口语化问题的样本数据
+
+
+指标计算得分：
+根据各项指标权重，计算每条得分，再计算总体得分
+
+雷达图
+
+
 ```
