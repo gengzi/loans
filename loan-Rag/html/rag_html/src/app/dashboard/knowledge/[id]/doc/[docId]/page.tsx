@@ -510,18 +510,18 @@ export default function DocumentDetailPage() {
           </div>
           
           <div className="flex gap-3">
-            <Button variant="ghost" size="sm" onClick={handleDownload}>
+            {/* <Button variant="ghost" size="sm" onClick={handleDownload}>
               <Download className="h-4 w-4 mr-2" />
               下载
-            </Button>
+            </Button> */}
             <Button variant="ghost" size="sm">
               <Share2 className="h-4 w-4 mr-2" />
               分享
             </Button>
-            <Button variant="ghost" size="sm">
+            {/* <Button variant="ghost" size="sm">
               <Info className="h-4 w-4 mr-2" />
               详情
-            </Button>
+            </Button> */}
           </div>
         </div>
 
@@ -707,18 +707,24 @@ export default function DocumentDetailPage() {
                               <div className="w-2/3 p-3">
                                 <div className="flex justify-between items-center text-xs text-muted-foreground mb-2">
                                   <span>切片 {chunk.index + 1}</span>
+                                  <span>
+                                    {chunk.metadata.pageNumbers && chunk.metadata.pageNumbers.length > 1
+                                      ? `第 ${chunk.metadata.pageNumbers.join(',')} 页`
+                                      : `第 ${chunk.metadata.pageNumber || '未知'} 页`
+                                    }
+                                  </span>
                                 </div>
                                 <div className="text-sm mb-3">
                                   {chunk.content}
                                 </div>
-                                <div className="flex justify-between items-center">
+                                {/* <div className="flex justify-between items-center">
                                   <div className={`w-4 h-4 border rounded flex-shrink-0 ${selectedSection === chunk.id ? 'bg-primary border-primary flex items-center justify-center' : 'border-border'}`}>
                                     {selectedSection === chunk.id && <span className="text-xs text-primary-foreground">✓</span>}
                                   </div>
                                   <Button variant="ghost" size="sm" className="h-8 text-xs">
                                     查看原始内容
                                   </Button>
-                                </div>
+                                </div> */}
                               </div>
                             </div>
                             </div>
