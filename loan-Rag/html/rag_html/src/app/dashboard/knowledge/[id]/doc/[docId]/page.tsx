@@ -14,6 +14,7 @@ import DashboardLayout from "@/components/layout/dashboard-layout";
 import { useToast } from "@/components/ui/use-toast";
 import { FileIcon, defaultStyles } from "react-file-icon";
 import { api } from "@/lib/api";
+import API_CONFIG from "@/lib/config";
 
 interface DocumentDetail {
   id: string;
@@ -89,6 +90,49 @@ export default function DocumentDetailPage() {
   const [selectedSection, setSelectedSection] = useState<string | null>(null);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const { toast } = useToast();
+  
+  // 使用api实例加载图片的组件，自动应用认证头信息
+  const ImageWithAuth = ({ imgKey, pageNumber, index, totalImages }: { 
+    imgKey: string, 
+    pageNumber: number, 
+    index: number, 
+    totalImages: number 
+  }) => {
+    const [imageUrl, setImageUrl] = useState<string>('');
+    
+    useEffect(() => {
+      const loadImage = async () => {
+        try {
+          // 使用api.get获取图片URL，自动应用认证头
+          const response = await api.get('/document/img', { params: { imgkey: imgKey } });
+          
+          // 从响应中获取url字段作为图片预览地址
+          if (response && response.url) {
+            setImageUrl(response.url);
+          }
+        } catch (error) {
+          console.error('加载图片失败:', error);
+        }
+      };
+      
+      loadImage();
+    }, [imgKey]);
+    
+    return (
+      <div className="relative border rounded-md overflow-hidden bg-white">
+        <img
+          src={imageUrl || '/file.svg'} // 使用占位图标直到图片加载完成
+          alt={`Page ${pageNumber} - Image ${index + 1}`}
+          className="w-full h-auto object-contain max-h-[150px]"
+        />
+        {totalImages > 1 && (
+          <div className="absolute top-1 right-1 bg-black/50 text-white text-xs px-1 rounded">
+            {index + 1}/{totalImages}
+          </div>
+        )}
+      </div>
+    );
+  };
   
   // 辅助函数：从文件扩展名获取后缀
   const getFileExtension = (fileName: string): string => {
@@ -193,10 +237,8 @@ export default function DocumentDetailPage() {
           const chunksData = await api.get(`/document/chunks/details?documentId=${documentId}`);
           console.log("分块数据:", chunksData);
           
-          // 解析API响应
-          if (chunksData.success && chunksData.data) {
-            const apiResponse = chunksData as ApiDocumentResponse;
-            const { data } = apiResponse;
+          // 解析API响应 - api.get()已经返回了responseData.data
+          const data = chunksData;
             
             // 转换为文档详情格式
              const chunks: DocumentChunk[] = data.chunkDetails.map((chunkDetail, index) => ({
@@ -230,9 +272,6 @@ export default function DocumentDetailPage() {
             
             // 仍使用模拟的知识库数据
             setKnowledgeBase(mockKnowledgeBase);
-          } else {
-            throw new Error(chunksData.message || "获取分块数据失败");
-          }
         } catch (chunksError) {
           console.error("获取分块数据失败:", chunksError);
           // 失败时使用模拟数据作为备用
@@ -569,21 +608,22 @@ export default function DocumentDetailPage() {
                           <div key={chunk.id} className="mb-4 border rounded-lg overflow-hidden">
                             {/* 切片图片和内容 - 左右布局 */}
                             <div className="flex">
-                              {/* 图片预览区域 */}
-                              <div className="w-1/3 bg-muted/30 flex items-center justify-center p-2">
+                              {/* 图片预览区域 - 支持多个图片显示 */}
+                              <div className="w-1/3 bg-muted/30 p-2">
                                 {chunk.imgUrls && chunk.imgUrls.length > 0 ? (
-                                  <div className="w-full h-full">
+                                  <div className="w-full h-full space-y-2 overflow-auto">
                                     {chunk.imgUrls.map((imgUrl, idx) => (
-                                      <img
+                                      <ImageWithAuth
                                         key={idx}
-                                        src={imgUrl.startsWith('http') ? imgUrl : `/api/image/${imgUrl}`}
-                                        alt={`Page ${chunk.metadata.pageNumber}`}
-                                        className="w-full h-auto object-contain"
+                                        imgKey={imgUrl}
+                                        pageNumber={chunk.metadata.pageNumber}
+                                        index={idx}
+                                        totalImages={chunk.imgUrls.length}
                                       />
                                     ))}
                                   </div>
                                 ) : (
-                                  <div className="text-center">
+                                  <div className="w-full h-full flex flex-col items-center justify-center">
                                     <FileText className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
                                     <span className="text-xs text-muted-foreground">第 {chunk.metadata.pageNumber} 页</span>
                                   </div>
