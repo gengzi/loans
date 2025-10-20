@@ -1,6 +1,7 @@
 package com.gengzi.ui.controller;
 
 
+import com.gengzi.request.EvaluateCreateReq;
 import com.gengzi.response.Result;
 import com.gengzi.ui.service.EvaluateService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -8,9 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
 import java.util.List;
@@ -25,6 +24,15 @@ public class EvaluateController {
 
     @Autowired
     private EvaluateService evaluateService;
+
+    /**
+     * 通过llm生成评估集数据+人工修正
+     */
+    @PostMapping("/evaluate/create")
+    public Result<?> evaluateCreate(@RequestBody EvaluateCreateReq req) throws IOException {
+        evaluateService.evaluateCreate(req);
+        return Result.success(true);
+    }
 
 
     /**

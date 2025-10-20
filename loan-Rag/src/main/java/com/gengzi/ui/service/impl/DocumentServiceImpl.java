@@ -117,6 +117,15 @@ public class DocumentServiceImpl implements DocumentService {
     }
 
     /**
+     * @param kbId
+     * @return
+     */
+    @Override
+    public List<?> documentChunks(String kbId) {
+        return documentRepository.findChunkDocumentByKbId(kbId);
+    }
+
+    /**
      * 检索content字段并高亮匹配内容
      *
      * @param question 长文本问题
@@ -127,8 +136,8 @@ public class DocumentServiceImpl implements DocumentService {
     public Map<String, Object> searchContent(String question, int page, int size) throws IOException {
         // 1. 构建查询条件（仅检索content字段）
         MatchQuery matchQuery = MatchQuery.of(mq -> mq
-                .field("content")  // 只检索content字段
-                .query(question)   // 长文本问题作为查询词
+                        .field("content")  // 只检索content字段
+                        .query(question)   // 长文本问题作为查询词
 //                .analyzer("ik_max_word")  // 使用IK分词器（如需中文分词）
         );
 

@@ -20,4 +20,6 @@ public interface DocumentService {
 
     Map<String, Object> search(DocumentSearchReq documentSearchReq);
 
+    List<?> documentChunks(String kbId);
+
 }

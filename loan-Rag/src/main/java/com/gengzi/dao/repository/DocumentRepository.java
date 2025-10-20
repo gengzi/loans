@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collection;
 import java.util.List;
 
 @Repository
@@ -26,4 +27,11 @@ public interface DocumentRepository extends JpaRepository<Document, String>, Jpa
 
 
     List<Document> findDocumentByChunkNumGreaterThan(@NotNull Integer chunkNumIsGreaterThan);
+
+    List<Document> findDocumentByKbId(@Size(max = 256) @NotNull String kbId);
+
+    List<Document> findDocumentByIdIn(Collection<String> ids);
+
+    @Query("select d from Document d where d.kbId = :kbId and d.chunkNum > 0")
+    List<Document> findChunkDocumentByKbId(String kbId);
 }

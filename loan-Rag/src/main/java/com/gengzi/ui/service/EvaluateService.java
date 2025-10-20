@@ -1,6 +1,7 @@
 package com.gengzi.ui.service;
 
 
+import com.gengzi.request.EvaluateCreateReq;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -30,4 +31,11 @@ public interface EvaluateService {
 
 
     List<?> evaluateStatisticsBatchNums();
+
+    /**
+     * 创建评估
+     *
+     * @param req
+     */
+    void evaluateCreate(EvaluateCreateReq req) throws IOException;
 }

@@ -28,6 +28,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -62,6 +63,26 @@ public class EvaluateServiceImpl implements EvaluateService {
 
     @Autowired
     private EvaluateScoreRepository evaluateScoreRepository;
+
+    private static List<Question> updateQuestion(List<Question> question1, List<Question> question2) {
+        ArrayList<Question> questions = new ArrayList<>();
+        for (int i = 0; i < question1.size(); i++) {
+            Question question = question1.get(i);
+            Question questionListQuestion = question2.get(i);
+            question.setQuestion(question.getQuestion() + "." + questionListQuestion.getQuestion());
+            question.setReferenceAnswer(question.getReferenceAnswer() + "." + questionListQuestion.getReferenceAnswer());
+            ArrayList<String> docs = new ArrayList<>();
+            docs.addAll(question.getRelatedDocumentList());
+            docs.addAll(questionListQuestion.getRelatedDocumentList());
+            question.setRelatedDocumentList(docs);
+            ArrayList<String> chunks = new ArrayList<>();
+            chunks.addAll(question.getRelatedChunkIds());
+            chunks.addAll(questionListQuestion.getRelatedChunkIds());
+            question.setRelatedChunkIds(chunks);
+            questions.add(question);
+        }
+        return questions;
+    }
 
     /**
      * 如果是存在相关文档，请在一个批次中全部处理。保证生成的预估训练集数据的完整性
@@ -246,6 +267,101 @@ public class EvaluateServiceImpl implements EvaluateService {
         return evaluateDatumRepository.findAllBatchNums();
     }
 
+    /**
+     * 创建评估
+     *
+     * @param req
+     */
+    @Override
+    @Async
+    public void evaluateCreate(EvaluateCreateReq req) throws IOException {
+        // 单文档生成
+        List<Document> singledocuments = documentRepository.findDocumentByIdIn(req.getSingleDocumentIds());
+        String batchNum = req.getBatchNum();
+
+        for (Document document : singledocuments) {
+            // 获取文档的 id
+            String documentId = document.getId();
+            // 查询es获取文档块列表
+            List<Map> documents = (List<Map>) findByMetadataDocumentId(documentId);
+            logger.info("documents:{}", documents.get(0).toString());
+            ArrayList<EvaluateDocument> evaluateDocuments = new ArrayList<>();
+            // 构造json串
+            documents.forEach(v -> {
+                String content = v.get("content").toString();
+                String chunkId = v.get("id").toString();
+                EvaluateDocument evaluateDocument = new EvaluateDocument();
+                evaluateDocument.setDocumentId(documentId);
+                evaluateDocument.setChunkId(chunkId);
+                evaluateDocument.setContent(content);
+
+                evaluateDocuments.add(evaluateDocument);
+            });
+            String evaluateDocumentStr = JSONUtil.toJsonStr(evaluateDocuments);
+            String questionAndAnswers = documentQuestionAndAnswerBySingle(evaluateDocumentStr, req.isColloquial());
+            logger.info("questionAndAnswers:{}", questionAndAnswers);
+            try {
+                if (JSONUtil.isJson(questionAndAnswers)) {
+                    save(questionAndAnswers, documentId, batchNum);
+                }
+            } catch (Exception e) {
+                logger.error("save error:{}", e.getMessage(), e);
+                continue;
+            }
+
+        }
+
+        for (List<String> multipleDocumentId : req.getMultipleDocumentIds()) {
+            List<Question> questions = new ArrayList<>();
+            // 多文档联合生成
+            List<Document> multipledocuments = documentRepository.findDocumentByIdIn(multipleDocumentId);
+            for (Document document : multipledocuments) {
+                // 获取文档的 id
+                String documentId = document.getId();
+                ArrayList<EvaluateDocument> evaluateDocuments = new ArrayList<>();
+                // 查询es获取文档块列表
+                List<Map> documents = (List<Map>) findByMetadataDocumentId(documentId);
+                logger.info("documents:{}", documents.get(0).toString());
+                // 构造json串
+                documents.forEach(v -> {
+                    String content = v.get("content").toString();
+                    String chunkId = v.get("id").toString();
+                    EvaluateDocument evaluateDocument = new EvaluateDocument();
+                    evaluateDocument.setDocumentId(documentId);
+                    evaluateDocument.setChunkId(chunkId);
+                    evaluateDocument.setContent(content);
+                    evaluateDocuments.add(evaluateDocument);
+                });
+                String evaluateDocumentStr = JSONUtil.toJsonStr(evaluateDocuments);
+                String questionAndAnswers = documentQuestionAndAnswerBySingle(evaluateDocumentStr, req.isColloquial());
+                logger.info("questionAndAnswers:{}", questionAndAnswers);
+                try {
+                    if (JSONUtil.isJson(questionAndAnswers)) {
+                        List<Question> questionList = JSONUtil.toList(questionAndAnswers, Question.class);
+                        if (questions.size() > 0) {
+                            if (questions.size() >= questionList.size()) {
+                                questions = updateQuestion(questionList, questions);
+                            } else {
+                                questions = updateQuestion(questions, questionList);
+                            }
+                        } else {
+                            questions.addAll(questionList);
+                        }
+
+                    }
+                } catch (Exception e) {
+                    logger.error("save error:{}", e.getMessage(), e);
+                    continue;
+                }
+            }
+            // 问题融合
+            saveEvaluateDatum(questions, batchNum);
+
+
+        }
+
+
+    }
 
     @Transactional(rollbackFor = Exception.class)
     public void saveScore(EvaluateDatum evaluateDatum) {
@@ -533,6 +649,99 @@ public class EvaluateServiceImpl implements EvaluateService {
         });
     }
 
+    @Transactional(rollbackFor = Exception.class)
+    public void saveEvaluateDatum(List<Question> questions, String batchNum) {
+        questions.forEach(question -> {
+            EvaluateDatum evaluateDatum = new EvaluateDatum();
+            evaluateDatum.setCreateTime(Instant.now());
+            evaluateDatum.setQuestion(question.getQuestion());
+            evaluateDatum.setChunkId(JSONUtil.toJsonStr(question.getRelatedChunkIds()));
+            evaluateDatum.setReferenceAnswer(question.getReferenceAnswer());
+            evaluateDatum.setDocumentId(JSONUtil.toJsonStr(question.getRelatedDocumentList()));
+            evaluateDatum.setBatchNum(batchNum);
+            evaluateDatumRepository.save(evaluateDatum);
+            evaluateDatumRepository.flush();
+        });
+    }
+
+    public String documentQuestionAndAnswerBySingle(String documentInfo, boolean colloquial) {
+        String sysPromptStr = "你是一名专业的RAG（检索增强生成）评估数据集构建专家，具备精准提炼文档关键信息、设计高质量问题及匹配对应答案的能力。你的核心任务是根据用户提供的文档块信息（包含文档id、块id、块内容），生成一套符合RAG评估标准的结构化数据集。\n" +
+                "在生成数据集时，需严格遵循以下要求：\n" +
+                "- 问题设计要求：问题需基于文档块内容生成，必须为口语化问题，必须生成单文档块，跨文档块，跨文档的问题，覆盖不同难度层次（基础事实类、综合理解类、推理分析类、跨文档块问题，跨文档问题），表述清晰、无歧义，能准确考察对文档内容的理解与运用能力，避免生成与文档无关或无法从文档中找到答案的问题。\n" +
+                "- related_document_list要求：准确列出问题关联的所有document_id，单个文档则数组含该id，多个文档需全部列出，确保关联性精准。\n" +
+                "- reference_answer要求：严格依据文档块内容生成，准确、完整、简洁，直接回应问题，避免添加文档外信息或主观解读，保证客观性。\n" +
+                "- related_chunk_ids要求：精准匹配问题及参考答案对应的所有chunk_id，不遗漏关键块、不包含无关块，多块整合则列出所有相关id。\n" +
+                "- JSON格式强制规范：最终输出仅保留JSON内容，不得添加任何多余文本（如解释说明、注释等）。JSON需包含以下5个固定字段，字段名不可修改：\n" +
+                " JSON字段名与格式强制规范（重点强化字段名）\n" +
+                "1. **所有字段名必须用双引号包裹，不可省略、不可用单引号**  \n" +
+                "   必须包含且仅包含以下5个固定字段，字段名不可修改，格式需完全匹配：\n" +
+                "   - \"question_id\"：整数类型，从1开始递增（如1、2、3）。\n" +
+                "   - \"related_document_list\"：数组类型，元素为带双引号的document_id字符串（如[\"doc_001\",\"doc_002\"]）。\n" +
+                "   - \"question\"：字符串类型，带双引号，内部双引号转义为\\\"。\n" +
+                "   - \"reference_answer\"：字符串类型，带双引号，严格依文档生成，内部双引号转义为\\\"。\n" +
+                "   - \"related_chunk_ids\"：数组类型，元素为带双引号的chunk_id字符串（如[\"chunk_001\",\"chunk_003\"]）。" +
+                "**输出前检查**：生成后请自动检查所有字段名和字符串值是否都被双引号包裹，确保无遗漏。";
+        String text = "请基于以下文档块信息，按照系统提示词要求生成RAG评估数据集，并以JSON格式返回：\n" + documentInfo;
+        if (colloquial) {
+            sysPromptStr = "你是一名专业的RAG（检索增强生成）评估数据集构建专家，具备精准提炼文档关键信息、设计高质量问题及匹配对应答案的能力。你的核心任务是根据用户提供的文档块信息（包含文档id、块id、块内容），生成一套符合RAG评估标准的结构化数据集。\n" +
+                    "在生成数据集时，需严格遵循以下要求：\n" +
+                    "- 问题设计要求：问题需基于文档块内容生成，必须为口语化问题，必须生成单文档块，跨文档块，跨文档的问题，覆盖不同难度层次（基础事实类、综合理解类、推理分析类、跨文档块问题，跨文档问题），表述清晰、无歧义，能准确考察对文档内容的理解与运用能力，避免生成与文档无关或无法从文档中找到答案的问题。\n" +
+                    "- related_document_list要求：准确列出问题关联的所有document_id，单个文档则数组含该id，多个文档需全部列出，确保关联性精准。\n" +
+                    "- reference_answer要求：严格依据文档块内容生成，准确、完整、简洁，直接回应问题，避免添加文档外信息或主观解读，保证客观性。\n" +
+                    "- related_chunk_ids要求：精准匹配问题及参考答案对应的所有chunk_id，不遗漏关键块、不包含无关块，多块整合则列出所有相关id。\n" +
+                    "- JSON格式强制规范：最终输出仅保留JSON内容，不得添加任何多余文本（如解释说明、注释等）。JSON需包含以下5个固定字段，字段名不可修改：\n" +
+                    " JSON字段名与格式强制规范（重点强化字段名）\n" +
+                    "1. **所有字段名必须用双引号包裹，不可省略、不可用单引号**  \n" +
+                    "   必须包含且仅包含以下5个固定字段，字段名不可修改，格式需完全匹配：\n" +
+                    "   - \"question_id\"：整数类型，从1开始递增（如1、2、3）。\n" +
+                    "   - \"related_document_list\"：数组类型，元素为带双引号的document_id字符串（如[\"doc_001\",\"doc_002\"]）。\n" +
+                    "   - \"question\"：字符串类型，带双引号，内部双引号转义为\\\"。\n" +
+                    "   - \"reference_answer\"：字符串类型，带双引号，严格依文档生成，内部双引号转义为\\\"。\n" +
+                    "   - \"related_chunk_ids\"：数组类型，元素为带双引号的chunk_id字符串（如[\"chunk_001\",\"chunk_003\"]）。" +
+                    "**输出前检查**：生成后请自动检查所有字段名和字符串值是否都被双引号包裹，确保无遗漏。";
+        }
+        SystemMessage systemMessage = new SystemMessage(sysPromptStr);
+        UserMessage userMessage = new UserMessage(text);
+        String response = chatModel.call(systemMessage, userMessage);
+        if (response.startsWith("```json")) {
+            String replace = response.replace("```json", "").replace("```", "");
+            logger.info("response:" + replace);
+            return replace;
+        }
+        logger.info("response:" + response);
+        return response;
+    }
+
+//    public String questionsAndAnswersFusion(String questionAndAnswers) {
+//
+//        String sysPromptStr = "你是 RAG 系统测试数据处理助手，核心任务是接收含 “问题(字段名：question)、答案（字段名：referenceAnswer）、相关文档id列表（字段名：relatedDocumentList）、相关片段id列表（字段名：relatedChunkIds）” 的条目列表，按规则合并相似问题并生成指定 JSON 格式结果。请严格遵守以下要求：\n" +
+//                "相似问题判定标准\n" +
+//                "核心语义一致：提问意图、核心诉求有重合（如 “K8s Deployment 作用” 与 “Kubernetes 中其他功能” 视为相似）。\n" +
+//                "忽略非核心差异：不区分句式、用词、标点的细微不同，仅以 “用户核心需求” 为判断依据。\n" +
+//                "字段合并规则\n" +
+//                "question_id：为每个合并组分配唯一序号，从 1 开始递增（独立条目也需单独分配）。\n" +
+//                "related_document_list：收集合并组内所有不重复的 docid，以数组形式存储，元素为原始 docid 字符串。\n" +
+//                "question：保留合并组内最简洁、覆盖性最强的 1 个问题；若需体现所有相似表述，可用 “[问题 1 / 问题 2]” 格式（如 “[K8s Deployment 作用 / Kubernetes 中 Deployment 主要功能]”）。\n" +
+//                "reference_answer：合并所有相似问题对应的答案，用 “1. 答案内容；2. 答案内容” 的序号格式整合，完全重复的答案需去重。\n" +
+//                "related_chunk_ids：收集合并组内所有不重复的 chunkid，以数组形式存储，元素为原始 chunkid 字符串。\n" +
+//                "输出格式强制要求\n" +
+//                "仅输出 JSON 数组，无任何额外文字（包括解释、说明、换行注释）。\n" +
+//                "JSON 需符合标准语法，字段名与示例完全一致，数组元素无多余逗号。\n" +
+//                "独立条目（无相似问题的条目）需按相同字段格式单独作为 JSON 数组元素，不单独分类标注。\n" +
+//                "**输出前检查**：生成后请自动检查所有字段名和字符串值是否都被双引号包裹，确保无遗漏。";
+//        String text = "以下是我用于 RAG 系统测试的 “问题 - 答案 - chunkid-docid” 条目列表，请按规则合并相似问题，并生成与示例格式完全一致的 JSON 结果：\n" + questionAndAnswers;
+//        SystemMessage systemMessage = new SystemMessage(sysPromptStr);
+//        UserMessage userMessage = new UserMessage(text);
+//        String response = chatModel.call(systemMessage, userMessage);
+//        if (response.startsWith("```json")) {
+//            String replace = response.replace("```json", "").replace("```", "");
+//            logger.info("response:" + replace);
+//            return replace;
+//        }
+//        logger.info("response:" + response);
+//        return response;
+//    }
+
 
     public String documentQuestionAndAnswer(String documentInfo) {
         String sysPromptStr = "你是一名专业的RAG（检索增强生成）评估数据集构建专家，具备精准提炼文档关键信息、设计高质量问题及匹配对应答案的能力。你的核心任务是根据用户提供的文档块信息（包含文档id、块id、块内容），生成一套符合RAG评估标准的结构化数据集。\n" +
@@ -546,7 +755,8 @@ public class EvaluateServiceImpl implements EvaluateService {
                 "- \"related_document_list\"：数组形式，元素为字符串类型的document_id，如[\"doc_001\",\"doc_002\"]\n" +
                 "- \"question\"：字符串类型的问题内容，需用双引号包裹，内部若含双引号需转义为\\\"\n" +
                 "- \"reference_answer\"：字符串类型的参考答案，用双引号包裹，内部双引号转义为\\\"\n" +
-                "- \"related_chunk_ids\"：数组形式，元素为字符串类型的chunk_id，如[\"chunk_001\",\"chunk_003\"]";
+                "- \"related_chunk_ids\"：数组形式，元素为字符串类型的chunk_id，如[\"chunk_001\",\"chunk_003\"] \n" +
+                "**输出前检查**：生成后请自动检查所有字段名和字符串值是否都被双引号包裹，确保无遗漏。";
         String text = "请基于以下文档块信息，按照系统提示词要求生成RAG评估数据集，并以JSON格式返回：\n" + documentInfo;
         SystemMessage systemMessage = new SystemMessage(sysPromptStr);
         UserMessage userMessage = new UserMessage(text);
@@ -558,8 +768,6 @@ public class EvaluateServiceImpl implements EvaluateService {
         }
         logger.info("response:" + response);
         return response;
-
-
     }
 
 

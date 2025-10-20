@@ -166,4 +166,14 @@ public class DocumentController {
     }
 
 
+    /**
+     * 获取现在已经解析过的文档ids
+     */
+    @GetMapping("/document/chunks")
+    @ResponseBody
+    public Result<?> documentChunks(@RequestParam String kbId) {
+        return Result.success(documentService.documentChunks(kbId));
+    }
+
+
 }
