@@ -45,8 +45,7 @@ export function DocumentList({ knowledgeBaseId }: DocumentListProps) {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(10);
   const [totalDocuments, setTotalDocuments] = useState<number>(0);
-  // 用于防止useEffect重复调用
-  const initialLoadRef = useRef(false);
+  // 正常加载数据，不再需要防止重复调用的逻辑
 
   const fetchDocuments = async (page: number = 1, pageSize: number = 10) => {
     try {
@@ -118,13 +117,8 @@ export function DocumentList({ knowledgeBaseId }: DocumentListProps) {
   };
 
   useEffect(() => {
-    // 在首次渲染时，由于React的严格模式可能会触发两次
-    // 使用ref标记来确保只执行一次API调用
-    if (initialLoadRef.current) {
-      fetchDocuments(currentPage, itemsPerPage);
-    } else {
-      initialLoadRef.current = true;
-    }
+    // 正常加载文档数据
+    fetchDocuments(currentPage, itemsPerPage);
   }, [knowledgeBaseId, currentPage, itemsPerPage]);
 
   const handlePageChange = (page: number) => {

@@ -28,6 +28,27 @@ interface DocumentDetail {
   updateTime?: string;
 }
 
+interface ApiChunkDetail {
+  id: string;
+  content: string;
+  pageNumInt: string;
+  img: string[];
+}
+
+interface ApiDocumentResponse {
+  code: number;
+  success: boolean;
+  message: string;
+  data: {
+    id: string;
+    name: string;
+    createTime: number;
+    size: number;
+    chunkNum: number;
+    chunkDetails: ApiChunkDetail[];
+  };
+}
+
 interface DocumentPreview {
   url: string;
   contentType: string;
@@ -39,11 +60,14 @@ interface DocumentChunk {
   index: number;
   metadata: {
     pageNumber?: number;
+    pageNumbers?: number[];
+    chunkNumber?: number;
     startLine?: number;
     endLine?: number;
     section?: string;
     [key: string]: any;
   };
+  imgUrls?: string[];
 }
 
 interface KnowledgeBaseInfo {
@@ -65,6 +89,24 @@ export default function DocumentDetailPage() {
   const [selectedSection, setSelectedSection] = useState<string | null>(null);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const { toast } = useToast();
+  
+  // 辅助函数：从文件扩展名获取后缀
+  const getFileExtension = (fileName: string): string => {
+    const parts = fileName.split('.');
+    return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : '';
+  };
+  
+  // 辅助函数：格式化日期
+  const formatDate = (timestamp: number): string => {
+    const date = new Date(timestamp);
+    return date.toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
   
   // 模拟数据 - 文档信息
   const mockDocument = {
@@ -145,12 +187,59 @@ export default function DocumentDetailPage() {
         setLoading(true);
         setError(null);
         
-        // 模拟API延迟
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // 使用模拟数据
-        setDocument({...mockDocument, chunks: mockChunks});
-        setKnowledgeBase(mockKnowledgeBase);
+        // 调用分块详情API
+        try {
+          // 使用公共定义的API配置
+          const chunksData = await api.get(`/document/chunks/details?documentId=${documentId}`);
+          console.log("分块数据:", chunksData);
+          
+          // 解析API响应
+          if (chunksData.success && chunksData.data) {
+            const apiResponse = chunksData as ApiDocumentResponse;
+            const { data } = apiResponse;
+            
+            // 转换为文档详情格式
+             const chunks: DocumentChunk[] = data.chunkDetails.map((chunkDetail, index) => ({
+               id: chunkDetail.id,
+               content: chunkDetail.content,
+               index: index, // 添加index属性以匹配接口定义
+               metadata: {
+                 pageNumber: chunkDetail.pageNumInt ? parseInt(chunkDetail.pageNumInt.split(',')[0]) + 1 : index + 1,
+                 pageNumbers: chunkDetail.pageNumInt.split(',').map(p => parseInt(p) + 1),
+                 chunkNumber: index + 1
+               },
+               embedding: [], // 添加空的embedding数组以匹配接口定义
+               imgUrls: chunkDetail.img
+             }));
+            
+            // 构建文档详情对象
+            const documentDetail: DocumentDetail = {
+              id: data.id,
+              name: data.name,
+              size: data.size,
+              suffix: getFileExtension(data.name),
+              createDate: formatDate(data.createTime),
+              status: "已处理",
+              chunks: chunks,
+              pages: Math.max(0, ...(chunks.map(c => c.metadata.pageNumbers).flat().filter((num): num is number => typeof num === 'number'))),
+              totalChunks: data.chunkNum,
+              updateTime: formatDate(data.createTime)
+            };
+            
+            setDocument(documentDetail);
+            
+            // 仍使用模拟的知识库数据
+            setKnowledgeBase(mockKnowledgeBase);
+          } else {
+            throw new Error(chunksData.message || "获取分块数据失败");
+          }
+        } catch (chunksError) {
+          console.error("获取分块数据失败:", chunksError);
+          // 失败时使用模拟数据作为备用
+          setDocument({...mockDocument, chunks: mockChunks});
+          setKnowledgeBase(mockKnowledgeBase);
+          toast({ variant: "destructive", title: "警告", description: "无法获取真实分块数据，已使用模拟数据" });
+        }
         
         // 获取文档预览URL和内容类型
         try {
@@ -164,13 +253,16 @@ export default function DocumentDetailPage() {
       } catch (err) {
         console.error("获取数据失败:", err);
         setError("获取数据失败，请稍后重试");
+        // 最后使用模拟数据作为兜底
+        setDocument({...mockDocument, chunks: mockChunks});
+        setKnowledgeBase(mockKnowledgeBase);
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, [knowledgeBaseId, documentId]);
+  }, [knowledgeBaseId, documentId, toast]);
 
   const handleDownload = async () => {
     try {
@@ -479,10 +571,23 @@ export default function DocumentDetailPage() {
                             <div className="flex">
                               {/* 图片预览区域 */}
                               <div className="w-1/3 bg-muted/30 flex items-center justify-center p-2">
-                                <div className="text-center">
-                                  <FileText className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                                  <span className="text-xs text-muted-foreground">第 {chunk.metadata.pageNumber} 页</span>
-                                </div>
+                                {chunk.imgUrls && chunk.imgUrls.length > 0 ? (
+                                  <div className="w-full h-full">
+                                    {chunk.imgUrls.map((imgUrl, idx) => (
+                                      <img
+                                        key={idx}
+                                        src={imgUrl.startsWith('http') ? imgUrl : `/api/image/${imgUrl}`}
+                                        alt={`Page ${chunk.metadata.pageNumber}`}
+                                        className="w-full h-auto object-contain"
+                                      />
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="text-center">
+                                    <FileText className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                                    <span className="text-xs text-muted-foreground">第 {chunk.metadata.pageNumber} 页</span>
+                                  </div>
+                                )}
                               </div>
                               {/* 内容信息区域 */}
                               <div className="w-2/3 p-3">

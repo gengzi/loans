@@ -271,16 +271,11 @@ export default function Home() {
     }
   }, [searchQuery]);
 
-  // 添加一个锁状态，防止重复请求
-  const [searchLock, setSearchLock] = useState(false);
-
   // 搜索函数，同时调用两个接口
   const handleSearch = useCallback(async () => {
-    if (!searchQuery.trim() || searchLock) {
+    if (!searchQuery.trim()) {
       return;
     }
-
-    setSearchLock(true);
     setIsSearching(true);
     setShowSearchResults(true);
     setDocuments([]);
@@ -309,10 +304,8 @@ export default function Home() {
       setErrorMessage('搜索过程中发生错误，请重试');
     } finally {
       setIsSearching(false);
-      // 使用setTimeout确保在React Strict Mode下也只会执行一次
-      setTimeout(() => setSearchLock(false), 100);
     }
-  }, [searchQuery, fetchAiSummary, fetchDocuments, searchLock]);
+  }, [searchQuery, fetchAiSummary, fetchDocuments]);
 
   // 分页处理函数
   const handlePageChange = (page: number) => {

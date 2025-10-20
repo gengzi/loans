@@ -36,12 +36,9 @@ interface Stats {
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<Stats>({ knowledgeBases: 0, chats: 0 });
-  const hasFetchedStats = useRef(false);
 
   useEffect(() => {
-    if (!hasFetchedStats.current) {
-      hasFetchedStats.current = true;
-      const fetchStats = async () => {
+    const fetchStats = async () => {
         try {
           const [kbData, chatData] = await Promise.all([
             api.get("/api/knowledge-base"),
@@ -53,16 +50,15 @@ export default function DashboardPage() {
             chats: chatData ? chatData.length : 0,
           });
         } catch (error) {
-          console.error("Failed to fetch stats:", error);
-          if (error instanceof ApiError && error.status === 401) {
-            return;
+            console.error("Failed to fetch stats:", error);
+            if (error instanceof ApiError && error.status === 401) {
+              return;
+            }
           }
-        }
-      };
+        };
 
-      fetchStats();
-    }
-  }, []);
+        fetchStats();
+    }, []);
 
   return (
     <DashboardLayout>

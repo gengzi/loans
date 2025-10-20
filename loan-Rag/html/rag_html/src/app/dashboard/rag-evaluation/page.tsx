@@ -361,15 +361,8 @@ export default function RAGEvaluationPage() {
     }
   };
 
-  // 使用一个ref来跟踪是否已经初始化，避免React 18严格模式下的重复渲染导致重复调用
-  const hasInitialized = React.useRef(false);
-  
   // 初始加载数据
   useEffect(() => {
-    // React 18严格模式下会执行两次，但我们只需要第一次执行
-    if (hasInitialized.current) return;
-    hasInitialized.current = true;
-    
     let isMounted = true;
     
     const initializeData = async () => {
@@ -402,9 +395,6 @@ export default function RAGEvaluationPage() {
   // 当批次或页面大小改变时重新获取数据
   useEffect(() => {
     let isMounted = true;
-    
-    // 只有当初始化完成后才响应批次或页面大小变化
-    if (!hasInitialized.current) return;
     
     const loadData = async () => {
       if ((batchNumbers.length > 0 || selectedBatch !== 'all') && isMounted) {

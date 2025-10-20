@@ -40,13 +40,9 @@ export default function KnowledgeBasePage() {
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  const hasFetchedKnowledgeBases = useRef(false);
 
   useEffect(() => {
-    if (!hasFetchedKnowledgeBases.current) {
-      hasFetchedKnowledgeBases.current = true;
-      fetchKnowledgeBases();
-    }
+    fetchKnowledgeBases();
   }, []);
 
   const fetchKnowledgeBases = async () => {

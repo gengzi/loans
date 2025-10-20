@@ -19,13 +19,9 @@ export default function ChatPage() {
   const [chats, setChats] = useState<Chat[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
-  const hasFetchedChats = useRef(false);
 
   useEffect(() => {
-    if (!hasFetchedChats.current) {
-      hasFetchedChats.current = true;
-      fetchChats();
-    }
+    fetchChats();
   }, []);
 
   const fetchChats = async () => {
