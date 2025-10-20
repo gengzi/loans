@@ -26,25 +26,28 @@ export const MultiSelect = React.forwardRef<
 >(({ options, selectedValues, onSelectionChange, placeholder, className }, ref) => {
   const handleRemoveValue = (valueToRemove: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const newValues = selectedValues.filter(value => value !== valueToRemove);
+    const newValues = safeSelectedValues.filter(value => value !== valueToRemove);
     onSelectionChange(newValues);
   };
 
   const handleSelectChange = (value: string) => {
     // Toggle selection
-    if (selectedValues.includes(value)) {
-      onSelectionChange(selectedValues.filter(v => v !== value));
+    if (safeSelectedValues.includes(value)) {
+      onSelectionChange(safeSelectedValues.filter(v => v !== value));
     } else {
-      onSelectionChange([...selectedValues, value]);
+      onSelectionChange([...safeSelectedValues, value]);
     }
   };
+
+  // 确保selectedValues始终是数组
+  const safeSelectedValues = Array.isArray(selectedValues) ? selectedValues : [];
 
   return (
     <Select value="" onValueChange={handleSelectChange}>
       <SelectTrigger className={`h-auto min-h-[42px] flex flex-wrap items-center gap-1 p-2 ${className}`}>
-        {selectedValues.length > 0 ? (
+        {safeSelectedValues.length > 0 ? (
           <>
-            {selectedValues.map((value) => {
+            {safeSelectedValues.map((value) => {
               const option = options.find(opt => opt.value === value);
               return (
                 <Badge
@@ -73,7 +76,7 @@ export const MultiSelect = React.forwardRef<
           <SelectItem 
             key={option.value} 
             value={option.value}
-            className={selectedValues.includes(option.value) ? "bg-accent" : ""}
+            className={safeSelectedValues.includes(option.value) ? "bg-accent" : ""}
           >
             {option.label}
           </SelectItem>

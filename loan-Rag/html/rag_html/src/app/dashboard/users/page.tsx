@@ -6,8 +6,9 @@ import { User, Plus, Edit, Trash2, Search, ChevronLeft, ChevronRight, Check, X }
 import DashboardLayout from '@/components/layout/dashboard-layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+  import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+  import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+  import { MultiSelect } from "@/components/ui/multi-select";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
@@ -55,7 +56,7 @@ export default function UsersPage() {
     nickname: '',
     isSuperuser: false,
     password: '',
-    knowledgeBaseId: ''
+    knowledgeIds: [] as string[]
   });
   
   // 组件加载时获取知识库数据
@@ -204,7 +205,7 @@ export default function UsersPage() {
   // 处理添加用户
   const handleAddUser = async () => {
     // 表单验证
-    if (!formData.username || !formData.nickname || !formData.password || !formData.knowledgeBaseId) {
+    if (!formData.username || !formData.nickname || !formData.password || formData.knowledgeIds.length === 0) {
       toast({
         title: "错误",
         description: "请填写所有必填字段",
@@ -219,7 +220,7 @@ export default function UsersPage() {
         nickname: formData.nickname,
         password: formData.password,
         isSuperuser: formData.isSuperuser,
-        knowledgeIds: [formData.knowledgeBaseId]
+        knowledgeIds: formData.knowledgeIds
       });
       
       setIsAddDialogOpen(false);
@@ -248,7 +249,7 @@ export default function UsersPage() {
     if (!selectedUser) return;
     
     // 表单验证（密码可选）
-    if (!formData.username || !formData.nickname || !formData.knowledgeBaseId) {
+    if (!formData.username || !formData.nickname || formData.knowledgeIds.length === 0) {
       toast({
         title: "错误",
         description: "请填写所有必填字段",
@@ -262,7 +263,7 @@ export default function UsersPage() {
         username: formData.username,
         nickname: formData.nickname,
         isSuperuser: formData.isSuperuser,
-        knowledgeBaseId: formData.knowledgeBaseId,
+        knowledgeIds: formData.knowledgeIds,
         ...(formData.password ? { password: formData.password } : {})
       });
       
@@ -327,7 +328,7 @@ export default function UsersPage() {
       nickname: user.nickname,
       isSuperuser: user.isSuperuser,
       password: '',
-      knowledgeBaseId: '' // 这里可以根据用户实际关联的知识库ID设置
+      knowledgeIds: user.knowledgeIds || [] // 使用用户实际关联的知识库ID数组
     });
     setIsEditDialogOpen(true);
   };
@@ -339,7 +340,7 @@ export default function UsersPage() {
       nickname: '',
       isSuperuser: false,
       password: '',
-      knowledgeBaseId: ''
+      knowledgeIds: [] as string[]
     });
     setSelectedUser(null);
   };
@@ -350,8 +351,8 @@ export default function UsersPage() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  // 处理选择变化（用于下拉框）
-  const handleSelectChange = (name: string, value: string) => {
+  // 处理选择变化（用于多选下拉框）
+  const handleSelectChange = (name: string, value: string[]) => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
@@ -459,29 +460,27 @@ export default function UsersPage() {
                   </Select>
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="knowledgeBaseId" className="text-right">
-                    知识库
+                  <Label htmlFor="knowledgeIds" className="text-right">
+                    知识库 (可多选)
                   </Label>
-                  <Select
-                    value={formData.knowledgeBaseId}
-                    onValueChange={(value) => handleSelectChange('knowledgeBaseId', value)}
-                    required
-                  >
-                    <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder="选择知识库" required />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {isLoadingKnowledgeBases ? (
-                        <SelectItem value="loading" disabled>加载中...</SelectItem>
-                      ) : knowledgeBases.length > 0 ? (
-                        knowledgeBases.map((kb) => (
-                        <SelectItem key={`kb-${kb.kbId}`} value={kb.kbId}>{kb.kbName}</SelectItem>
-                      ))
-                      ) : (
-                        <SelectItem value="no_kb" disabled>暂无知识库</SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
+                  <div className="col-span-3">
+                    {isLoadingKnowledgeBases ? (
+                      <div className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground">
+                        加载中...
+                      </div>
+                    ) : knowledgeBases.length > 0 ? (
+                      <MultiSelect
+                        options={knowledgeBases.map(kb => ({ value: kb.kbId, label: kb.kbName }))}
+                        selectedValues={formData.knowledgeIds}
+                        onSelectionChange={(values) => setFormData(prev => ({ ...prev, knowledgeIds: values }))}
+                        placeholder="选择知识库"
+                      />
+                    ) : (
+                      <div className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground">
+                        暂无知识库
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
               <DialogFooter>
@@ -709,29 +708,27 @@ export default function UsersPage() {
                   </Select>
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="edit-knowledgeBaseId" className="text-right">
-                    知识库
+                  <Label htmlFor="edit-knowledgeIds" className="text-right">
+                    知识库 (可多选)
                   </Label>
-                  <Select
-                    value={formData.knowledgeBaseId}
-                    onValueChange={(value) => handleSelectChange('knowledgeBaseId', value)}
-                    required
-                  >
-                    <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder="选择知识库" required />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {isLoadingKnowledgeBases ? (
-                        <SelectItem value="" disabled>加载中...</SelectItem>
-                      ) : knowledgeBases.length > 0 ? (
-                        knowledgeBases.map((kb) => (
-                        <SelectItem key={`kb-${kb.kbId}`} value={kb.kbId}>{kb.kbName}</SelectItem>
-                      ))
-                      ) : (
-                        <SelectItem value="" disabled>暂无知识库</SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
+                  <div className="col-span-3">
+                    {isLoadingKnowledgeBases ? (
+                      <div className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground">
+                        加载中...
+                      </div>
+                    ) : knowledgeBases.length > 0 ? (
+                      <MultiSelect
+                        options={knowledgeBases.map(kb => ({ value: kb.kbId, label: kb.kbName }))}
+                        selectedValues={formData.knowledgeIds}
+                        onSelectionChange={(values) => setFormData(prev => ({ ...prev, knowledgeIds: values }))}
+                        placeholder="选择知识库"
+                      />
+                    ) : (
+                      <div className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground">
+                        暂无知识库
+                      </div>
+                    )}
+                  </div>
                 </div>
             </div>
             <DialogFooter>
