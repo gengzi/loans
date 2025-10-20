@@ -114,7 +114,7 @@ export function DocumentList({ knowledgeBaseId }: DocumentListProps) {
   // 处理查看操作 - 跳转到文档分块详情页
   const handleView = (documentId: string) => {
     // 跳转到文档分块详情页
-    router.push(`/dashboard/knowledge/${knowledgeBaseId}/document/${documentId}`);
+    router.push(`/dashboard/knowledge/${knowledgeBaseId}/doc/${documentId}`);
   };
 
   useEffect(() => {

@@ -846,7 +846,7 @@ export default function RAGEvaluationPage() {
       </Tabs>
         
         {/* 详情弹窗 */}
-        <Dialog open={showDetailDialog} onOpenChange={handleCloseDialog} className="max-w-[98vw]">
+        <Dialog open={showDetailDialog} onOpenChange={handleCloseDialog}>
           <DialogContent className="max-w-[1600px] w-[98vw] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex justify-between items-center">

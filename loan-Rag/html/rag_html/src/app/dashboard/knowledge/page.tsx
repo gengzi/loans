@@ -131,9 +131,9 @@ export default function KnowledgeBasePage() {
                 <div className="flex space-x-2">
                   <Link
                     href={`/dashboard/knowledge/${kb.id}`}
-                    className="inline-flex items-center justify-center rounded-md bg-secondary w-8 h-8"
+                    className="inline-flex items-center justify-center rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:bg-primary/90"
                   >
-                    <Settings className="h-4 w-4" />
+                    查看
                   </Link>
                   <Link
                     href={`/dashboard/test-retrieval/${kb.id}`}
