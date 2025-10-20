@@ -62,12 +62,13 @@ export default function DashboardLayout({
       { name: "对话", href: "/dashboard/chat", icon: MessageSquare },
     ];
     
-    // 只有管理员才能看到知识库和RAG评估菜单
+    // 只有管理员才能看到知识库、RAG评估和用户管理菜单
     if (userRole === 'admin') {
       return [
         { name: "知识库", href: "/dashboard/knowledge", icon: Book },
         ...baseNav,
         { name: "RAG评估", href: "/dashboard/rag-evaluation", icon: BarChart },
+        { name: "用户管理", href: "/dashboard/users", icon: User },
       ];
     }
     
@@ -183,6 +184,11 @@ export const dashboardConfig = {
       title: "RAG评估",
       href: "/dashboard/rag-evaluation",
       icon: "barChart",
+    },
+    {
+      title: "用户管理",
+      href: "/dashboard/users",
+      icon: "user",
     },
     {
       title: "API 密钥",
