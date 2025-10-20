@@ -19,6 +19,10 @@ public class EsVectorDocument {
     @JsonProperty("doc_id") // Elasticsearch 中的字段名（小写+下划线，符合 ES 命名规范）
     private String docId; // 源文档唯一ID（对应原需求的 doc_id）
 
+    // 1. 源文档标识字段
+    @JsonProperty("f_id") // Elasticsearch 中的字段名（小写+下划线，符合 ES 命名规范）
+    private String fId; // 源文档唯一ID（对应原需求的 doc_id）
+
     @JsonProperty("kb_id")
     private String kbId; // 知识库ID（对应原需求的 kb_id）
 

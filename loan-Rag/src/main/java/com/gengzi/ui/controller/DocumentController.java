@@ -6,10 +6,7 @@ import com.gengzi.embedding.load.pdf.PdfReaderTool;
 import com.gengzi.request.AddDocumentByS3;
 import com.gengzi.request.DocumentSearchReq;
 import com.gengzi.request.KnowledgebaseCreateReq;
-import com.gengzi.response.DocumentPreviewResponse;
-import com.gengzi.response.KnowledgebaseResponse;
-import com.gengzi.response.Result;
-import com.gengzi.response.ResultCode;
+import com.gengzi.response.*;
 import com.gengzi.ui.service.DocumentService;
 import com.gengzi.ui.service.KnowledgeService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -173,6 +170,32 @@ public class DocumentController {
     @ResponseBody
     public Result<?> documentChunks(@RequestParam String kbId) {
         return Result.success(documentService.documentChunks(kbId));
+    }
+
+
+
+    /**
+     * 获取文档解析后的分块详情信息
+     */
+    @GetMapping("/document/chunks/details")
+    @ResponseBody
+    public Result<?> documentChunksDetails(@RequestParam String documentId) {
+        return Result.success(documentService.documentChunksDetails(documentId));
+    }
+
+
+    @GetMapping("/document/img")
+    public ResponseEntity<?> documentImgPreview(@RequestParam String imgkey) {
+        try {
+            ImagePreviewResponse imagePreviewResponse = documentService.documentImgPreview(imgkey);
+            return ResponseEntity.ok(imagePreviewResponse);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "失败"));
+        }
     }
 
 

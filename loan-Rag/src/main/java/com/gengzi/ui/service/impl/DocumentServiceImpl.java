@@ -17,12 +17,12 @@ import com.gengzi.embedding.load.pdf.OcrPdfReader;
 import com.gengzi.enums.FileProcessStatusEnum;
 import com.gengzi.enums.S3FileType;
 import com.gengzi.request.DocumentSearchReq;
-import com.gengzi.response.DocumentPreviewResponse;
-import com.gengzi.response.ResultCode;
+import com.gengzi.response.*;
 import com.gengzi.s3.S3ClientUtils;
 import com.gengzi.security.BusinessException;
 import com.gengzi.ui.service.DocumentService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
@@ -35,20 +35,20 @@ import java.util.*;
 public class DocumentServiceImpl implements DocumentService {
 
 
+    public static final String IMG_SUFFIX = "layout_det_res.jpeg";
     @Autowired
     private DocumentRepository documentRepository;
-
     @Autowired
     private S3ClientUtils s3ClientUtils;
-
     @Autowired
     private S3Properties s3Properties;
-
-
     @Autowired
     private OcrPdfReader reader;
     @Autowired
     private ElasticsearchClient elasticsearchClient;
+
+    @Value("${esVectorstore.index-name}")
+    private String indexName;
 
     /**
      * 将doc进行embeding 处理
@@ -126,6 +126,70 @@ public class DocumentServiceImpl implements DocumentService {
     }
 
     /**
+     * @param documentId
+     * @return
+     */
+    @Override
+    public DocumentDetailsResponse documentChunksDetails(String documentId) {
+        Optional<Document> byId = documentRepository.findById(documentId);
+        if (!byId.isPresent()) {
+            throw new BusinessException(ResultCode.RESOURCE_NOT_FOUND);
+        }
+        // 返回文档详情
+        Document document = byId.get();
+        DocumentDetailsResponse documentDetailsResponse = new DocumentDetailsResponse();
+        documentDetailsResponse.setId(document.getId());
+        documentDetailsResponse.setName(document.getName());
+        documentDetailsResponse.setCreateTime(document.getCreateTime());
+        documentDetailsResponse.setSize(document.getSize());
+        documentDetailsResponse.setChunkNum(document.getChunkNum());
+        // 返回分块详情
+        List<ChunkDetails> chunkDetailsLinkedList = new LinkedList<>();
+        SearchRequest searchRequest = SearchRequest.of(sr -> sr
+                .index(indexName)
+                .query(q -> q.term(m -> m.field("metadata.documentId").value(documentId)))
+                .size(1000)
+        );
+        try {
+            SearchResponse<Map> search = elasticsearchClient.search(searchRequest, Map.class);
+            List<Hit<Map>> hits = search.hits().hits();
+            for (Hit<Map> hit : hits) {
+                Map<String, Object> source = hit.source();
+                ChunkDetails chunkDetails = new ChunkDetails();
+                chunkDetails.setId((String) source.get("id"));
+                chunkDetails.setContent((String) source.get("content"));
+                chunkDetails.setPageNumInt((String) source.get("pageNumInt"));
+                Map metadata = (Map) source.get("metadata");
+                String fileId = (String) metadata.get("fileId");
+                LinkedList<String> imgs = new LinkedList<>();
+                for (String key : chunkDetails.getPageNumInt().split(",")) {
+                    Integer pageNum = Integer.valueOf(key) + 1;
+                    String imgName = String.format("%s/%s_%s_%s", fileId, fileId, pageNum, IMG_SUFFIX);
+                    imgs.add(imgName);
+                }
+                chunkDetails.setImg(imgs);
+                chunkDetailsLinkedList.add(chunkDetails);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        documentDetailsResponse.setChunkDetails(chunkDetailsLinkedList);
+        return documentDetailsResponse;
+    }
+
+    /**
+     * @param imgkey
+     * @return
+     */
+    @Override
+    public ImagePreviewResponse documentImgPreview(String imgkey) {
+        ImagePreviewResponse imagePreviewResponse = new ImagePreviewResponse();
+        URL url = s3ClientUtils.generatePresignedUrl(s3Properties.getDefaultBucketName(), imgkey);
+        imagePreviewResponse.setUrl(url.toString());
+        return imagePreviewResponse;
+    }
+
+    /**
      * 检索content字段并高亮匹配内容
      *
      * @param question 长文本问题
@@ -157,7 +221,7 @@ public class DocumentServiceImpl implements DocumentService {
 
         // 3. 构建搜索请求
         SearchRequest searchRequest = SearchRequest.of(sr -> sr
-                .index("rag_store_new")
+                .index(indexName)
                 .query(q -> q.match(matchQuery))
                 .highlight(highlight)
                 .from((page - 1) * size)  // 分页起始位置

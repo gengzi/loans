@@ -38,7 +38,8 @@ public class EsVectorDocumentConverter {
             esVectorDocument.setChunkId(String.format("%s_%d", fileId, chunkNumber));
             esVectorDocument.setContent(document.getText());
             esVectorDocument.setMetadata(document.getMetadata());
-            esVectorDocument.setDocId(fileId);
+            esVectorDocument.setDocId(fileContext.getDocumentId());
+            esVectorDocument.setFId(fileId);
             esVectorDocument.setAvailableInt(1);
             esVectorDocument.setCreateTime(InstantConverter.instantToString(fileContext.getLastModified(), ZoneId.systemDefault()));
             esVectorDocument.setCreateTimestampFlt(fileContext.getLastModified().toEpochMilli());
