@@ -184,8 +184,10 @@ export function DocumentUploadSteps({
         })
       );
 
-      // 移除自动处理的逻辑，只更新步骤
-      setCurrentStep(2);
+          // 上传完成后直接调用完成回调
+      if (onComplete) {
+        onComplete();
+      }
       toast({
         title: "上传成功",
         description: `${data.length}个文件已成功上传。`,
@@ -358,45 +360,23 @@ export function DocumentUploadSteps({
   return (
     <div className="w-full max-w-4xl mx-auto">
       <div className="mb-8">
-        <div className="flex justify-between mb-2">
-          {[
-            { step: 1, icon: Upload, label: "上传" },
-            { step: 2, icon: FileText, label: "预览" },
-            { step: 3, icon: Settings, label: "处理" },
-          ].map(({ step, icon: Icon, label }, index, array) => (
+        <div className="flex justify-center mb-2">
+          <div
+            className="flex flex-col items-center space-y-2 flex-1"
+          >
             <div
-              key={step}
-              className="flex flex-col items-center space-y-2 flex-1"
+              className="w-12 h-12 rounded-full flex items-center justify-center border-2 bg-primary text-primary-foreground border-primary"
             >
-              <div
-                className={cn(
-                  "w-12 h-12 rounded-full flex items-center justify-center border-2 transition-colors",
-                  currentStep === step
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : currentStep > step
-                    ? "bg-primary/20 border-primary/20"
-                    : "bg-background border-input"
-                )}
-              >
-                <Icon className="w-6 h-6" />
-              </div>
-              <span className="text-sm font-medium">
-                {step}. {label}
-              </span>
-              {index < array.length - 1 && (
-                <div
-                  className={cn(
-                    "h-0.5 w-full mt-2",
-                    currentStep > step ? "bg-primary/20" : "bg-input"
-                  )}
-                />
-              )}
+              <Upload className="w-6 h-6" />
             </div>
-          ))}
+            <span className="text-sm font-medium">
+              1. 上传
+            </span>
+          </div>
         </div>
       </div>
 
-      <Tabs value={String(currentStep)} className="w-full">
+      <Tabs value="1" className="w-full">
         <TabsContent value="1" className="mt-6">
           <Card className="p-6">
             <div className="space-y-4">
@@ -482,208 +462,7 @@ export function DocumentUploadSteps({
           </Card>
         </TabsContent>
 
-        <TabsContent value="2" className="mt-6">
-          <Card className="p-6">
-            <div className="space-y-6">
-              <h3 className="text-lg font-medium">
-                选择要预览的文档
-              </h3>
-              <div className="flex items-center space-x-4">
-                <Select
-                  value={selectedDocumentId?.toString()}
-                  onValueChange={(value: string) =>
-                    setSelectedDocumentId(parseInt(value))
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="选择要预览的文档" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {files
-                      .filter((f) => f.status === "uploaded")
-                      .map((f) => (
-                        <SelectItem
-                          key={f.uploadId}
-                          value={f.uploadId!.toString()}
-                        >
-                          {f.file.name}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
 
-              <Accordion type="single" collapsible className="w-full">
-                <AccordionItem value="settings">
-                  <AccordionTrigger>高级设置</AccordionTrigger>
-                  <AccordionContent>
-                    <div className="grid gap-4 md:grid-cols-2 pt-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="chunk-size">块大小（tokens）</Label>
-                        <Input
-                          id="chunk-size"
-                          type="number"
-                          value={chunkSize}
-                          onChange={(e) =>
-                            setChunkSize(parseInt(e.target.value))
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="chunk-overlap">
-                          块重叠（tokens）
-                        </Label>
-                        <Input
-                          id="chunk-overlap"
-                          type="number"
-                          value={chunkOverlap}
-                          onChange={(e) =>
-                            setChunkOverlap(parseInt(e.target.value))
-                          }
-                        />
-                      </div>
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-
-              <div className="flex space-x-4">
-                <Button
-                  onClick={handlePreview}
-                  disabled={isLoading || !selectedDocumentId}
-                  className="flex-1"
-                >
-                  {isLoading && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}
-                  预览块
-                </Button>
-                <Button
-                  onClick={() => setCurrentStep(3)}
-                  variant="secondary"
-                  className="flex-1"
-                >
-                  继续
-                </Button>
-              </div>
-
-              {selectedDocumentId && uploadedDocuments[selectedDocumentId] && (
-                <div className="space-y-4">
-                  <div className="mt-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-medium">
-                        {files.find((f) => f.uploadId === selectedDocumentId)?.file.name}
-                      </h3>
-                      <span className="text-sm text-muted-foreground">
-                        {uploadedDocuments[selectedDocumentId].chunks.length} 个块
-                      </span>
-                    </div>
-                    <div className="h-[400px] overflow-y-auto space-y-2 rounded-lg border p-4">
-                      {uploadedDocuments[selectedDocumentId].chunks.map(
-                        (chunk: PreviewChunk, index: number) => (
-                          <div
-                            key={index}
-                            className="p-4 bg-muted rounded-lg space-y-2"
-                          >
-                            <div className="text-sm text-muted-foreground">
-                              块 {index + 1}
-                            </div>
-                            <pre className="whitespace-pre-wrap text-sm">
-                              {chunk.content}
-                            </pre>
-                          </div>
-                        )
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </Card>
-        </TabsContent>
-        <TabsContent value="3" className="mt-6">
-          <Card className="p-6">
-            <div className="space-y-4">
-              <div className="max-h-[300px] overflow-y-auto space-y-2 rounded-lg border p-4">
-                {files
-                  .filter((f) => f.status === "uploaded")
-                  .map((file) => {
-                    const task = Object.values(taskStatuses).find(
-                      (t) => t.document_id === file.documentId
-                    );
-                    return (
-                      <div
-                        key={file.uploadId}
-                        className="p-4 border rounded-lg space-y-2"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-4">
-                            <div className="w-8 h-8">
-                              <FileIcon
-                                extension={file.file.name.split(".").pop()}
-                                {...defaultStyles[
-                                  file.file.name
-                                    .split(".")
-                                    .pop() as keyof typeof defaultStyles
-                                ]}
-                              />
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium">
-                                {file.file.name}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {(file.file.size / 1024 / 1024).toFixed(2)} MB
-                              </p>
-                              {task && (
-                                <p className="text-xs text-muted-foreground">
-                                  状态: {task.status || "等待中"}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          {task?.status === "failed" && (
-                            <p className="text-sm text-destructive">
-                              {task.error_message}
-                            </p>
-                          )}
-                        </div>
-                        {task &&
-                          (task.status === "pending" ||
-                            task.status === "processing") && (
-                            <Progress
-                              value={task.status === "processing" ? 50 : 25}
-                              className="w-full"
-                            />
-                          )}
-                      </div>
-                    );
-                  })}
-              </div>
-
-              <Button
-                onClick={handleProcessClick}
-                disabled={
-                  isLoading ||
-                  files.filter((f) => f.status === "uploaded").length === 0
-                }
-                className="w-full"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    处理中...
-                  </>
-                ) : (
-                  <>
-                    <Settings className="mr-2 h-4 w-4" />
-                    处理
-                  </>
-                )}
-              </Button>
-            </div>
-          </Card>
-        </TabsContent>
       </Tabs>
     </div>
   );
