@@ -1,6 +1,7 @@
 package com.gengzi.search.advisor;
 
 
+import com.gengzi.search.processors.RagDocumentPostProcessor;
 import com.gengzi.search.query.QueryTranslation;
 import com.gengzi.search.query.RagContextualQueryAugmenter;
 import com.gengzi.search.query.RewriteQueryTransformerWithHistory;
@@ -37,6 +38,10 @@ public class RagRetrievalAugmenttationAdvisor {
 
 
     @Autowired
+    private RagDocumentPostProcessor ragDocumentPostProcessor;
+
+
+    @Autowired
     @Qualifier("openAiChatModel")
     private OpenAiChatModel chatModel;
 
@@ -68,7 +73,7 @@ public class RagRetrievalAugmenttationAdvisor {
 //                        .allowEmptyContext(true)
                         .build())
                 // 将检索到的文档处理之后，再传递给大模型
-                .documentPostProcessors()
+                .documentPostProcessors(ragDocumentPostProcessor)
                 // 将多个数据源检索到的文档合并为单个文档
 //                .documentJoiner()
                 .build();

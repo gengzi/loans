@@ -1,33 +1,63 @@
 package com.gengzi.search.processors;
 
 
+import com.gengzi.reranker.RerankerModel;
+import com.gengzi.reranker.request.RerankInstructions;
+import com.gengzi.reranker.request.RerankModelRequest;
+import com.gengzi.reranker.response.RerankModelResult;
+import com.gengzi.reranker.response.RerankResultData;
+import com.gengzi.reranker.response.RerankerModelResponse;
+import com.gengzi.search.query.RagContextualQueryAugmenter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.rag.Query;
 import org.springframework.ai.rag.postretrieval.document.DocumentPostProcessor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.stereotype.Component;
 
+import java.util.LinkedList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 
 /**
  * 对检索到的文档进行后处理
  */
+@Component
 public class RagDocumentPostProcessor implements DocumentPostProcessor {
 
+    private static final Logger logger = LoggerFactory.getLogger(RagContextualQueryAugmenter.class);
+    @Autowired
+    @Qualifier("defaultRerankModel")
+    private RerankerModel rerankerModel;
 
     @Override
     public List<Document> process(Query query, List<Document> documents) {
-        // 查询父文档内容，将相关的内容都塞给大模型
-
-
-        for (Document document : documents) {
-
-
-
+        if(documents.size() <= 0){
+            return documents;
         }
+        // 查询父文档内容，将相关的内容都塞给大模型
+        // 重排序
+        RerankInstructions rerankInstructions = new RerankInstructions();
+        rerankInstructions.setQuery(query.text());
+        rerankInstructions.setDocuments(documents.stream().map(Document::getText).collect(Collectors.toList()));
+        RerankerModelResponse call = rerankerModel.call(new RerankModelRequest(rerankInstructions, null));
+        LinkedList<Document> sortedDocuments = new LinkedList<>();
 
-
-
-
-        return List.of();
+        List<RerankModelResult> results = call.getResults();
+        logger.info("rerankerModelResponse:{}", call);
+        for (RerankModelResult result : results){
+            RerankResultData output = result.getOutput();
+            Double relevanceScore = output.getRelevanceScore();
+            Integer index = output.getIndex();
+            if(relevanceScore > 0.5){
+                sortedDocuments.add(documents.get(index));
+            }else {
+                logger.info("排除不相关的文档:{}",documents.get(index).getText());
+            }
+        }
+        return sortedDocuments;
     }
 }

@@ -1,5 +1,6 @@
 package com.gengzi.config.chat;
 
+import com.gengzi.reranker.DefaultRerankModel;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.api.OpenAiApi;
@@ -18,6 +19,9 @@ public class ChatModeConfig {
     @Autowired
     private ChatModeParamsConfig config;
 
+    @Autowired
+    private RerankerParamsConfig rerankerParamsConfig;
+
     @Bean
     public OpenAiChatModel openAiChatModel() {
         OpenAiApi openApi = OpenAiApi.builder().apiKey(config.getApiKey())
@@ -30,4 +34,12 @@ public class ChatModeConfig {
                         .build())
                 .build();
     }
+
+
+    @Bean
+    public DefaultRerankModel defaultRerankModel() {
+        return new DefaultRerankModel(rerankerParamsConfig.getApiKey(), rerankerParamsConfig.getBaseUrl(), rerankerParamsConfig.getModel());
+    }
+
+
 }
