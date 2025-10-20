@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
 import { Search, Download, RefreshCw, PlusCircle, X, Play } from 'lucide-react';
 import { fetchApi } from '@/lib/api';
+import { useToast } from '@/components/ui/use-toast';
 
 // 评估数据现在从API获取
 
@@ -43,6 +44,7 @@ const radarData = [
 ];
 
 export default function RAGEvaluationPage() {
+  const { toast } = useToast();
   const [chartData, setChartData] = useState(defaultChartData);
   const [radarChartData, setRadarChartData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -520,10 +522,17 @@ export default function RAGEvaluationPage() {
       await fetchEvaluationData(0, selectedBatch);
       
       // 可以添加成功提示
-      alert('评估创建成功,异步处理中...！');
+      toast({
+              title: '评估创建成功',
+              description: '评估已创建，正在异步处理中...',
+            });
     } catch (error) {
       console.error('创建评估失败:', error);
-      alert('创建评估失败，请重试！');
+      toast({
+              title: '创建评估失败',
+              description: '请稍后重试',
+              variant: 'destructive',
+            });
     } finally {
       setIsSubmitting(false);
     }
@@ -534,10 +543,20 @@ export default function RAGEvaluationPage() {
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-3xl font-bold">RAG评估</h1>
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon">
-            <Download className="h-5 w-5" />
-          </Button>
-          <Button variant="ghost" size="icon">
+          <Button variant="ghost" size="icon" onClick={async () => {
+            try {
+              // 实现页面数据刷新功能
+              // 并行刷新所有数据
+              await Promise.all([
+                fetchBatchNumbers(),
+                fetchChartData(),
+                fetchEvaluationData(0, selectedBatch)
+              ]);
+              console.log('数据刷新成功');
+            } catch (error) {
+              console.error('刷新失败:', error);
+            }
+          }}>
             <RefreshCw className="h-5 w-5" />
           </Button>
           <Button onClick={handleOpenNewEvaluationDialog}>
@@ -1021,13 +1040,20 @@ export default function RAGEvaluationPage() {
                       }
                     });
                     
-                    alert(`开始评估批次 ${startEvaluationBatchNum} 成功！`);
+                    toast({
+              title: '开始评估成功',
+              description: `批次 ${startEvaluationBatchNum} 已开始评估`,
+            });
                     setShowStartEvaluationDialog(false);
                     // 刷新评估数据
                     await fetchEvaluationData(0, selectedBatch);
                   } catch (error) {
                     console.error('开始评估失败:', error);
-                    alert('开始评估失败，请重试！');
+                    toast({
+              title: '开始评估失败',
+              description: '请稍后重试',
+              variant: 'destructive',
+            });
                   } finally {
                     setIsStartEvaluationSubmitting(false);
                   }
