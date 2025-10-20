@@ -13,9 +13,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { MultiSelect } from '@/components/ui/multi-select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
-import { Search, Download, RefreshCw, PlusCircle, X } from 'lucide-react';
+import { Search, Download, RefreshCw, PlusCircle, X, Play } from 'lucide-react';
 import { fetchApi } from '@/lib/api';
 
 // 评估数据现在从API获取
@@ -88,7 +89,132 @@ export default function RAGEvaluationPage() {
   // 详情弹窗状态
   const [showDetailDialog, setShowDetailDialog] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
-
+  
+  // 新建评估弹窗状态
+  const [showNewEvaluationDialog, setShowNewEvaluationDialog] = useState(false);
+  const [batchNum, setBatchNum] = useState('');
+  const [selectedKnowledgeBase, setSelectedKnowledgeBase] = useState('');
+  const [selectedSingleDocument, setSelectedSingleDocument] = useState<string[]>([]);
+  const [selectedMultipleDocuments, setSelectedMultipleDocuments] = useState<string[][]>([[]]);
+  const [isColloquialQuestion, setIsColloquialQuestion] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // 开始评估弹窗状态
+  const [showStartEvaluationDialog, setShowStartEvaluationDialog] = useState(false);
+  const [startEvaluationBatchNum, setStartEvaluationBatchNum] = useState('');
+  const [isStartEvaluationSubmitting, setIsStartEvaluationSubmitting] = useState(false);
+  const [untrainedBatchNumbers, setUntrainedBatchNumbers] = useState<Array<{value: string, label: string}>>([]);
+  const [isUntrainedBatchLoading, setIsUntrainedBatchLoading] = useState(false);
+  
+  // 获取未训练批次数据
+  const fetchUntrainedBatchNumbers = async () => {
+    setIsUntrainedBatchLoading(true);
+    try {
+      // 使用公共API工具函数获取未训练批次数据，添加isUntrainedBatch=true参数
+      const response = await fetchApi('/evaluate/get/batchnums', {
+        method: 'GET',
+        params: {
+          isUntrainedBatch: true
+        }
+      });
+      
+      // 格式化批次数据为Select组件需要的格式
+      const formattedBatches = response.map((batch: string) => ({
+        value: batch,
+        label: `批次${batch}`
+      }));
+      
+      setUntrainedBatchNumbers(formattedBatches);
+      return formattedBatches;
+    } catch (err) {
+      console.error('获取未训练批次数据失败:', err);
+      return [];
+    } finally {
+      setIsUntrainedBatchLoading(false);
+    }
+  };
+  
+  // 知识库数据状态
+  const [knowledgeBases, setKnowledgeBases] = useState<Array<{value: string, label: string}>>([]);
+  const [isKnowledgeBaseLoading, setIsKnowledgeBaseLoading] = useState(false);
+  
+  // 文档数据状态
+  const [documents, setDocuments] = useState<Array<{value: string, label: string}>>([]);
+  const [isDocumentsLoading, setIsDocumentsLoading] = useState(false);
+  
+  // 获取知识库数据
+  const fetchKnowledgeBases = async () => {
+    setIsKnowledgeBaseLoading(true);
+    try {
+      const response = await fetchApi('/api/knowledge-base');
+      console.log('获取到的知识库数据:', response);
+      if (response.success && Array.isArray(response.data)) {
+        // 将API返回的数据转换为Select组件需要的格式
+        const formattedKnowledgeBases = response.data.map((kb: any) => ({
+          value: kb.id,
+          label: kb.name
+        }));
+        console.log('格式化后的知识库数据:', formattedKnowledgeBases);
+        setKnowledgeBases(formattedKnowledgeBases);
+      } else {
+        // 如果响应格式不符合预期，直接使用响应数据（兼容知识库页面的实现）
+        if (Array.isArray(response)) {
+          const formattedKnowledgeBases = response.map((kb: any) => ({
+            value: kb.id,
+            label: kb.name
+          }));
+          console.log('直接格式化的知识库数据:', formattedKnowledgeBases);
+          setKnowledgeBases(formattedKnowledgeBases);
+        }
+      }
+    } catch (error) {
+      console.error('获取知识库数据失败:', error);
+    } finally {
+      setIsKnowledgeBaseLoading(false);
+    }
+  };
+  
+  // 根据知识库ID获取文档列表
+  const fetchDocumentsByKnowledgeBase = async (kbId: string) => {
+    if (!kbId) {
+      setDocuments([]);
+      return;
+    }
+    
+    setIsDocumentsLoading(true);
+    try {
+      const response = await fetchApi(`/document/chunks?kbId=${kbId}`);
+      console.log('获取到的文档数据:', response);
+      
+      if (response.success && Array.isArray(response.data)) {
+        // 将API返回的数据转换为Select组件需要的格式
+        const formattedDocuments = response.data.map((doc: any) => ({
+          value: doc.id,
+          label: doc.name
+        }));
+        console.log('格式化后的文档数据:', formattedDocuments);
+        setDocuments(formattedDocuments);
+      } else {
+        // 如果响应格式不符合预期，直接使用响应数据
+        if (Array.isArray(response)) {
+          const formattedDocuments = response.map((doc: any) => ({
+            value: doc.id,
+            label: doc.name
+          }));
+          console.log('直接格式化的文档数据:', formattedDocuments);
+          setDocuments(formattedDocuments);
+        } else {
+          setDocuments([]);
+        }
+      }
+    } catch (error) {
+      console.error('获取文档数据失败:', error);
+      setDocuments([]);
+    } finally {
+      setIsDocumentsLoading(false);
+    }
+  };
+  
   // 获取批次数据
   const fetchBatchNumbers = async () => {
     setIsBatchLoading(true);
@@ -247,10 +373,11 @@ export default function RAGEvaluationPage() {
     const initializeData = async () => {
       if (isMounted) {
         try {
-          // 并行获取批次数据和图表数据
+          // 并行获取批次数据、图表数据和知识库数据
           const [batches] = await Promise.all([
             fetchBatchNumbers(),
-            fetchChartData()
+            fetchChartData(),
+            fetchKnowledgeBases()
           ]);
           
           // 批次数据获取后，立即获取评估数据
@@ -307,6 +434,100 @@ export default function RAGEvaluationPage() {
     setShowDetailDialog(false);
     setSelectedItem(null);
   };
+  
+
+  
+  // 打开新建评估弹窗
+  const handleOpenNewEvaluationDialog = async () => {
+    // 每次打开弹窗时刷新知识库数据
+    await fetchKnowledgeBases();
+    resetForm();
+    setShowNewEvaluationDialog(true);
+  };
+  
+  // 重置表单
+  const resetForm = () => {
+    setBatchNum('');
+    setSelectedKnowledgeBase('');
+    setSelectedSingleDocument([]);
+    setSelectedMultipleDocuments([[]]);
+    setIsColloquialQuestion(false);
+    // 重置文档列表
+    setDocuments([]);
+  };
+  
+  // 添加新的多选下拉框
+  const addMultipleDocumentSelector = () => {
+    setSelectedMultipleDocuments(prev => [...prev, []]);
+  };
+  
+  // 删除指定索引的多选下拉框
+  const removeMultipleDocumentSelector = (index: number) => {
+    if (selectedMultipleDocuments.length > 1) {
+      setSelectedMultipleDocuments(prev => prev.filter((_, i) => i !== index));
+    }
+  };
+  
+  // 更新指定索引的多选下拉框的值
+  const updateMultipleDocumentSelector = (index: number, values: string[]) => {
+    setSelectedMultipleDocuments(prev => {
+      const newSelected = [...prev];
+      newSelected[index] = values;
+      return newSelected;
+    });
+  };
+  
+  // 处理知识库选择变化
+  const handleKnowledgeBaseChange = (value: string) => {
+    setSelectedKnowledgeBase(value);
+    // 根据选择的知识库获取文档列表
+    fetchDocumentsByKnowledgeBase(value);
+  };
+  
+  // 关闭新建评估弹窗
+  const handleCloseNewEvaluationDialog = () => {
+    setShowNewEvaluationDialog(false);
+    resetForm();
+  };
+  
+  // 处理表单提交
+  const handleSubmitEvaluation = async () => {
+    setIsSubmitting(true);
+    try {
+      // 构建请求数据，符合新的API接口要求
+      const evaluationData = {
+        batchNum: batchNum,
+        kbId: selectedKnowledgeBase,
+        singleDocumentIds: selectedSingleDocument,
+        multipleDocumentIds: selectedMultipleDocuments,
+        colloquial: isColloquialQuestion
+      };
+      
+      console.log('提交评估数据:', evaluationData);
+      
+      // 调用API提交评估数据
+      // 使用fetchApi工具函数，它会自动处理认证信息和基础URL
+      await fetchApi('/evaluate/create', {
+        method: 'POST',
+        data: evaluationData
+      });
+      
+      // 提交成功后关闭弹窗并刷新数据
+      handleCloseNewEvaluationDialog();
+      // 刷新批次数据
+      await fetchBatchNumbers();
+      // 刷新评估数据
+      await fetchEvaluationData(0, selectedBatch);
+      
+      // 可以添加成功提示
+      alert('评估创建成功,异步处理中...！');
+    } catch (error) {
+      console.error('创建评估失败:', error);
+      alert('创建评估失败，请重试！');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <DashboardLayout>
@@ -319,9 +540,17 @@ export default function RAGEvaluationPage() {
           <Button variant="ghost" size="icon">
             <RefreshCw className="h-5 w-5" />
           </Button>
-          <Button>
+          <Button onClick={handleOpenNewEvaluationDialog}>
             <PlusCircle className="mr-2 h-4 w-4" />
             新建评估
+          </Button>
+          <Button onClick={async () => {
+            // 打开弹窗前先获取未训练批次数据
+            await fetchUntrainedBatchNumbers();
+            setShowStartEvaluationDialog(true);
+          }} className="bg-blue-600 hover:bg-blue-700">
+            <Play className="mr-2 h-4 w-4" />
+            开始评估
           </Button>
         </div>
       </div>
@@ -730,6 +959,220 @@ export default function RAGEvaluationPage() {
             
             <DialogFooter className="mt-4">
               <Button onClick={handleCloseDialog}>关闭</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        {/* 开始评估弹窗 */}
+        <Dialog open={showStartEvaluationDialog} onOpenChange={setShowStartEvaluationDialog}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>开始评估</DialogTitle>
+            </DialogHeader>
+            
+            <div className="grid gap-4 py-4">
+              {/* 批次选择 */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">选择批次</label>
+                <Select value={startEvaluationBatchNum} onValueChange={setStartEvaluationBatchNum}>
+                  <SelectTrigger>
+                    {isUntrainedBatchLoading ? (
+                      <span className="flex items-center gap-1">
+                        <span className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full"></span>
+                        <span>加载中...</span>
+                      </span>
+                    ) : (
+                      <SelectValue placeholder="选择批次" />
+                    )}
+                  </SelectTrigger>
+                  <SelectContent>
+                    {isUntrainedBatchLoading ? (
+                      <div className="flex justify-center items-center py-4">
+                        <span className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full mr-2"></span>
+                        <span>加载中...</span>
+                      </div>
+                    ) : untrainedBatchNumbers.length === 0 ? (
+                      <div className="flex justify-center items-center py-4 text-muted-foreground">
+                        暂无未训练批次数据
+                      </div>
+                    ) : (
+                      untrainedBatchNumbers.map((batch) => (
+                        <SelectItem key={batch.value} value={batch.value}>{batch.label}</SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setShowStartEvaluationDialog(false)} disabled={isStartEvaluationSubmitting}>
+                取消
+              </Button>
+              <Button 
+                onClick={async () => {
+                  setIsStartEvaluationSubmitting(true);
+                  try {
+                    // 使用fetchApi调用评估开始接口（修改为POST请求）
+                    await fetchApi('/evaluate/start',{
+                      method: 'POST',
+                      data: {
+                        batchNum: startEvaluationBatchNum
+                      }
+                    });
+                    
+                    alert(`开始评估批次 ${startEvaluationBatchNum} 成功！`);
+                    setShowStartEvaluationDialog(false);
+                    // 刷新评估数据
+                    await fetchEvaluationData(0, selectedBatch);
+                  } catch (error) {
+                    console.error('开始评估失败:', error);
+                    alert('开始评估失败，请重试！');
+                  } finally {
+                    setIsStartEvaluationSubmitting(false);
+                  }
+                }} 
+                disabled={isStartEvaluationSubmitting || !startEvaluationBatchNum}
+              >
+                {isStartEvaluationSubmitting ? '提交中...' : '提交'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        {/* 新建评估弹窗 */}
+        <Dialog open={showNewEvaluationDialog} onOpenChange={handleCloseNewEvaluationDialog}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>新建评估</DialogTitle>
+            </DialogHeader>
+            
+            <div className="grid gap-4 py-4">
+              {/* 批次输入 */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">批次</label>
+                <Input 
+                  type="text" 
+                  placeholder="请输入批次号" 
+                  value={batchNum} 
+                  onChange={(e) => setBatchNum(e.target.value)}
+                />
+              </div>
+              
+              {/* 知识库选择器 */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">知识库</label>
+                <Select value={selectedKnowledgeBase} onValueChange={handleKnowledgeBaseChange}>
+                  <SelectTrigger>
+                    {isKnowledgeBaseLoading ? (
+                      <span className="flex items-center gap-1">
+                        <span className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full"></span>
+                        <span>加载中...</span>
+                      </span>
+                    ) : (
+                      <SelectValue placeholder="选择知识库" />
+                    )}
+                  </SelectTrigger>
+                  <SelectContent>
+                    {isKnowledgeBaseLoading ? (
+                      <div className="flex justify-center items-center py-4">
+                        <span className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full mr-2"></span>
+                        <span>加载中...</span>
+                      </div>
+                    ) : knowledgeBases.length === 0 ? (
+                      <div className="flex justify-center items-center py-4 text-muted-foreground">
+                        暂无知识库数据
+                      </div>
+                    ) : (
+                      knowledgeBases.map((kb) => (
+                        <SelectItem key={kb.value} value={kb.value}>{kb.label}</SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {/* 单文档选择器 */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">单文档</label>
+                <MultiSelect 
+                  options={documents}
+                  selectedValues={selectedSingleDocument}
+                  onSelectionChange={(values) => setSelectedSingleDocument(values)}
+                  placeholder="选择文档"
+                />
+              </div>
+              
+              {/* 多文档选择器 */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <label className="text-sm font-medium">多文档</label>
+                  <button 
+                    type="button"
+                    onClick={addMultipleDocumentSelector}
+                    className="text-blue-500 hover:text-blue-700 text-sm"
+                  >
+                    + 添加多选框
+                  </button>
+                </div>
+                {selectedMultipleDocuments.map((selected, index) => (
+                  <div key={index} className="flex items-start mb-2">
+                    <div className="flex-grow">
+                      <MultiSelect 
+                        options={documents}
+                        selectedValues={selected}
+                        onSelectionChange={(values) => updateMultipleDocumentSelector(index, values)}
+                        placeholder={`请选择多个文档 ${index + 1}`}
+                      />
+                    </div>
+                    {selectedMultipleDocuments.length > 1 && (
+                      <button 
+                        type="button"
+                        onClick={() => removeMultipleDocumentSelector(index)}
+                        className="ml-2 mt-2 text-red-500 hover:text-red-700"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              
+              {/* 是否口语化问题 */}
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium">是否口语化问题</label>
+                <div className="flex items-center space-x-4">
+                  <label className="flex items-center space-x-2">
+                    <input 
+                      type="radio" 
+                      name="isColloquial" 
+                      value="false" 
+                      checked={!isColloquialQuestion} 
+                      onChange={() => setIsColloquialQuestion(false)}
+                    />
+                    <span>否</span>
+                  </label>
+                  <label className="flex items-center space-x-2">
+                    <input 
+                      type="radio" 
+                      name="isColloquial" 
+                      value="true" 
+                      checked={isColloquialQuestion} 
+                      onChange={() => setIsColloquialQuestion(true)}
+                    />
+                    <span>是</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+            
+            <DialogFooter>
+              <Button variant="ghost" onClick={handleCloseNewEvaluationDialog} disabled={isSubmitting}>
+                取消
+              </Button>
+              <Button onClick={handleSubmitEvaluation} disabled={isSubmitting || !batchNum || !selectedKnowledgeBase}>
+                {isSubmitting ? '提交中...' : '提交'}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
