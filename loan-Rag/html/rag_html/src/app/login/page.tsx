@@ -33,6 +33,16 @@ export default function LoginPage() {
       // 现在data就是response.data的内容
       if (data && data.token) {
         localStorage.setItem("token", data.token);
+        
+        // 存储用户信息（包括角色）到localStorage
+        // 根据接口返回，role是一个数组，如果包含"ROLE_ADMIN"则为管理员
+        const userInfo = {
+          username: data.username || (username as string),
+          userId: data.id,
+          role: data.role && data.role.includes('ROLE_ADMIN') ? 'admin' : 'user'
+        };
+        localStorage.setItem('userInfo', JSON.stringify(userInfo));
+        
         router.push("/dashboard");
       } else {
         setError("登录失败：响应格式无效");

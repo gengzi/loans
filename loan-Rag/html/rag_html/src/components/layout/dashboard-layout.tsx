@@ -14,25 +14,67 @@ export default function DashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [userRole, setUserRole] = useState<string>('user'); // 默认普通用户
+  const [username, setUsername] = useState<string>(''); // 存储用户名
 
   useEffect(() => {
+    // 直接在这里加载用户信息并进行权限检查
     const token = localStorage.getItem("token");
     if (!token) {
       router.push("/login");
+      return;
     }
-  }, [router]);
+    
+    // 从localStorage获取用户信息
+    const storedUser = localStorage.getItem('userInfo');
+    let currentRole = 'user';
+    
+    if (storedUser) {
+      try {
+        const userInfo = JSON.parse(storedUser);
+        currentRole = userInfo.role || 'user';
+        setUserRole(currentRole);
+        setUsername(userInfo.username || '');
+      } catch (e) {
+        console.error('解析用户信息失败:', e);
+      }
+    }
+    
+    // 立即进行访问控制检查
+    const restrictedPaths = ['/dashboard/knowledge', '/dashboard/rag-evaluation'];
+    const isRestrictedPath = restrictedPaths.some(path => pathname.startsWith(path));
+    
+    // 只有非管理员尝试访问受限页面时才重定向
+    if (isRestrictedPath && currentRole !== 'admin') {
+      router.push('/dashboard/chat');
+    }
+  }, [router, pathname]);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("userInfo"); // 清除用户角色信息
     router.push("/login");
   };
 
-  const navigation = [
-    { name: "知识库", href: "/dashboard/knowledge", icon: Book },
-    { name: "对话", href: "/dashboard/chat", icon: MessageSquare },
-    { name: "RAG评估", href: "/dashboard/rag-evaluation", icon: BarChart },
-    // { name: "API 密钥", href: "/dashboard/api-keys", icon: User },
-  ];
+  // 根据用户角色生成导航菜单
+  const getNavigationItems = () => {
+    const baseNav = [
+      { name: "对话", href: "/dashboard/chat", icon: MessageSquare },
+    ];
+    
+    // 只有管理员才能看到知识库和RAG评估菜单
+    if (userRole === 'admin') {
+      return [
+        { name: "知识库", href: "/dashboard/knowledge", icon: Book },
+        ...baseNav,
+        { name: "RAG评估", href: "/dashboard/rag-evaluation", icon: BarChart },
+      ];
+    }
+    
+    return baseNav;
+  };
+  
+  const navigation = getNavigationItems();
 
   return (
     <div className="min-h-screen bg-background">
@@ -93,6 +135,15 @@ export default function DashboardLayout({
           </nav>
           {/* User profile and logout */}
           <div className="border-t p-4 space-y-4">
+            <div className="flex items-center justify-between px-3 py-2">
+              <div className="flex items-center">
+                <User className="h-5 w-5 text-muted-foreground mr-2" />
+                <span className="text-sm font-medium">{username || '用户'}</span>
+              </div>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                {userRole === 'admin' ? '管理员' : '普通用户'}
+              </span>
+            </div>
             <button
               onClick={handleLogout}
               className="flex w-full items-center rounded-lg px-3 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors duration-200"
