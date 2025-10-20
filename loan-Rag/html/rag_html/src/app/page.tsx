@@ -444,7 +444,14 @@ export default function Home() {
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* 顶部导航 */}
         <div className="flex justify-between items-center mb-8">
-
+          <div></div>
+          <Button 
+            className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg transition-all duration-300"
+            onClick={() => router.push('/dashboard/chat')}
+          >
+            <MessageSquare className="w-4 h-4 mr-2" />
+            进入对话
+          </Button>
         </div>
 
         {/* 页面标题 */}
