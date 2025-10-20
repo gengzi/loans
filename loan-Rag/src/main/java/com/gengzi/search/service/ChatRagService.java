@@ -45,4 +45,12 @@ public interface ChatRagService {
     List<ConversationResponse> chatRagAll();
 
     ConversationDetailsResponse chatRagMsgList(String conversationId);
+
+
+    /**
+     * 创建训练集会话
+     *
+     * @return
+     */
+    String createEvaluateConversation(String kbId);
 }

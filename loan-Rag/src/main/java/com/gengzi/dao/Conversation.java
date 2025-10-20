@@ -19,7 +19,6 @@ import java.time.LocalDateTime;
         @Index(name = "conversation_create_date", columnList = "create_date"),
         @Index(name = "conversation_update_time", columnList = "update_time"),
         @Index(name = "conversation_update_date", columnList = "update_date"),
-        @Index(name = "conversation_dialog_id", columnList = "dialog_id"),
         @Index(name = "conversation_name", columnList = "name"),
         @Index(name = "conversation_user_id", columnList = "user_id")
 })
@@ -60,13 +59,13 @@ public class Conversation {
     @Column(name = "update_date")
     private LocalDateTime updateDate;
 
-    /**
-     * 会话ID，关联同一轮对话的所有记录（多轮对话归属标识）
-     */
-    @Size(max = 32)
-    @NotNull
-    @Column(name = "dialog_id", nullable = false, length = 32)
-    private String dialogId;
+//    /**
+//     * 会话ID，关联同一轮对话的所有记录（多轮对话归属标识）
+//     */
+//    @Size(max = 32)
+//    @NotNull
+//    @Column(name = "dialog_id", nullable = false, length = 32)
+//    private String dialogId;
 
     /**
      * 对话名称/标题，用于快速识别对话主题（如“订单咨询”）

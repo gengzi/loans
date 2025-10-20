@@ -16,6 +16,8 @@ public interface EvaluateService {
 
     void evaluate(String coonversationId, String batchNum);
 
+    void evaluate(String batchNum);
+
     void evaluateCalculate(String batchNum);
 
     void evaluateStatistics(String batchNum);
@@ -30,7 +32,7 @@ public interface EvaluateService {
     Page<?> evaluateStatisticsByBatchNum(String batchNum, Pageable pageable);
 
 
-    List<?> evaluateStatisticsBatchNums();
+    List<?> evaluateStatisticsBatchNums(Boolean isUntrainedBatch);
 
     /**
      * 创建评估

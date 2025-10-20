@@ -30,6 +30,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -214,7 +215,6 @@ public class ChatRagServiceImpl implements ChatRagService {
         conversationRepository.save(Conversation.builder()
                 .id(conversationId)
                 .knowledgebaseId(req.getKbId())
-                .dialogId("")
                 .createDate(now)
                 .createTime(millis)
                 .updateDate(now)
@@ -238,7 +238,6 @@ public class ChatRagServiceImpl implements ChatRagService {
         conversations.forEach(conversation -> {
             ConversationResponse response = ConversationResponse.builder()
                     .id(conversation.getId())
-                    .dialogId(conversation.getDialogId())
                     .knowledgebaseId(conversation.getKnowledgebaseId())
                     .name(conversation.getName())
                     .createTime(conversation.getCreateTime())
@@ -282,11 +281,40 @@ public class ChatRagServiceImpl implements ChatRagService {
             conversationDetailsResponse.setUpdateDate(conversation.getUpdateDate());
             conversationDetailsResponse.setCreateTime(conversation.getCreateTime());
             conversationDetailsResponse.setCreateDate(conversation.getCreateDate());
-            conversationDetailsResponse.setDialogId(conversation.getDialogId());
             conversationDetailsResponse.setKnowledgebaseId(conversation.getKnowledgebaseId());
             conversationDetailsResponse.setUserId(conversation.getUserId());
         }
         return conversationDetailsResponse;
+    }
+
+    /**
+     * 创建训练集会话
+     *
+     * @return
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public String createEvaluateConversation(String kbId) {
+        String conversationId = IdUtils.generate();
+        LocalDateTime now = LocalDateTime.now();
+        // 为LocalDateTime指定时区（这里使用系统默认时区）
+        ZonedDateTime zonedDateTime = now.atZone(ZoneId.systemDefault());
+        // 获取毫秒级时间戳（从1970-01-01T00:00:00Z开始的毫秒数）
+        long millis = zonedDateTime.toInstant().toEpochMilli();
+        UserPrincipal user = UserDetails.getUser();
+        conversationRepository.save(Conversation.builder()
+                .id(conversationId)
+                .knowledgebaseId(kbId)
+                .createDate(now)
+                .createTime(millis)
+                .updateDate(now)
+                .updateTime(millis)
+                .name("训练评估数据集" + conversationId)
+                .message("[]")
+                .reference("[]")
+                .userId(user.getId())
+                .build());
+        return conversationId;
     }
 
     public String chatRagCreate(RagChatReq req, String userId) {
@@ -300,7 +328,6 @@ public class ChatRagServiceImpl implements ChatRagService {
         long millis = zonedDateTime.toInstant().toEpochMilli();
         conversationRepository.save(Conversation.builder()
                 .id(conversationId)
-                .dialogId(userId)
                 .createDate(now)
                 .createTime(millis)
                 .updateDate(now)

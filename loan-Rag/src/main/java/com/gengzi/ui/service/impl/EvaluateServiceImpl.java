@@ -151,6 +151,31 @@ public class EvaluateServiceImpl implements EvaluateService {
     }
 
     /**
+     * @param batchNum
+     */
+    @Override
+    @Async("asyncExecutor")
+    public void evaluate(String batchNum) {
+        List<EvaluateDatum> evaluateDataByBatchNum = evaluateDatumRepository.findEvaluateDataByBatchNum(batchNum);
+        String kbId = evaluateDataByBatchNum.stream().findFirst().get().getKbId();
+        String coonversationId = chatRagService.createEvaluateConversation(kbId);
+        asyncExec(batchNum, coonversationId);
+        evaluateCalculate(batchNum);
+    }
+
+
+    public void asyncExec(String batchNum, String coonversationId) {
+        List<EvaluateDatum> evaluateDataByLlmAnswerIsEmpty = evaluateDatumRepository.findByLlmAnswerEqualsAndBatchNumEquals(batchNum);
+        evaluateDataByLlmAnswerIsEmpty.forEach(evaluateDatum -> {
+            RagChatReq ragChatReq = new RagChatReq();
+            ragChatReq.setQuestion(evaluateDatum.getQuestion());
+            ragChatReq.setConversationId(coonversationId);
+            ChatAnswerResponse chatAnswerResponse = chatRagService.chatRagEvaluate(ragChatReq);
+            llmAnswerSave(evaluateDatum, chatAnswerResponse);
+        });
+    }
+
+    /**
      * 计算指标
      *
      * @param batchNum
@@ -263,7 +288,10 @@ public class EvaluateServiceImpl implements EvaluateService {
      * @return
      */
     @Override
-    public List<?> evaluateStatisticsBatchNums() {
+    public List<?> evaluateStatisticsBatchNums(Boolean isUntrainedBatch) {
+        if (isUntrainedBatch != null && isUntrainedBatch) {
+            return evaluateDatumRepository.findUntrainedBatchNums();
+        }
         return evaluateDatumRepository.findAllBatchNums();
     }
 
@@ -302,7 +330,8 @@ public class EvaluateServiceImpl implements EvaluateService {
             logger.info("questionAndAnswers:{}", questionAndAnswers);
             try {
                 if (JSONUtil.isJson(questionAndAnswers)) {
-                    save(questionAndAnswers, documentId, batchNum);
+                    List<Question> questionList = JSONUtil.toList(questionAndAnswers, Question.class);
+                    saveEvaluateDatum(questionList, req);
                 }
             } catch (Exception e) {
                 logger.error("save error:{}", e.getMessage(), e);
@@ -355,7 +384,7 @@ public class EvaluateServiceImpl implements EvaluateService {
                 }
             }
             // 问题融合
-            saveEvaluateDatum(questions, batchNum);
+            saveEvaluateDatum(questions, req);
 
 
         }
@@ -650,7 +679,7 @@ public class EvaluateServiceImpl implements EvaluateService {
     }
 
     @Transactional(rollbackFor = Exception.class)
-    public void saveEvaluateDatum(List<Question> questions, String batchNum) {
+    public void saveEvaluateDatum(List<Question> questions, EvaluateCreateReq req) {
         questions.forEach(question -> {
             EvaluateDatum evaluateDatum = new EvaluateDatum();
             evaluateDatum.setCreateTime(Instant.now());
@@ -658,7 +687,8 @@ public class EvaluateServiceImpl implements EvaluateService {
             evaluateDatum.setChunkId(JSONUtil.toJsonStr(question.getRelatedChunkIds()));
             evaluateDatum.setReferenceAnswer(question.getReferenceAnswer());
             evaluateDatum.setDocumentId(JSONUtil.toJsonStr(question.getRelatedDocumentList()));
-            evaluateDatum.setBatchNum(batchNum);
+            evaluateDatum.setBatchNum(req.getBatchNum());
+            evaluateDatum.setKbId(req.getKbId());
             evaluateDatumRepository.save(evaluateDatum);
             evaluateDatumRepository.flush();
         });

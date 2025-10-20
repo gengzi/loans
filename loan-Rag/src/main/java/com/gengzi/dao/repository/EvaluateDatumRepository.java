@@ -21,4 +21,7 @@ public interface EvaluateDatumRepository extends JpaRepository<EvaluateDatum, Lo
 
     @Query("select distinct  e.batchNum from EvaluateDatum e")
     List<String> findAllBatchNums();
+
+    @Query("select distinct  e.batchNum from EvaluateDatum e where (e.llmAnswer = '' or e.llmAnswer is null)  ")
+    List<String> findUntrainedBatchNums();
 }

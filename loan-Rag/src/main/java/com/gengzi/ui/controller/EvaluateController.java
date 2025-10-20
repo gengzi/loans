@@ -2,6 +2,7 @@ package com.gengzi.ui.controller;
 
 
 import com.gengzi.request.EvaluateCreateReq;
+import com.gengzi.request.EvaluateStartReq;
 import com.gengzi.response.Result;
 import com.gengzi.ui.service.EvaluateService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -31,6 +32,16 @@ public class EvaluateController {
     @PostMapping("/evaluate/create")
     public Result<?> evaluateCreate(@RequestBody EvaluateCreateReq req) throws IOException {
         evaluateService.evaluateCreate(req);
+        return Result.success(true);
+    }
+
+
+    /**
+     * 评估训练集和真实回答
+     */
+    @PostMapping("/evaluate/start")
+    public Result<?> evaluateStart(@RequestBody EvaluateStartReq req) {
+        evaluateService.evaluate(req.getBatchNum());
         return Result.success(true);
     }
 
@@ -82,32 +93,25 @@ public class EvaluateController {
 
 
     /**
-     * 获取图信息和改进指南
+     * 根据批次获取评估集数据
      */
     @GetMapping("/evaluate/get/statistics/batchnum")
     public Result<?> evaluateStatisticsByBatchNum(@RequestParam(value = "batchNum") String batchNum,
                                                   @PageableDefault(page = 0, size = 10) Pageable pageable) {
-        Page<?> documents = evaluateService.evaluateStatisticsByBatchNum(batchNum,pageable);
+        Page<?> documents = evaluateService.evaluateStatisticsByBatchNum(batchNum, pageable);
         return Result.success(documents);
     }
 
     /**
-     * 获取图信息和改进指南
+     * 获取所有批次信息
+     * @param isUntrainedBatch 是否为未训练批次
      */
     @GetMapping("/evaluate/get/batchnums")
-    public List<?> evaluateStatisticsBatchNums() {
-        return evaluateService.evaluateStatisticsBatchNums();
+    public List<?> evaluateStatisticsBatchNums(@RequestParam(required = false)  boolean isUntrainedBatch) {
+        return evaluateService.evaluateStatisticsBatchNums(isUntrainedBatch);
     }
 
 
-//
-//    /**
-//     * 获取折线图信息
-//     */
-//    @GetMapping("/evaluate/Statistics/radarchart")
-//    public List<?> evaluateStatisticsRadarchart() {
-//        return evaluateService.evaluateStatisticsRadarchart();
-//    }
 
 
 }

@@ -1,11 +1,14 @@
 package com.gengzi.config;
 
+import com.alibaba.ttl.threadpool.TtlExecutors;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.web.servlet.config.annotation.AsyncSupportConfigurer;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+import java.util.concurrent.Executor;
 
 @Configuration
 public class WebMvcConfig implements WebMvcConfigurer {
@@ -40,5 +43,19 @@ public class WebMvcConfig implements WebMvcConfigurer {
         configurer.setTaskExecutor(mvcTaskExecutor());
         // 设置异步请求超时时间（毫秒）
         configurer.setDefaultTimeout(30000);
+    }
+
+
+    @Bean(name = "asyncExecutor")
+    public Executor asyncExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        // 线程池配置（核心线程数、最大线程数等）
+        executor.setCorePoolSize(5);
+        executor.setMaxPoolSize(10);
+        executor.setThreadNamePrefix("Async-");
+        executor.initialize();
+
+        // 用 TTL 包装线程池
+        return TtlExecutors.getTtlExecutor(executor);
     }
 }

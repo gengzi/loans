@@ -182,4 +182,8 @@ public class EvaluateDatum {
     @Column(name = "score", length = 32)
     private String score;
 
+    @Size(max = 64)
+    @Column(name = "kb_id", length = 64)
+    private String kbId;
+
 }
