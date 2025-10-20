@@ -91,16 +91,28 @@ export default function DocumentDetailPage() {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const { toast } = useToast();
   
-  // 使用api实例加载图片的组件，自动应用认证头信息
+  // 图片URL缓存，用于存储已请求的图片URL，避免重复请求
+  const [imageUrlCache, setImageUrlCache] = useState<Record<string, string>>({});
+  // 大图预览状态
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  
+  // 使用api实例加载图片的组件，自动应用认证头信息并使用缓存避免重复请求
   const ImageWithAuth = ({ imgKey, pageNumber, index, totalImages }: { 
     imgKey: string, 
     pageNumber: number, 
     index: number, 
     totalImages: number 
   }) => {
-    const [imageUrl, setImageUrl] = useState<string>('');
+    const [imageUrl, setImageUrl] = useState<string>(imageUrlCache[imgKey] || '');
+    const [isHovered, setIsHovered] = useState(false);
     
     useEffect(() => {
+      // 检查缓存中是否已有该图片的URL
+      if (imageUrlCache[imgKey]) {
+        setImageUrl(imageUrlCache[imgKey]);
+        return;
+      }
+      
       const loadImage = async () => {
         try {
           // 使用api.get获取图片URL，自动应用认证头
@@ -108,7 +120,13 @@ export default function DocumentDetailPage() {
           
           // 从响应中获取url字段作为图片预览地址
           if (response && response.url) {
+            // 更新组件状态
             setImageUrl(response.url);
+            // 更新全局缓存
+            setImageUrlCache(prev => ({
+              ...prev,
+              [imgKey]: response.url
+            }));
           }
         } catch (error) {
           console.error('加载图片失败:', error);
@@ -116,20 +134,76 @@ export default function DocumentDetailPage() {
       };
       
       loadImage();
-    }, [imgKey]);
+    }, [imgKey, imageUrlCache]);
+    
+    // 处理点击事件，显示大图预览
+    const handleImageClick = () => {
+      if (imageUrl) {
+        setPreviewImage(imageUrl);
+      }
+    };
     
     return (
-      <div className="relative border rounded-md overflow-hidden bg-white">
-        <img
-          src={imageUrl || '/file.svg'} // 使用占位图标直到图片加载完成
-          alt={`Page ${pageNumber} - Image ${index + 1}`}
-          className="w-full h-auto object-contain max-h-[150px]"
-        />
+      <div 
+        className="relative border rounded-md overflow-hidden bg-white cursor-zoom-in"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        onClick={handleImageClick}
+      >
+        <div 
+          className={`overflow-hidden transition-all duration-300 ${isHovered ? 'scale-150 z-10' : ''}`}
+          style={{ 
+            transformOrigin: 'center center',
+            position: isHovered ? 'relative' : 'static'
+          }}
+        >
+          <img
+            src={imageUrl || '/file.svg'} // 使用占位图标直到图片加载完成
+            alt={`Page ${pageNumber} - Image ${index + 1}`}
+            className="w-full h-auto object-contain max-h-[150px]"
+          />
+        </div>
         {totalImages > 1 && (
           <div className="absolute top-1 right-1 bg-black/50 text-white text-xs px-1 rounded">
             {index + 1}/{totalImages}
           </div>
         )}
+        {isHovered && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/10">
+            <span className="text-xs bg-black/70 text-white px-2 py-1 rounded">
+              点击查看大图
+            </span>
+          </div>
+        )}
+      </div>
+    );
+  };
+  
+  // 图片预览模态框组件
+  const ImagePreviewModal = ({ imageUrl, onClose }: { imageUrl: string | null, onClose: () => void }) => {
+    if (!imageUrl) return null;
+    
+    return (
+      <div 
+        className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+        onClick={onClose}
+      >
+        <div className="relative max-w-4xl max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+          <button 
+            className="absolute -top-12 right-0 text-white bg-black/50 rounded-full p-2 hover:bg-black/70 transition-colors"
+            onClick={onClose}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+          <img 
+            src={imageUrl} 
+            alt="预览图片" 
+            className="max-w-full max-h-[90vh] object-contain"
+          />
+        </div>
       </div>
     );
   };
@@ -634,8 +708,8 @@ export default function DocumentDetailPage() {
                                 <div className="flex justify-between items-center text-xs text-muted-foreground mb-2">
                                   <span>切片 {chunk.index + 1}</span>
                                 </div>
-                                <div className="text-sm mb-3 line-clamp-3">
-                                  {chunk.content.substring(0, 100)}...
+                                <div className="text-sm mb-3">
+                                  {chunk.content}
                                 </div>
                                 <div className="flex justify-between items-center">
                                   <div className={`w-4 h-4 border rounded flex-shrink-0 ${selectedSection === chunk.id ? 'bg-primary border-primary flex items-center justify-center' : 'border-border'}`}>
@@ -657,6 +731,13 @@ export default function DocumentDetailPage() {
             </div>
           </div>
     </div>
+    
+    {/* 图片预览模态框 */}
+    <ImagePreviewModal 
+      imageUrl={previewImage} 
+      onClose={() => setPreviewImage(null)} 
+    />
+    
     </DashboardLayout>
   );
 }
