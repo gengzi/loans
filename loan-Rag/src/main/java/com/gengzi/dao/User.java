@@ -41,8 +41,8 @@ public class User {
      * 用户唯一标识（主键），通常为UUID或雪花ID，确保分布式环境下唯一
      */
     @Id
-    @Size(max = 32)
-    @Column(name = "id", nullable = false, length = 32)
+    @Size(max = 64)
+    @Column(name = "id", nullable = false, length = 64)
     private String id;
 
     /**
@@ -80,8 +80,7 @@ public class User {
      * 用户昵称（显示用），可修改，非唯一标识，需过滤敏感词
      */
     @Size(max = 100)
-    @NotNull
-    @Column(name = "nickname", nullable = false, length = 100)
+    @Column(name = "nickname", length = 100)
     private String nickname;
 
     /**
@@ -137,24 +136,21 @@ public class User {
      * 是否完成身份认证（如邮箱验证），取值Y（是）/N（否），控制功能权限
      */
     @Size(max = 1)
-    @NotNull
-    @Column(name = "is_authenticated", nullable = false, length = 1)
+    @Column(name = "is_authenticated", length = 1)
     private String isAuthenticated;
 
     /**
      * 账户是否激活可用，取值Y（正常）/N（禁用），禁用后无法登录
      */
     @Size(max = 1)
-    @NotNull
-    @Column(name = "is_active", nullable = false, length = 1)
+    @Column(name = "is_active", length = 1)
     private String isActive;
 
     /**
      * 是否为匿名用户，取值Y（是）/N（否），区分注册用户和临时访问者
      */
     @Size(max = 1)
-    @NotNull
-    @Column(name = "is_anonymous", nullable = false, length = 1)
+    @Column(name = "is_anonymous", length = 1)
     private String isAnonymous;
 
     /**
@@ -174,7 +170,8 @@ public class User {
     /**
      * 是否为超级管理员，取值1（是）/0（否），控制系统最高权限
      */
-    @Column(name = "is_superuser")
+    @NotNull
+    @Column(name = "is_superuser", nullable = false)
     private Boolean isSuperuser;
 
     /**

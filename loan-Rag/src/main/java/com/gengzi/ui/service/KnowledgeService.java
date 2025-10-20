@@ -2,6 +2,7 @@ package com.gengzi.ui.service;
 
 import com.gengzi.request.AddDocumentByS3;
 import com.gengzi.request.KnowledgebaseCreateReq;
+import com.gengzi.response.KnowledgeBasePulldownResponse;
 import com.gengzi.response.KnowledgebaseResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -23,5 +24,7 @@ public interface KnowledgeService {
     void documentAdd(AddDocumentByS3 addDocumentByS3);
 
     void uploadFile(String knowledgeId, MultipartFile[] files);
+
+    List<KnowledgeBasePulldownResponse> knowledgeBaseAll();
 
 }

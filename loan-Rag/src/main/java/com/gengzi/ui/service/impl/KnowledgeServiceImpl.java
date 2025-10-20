@@ -11,6 +11,7 @@ import com.gengzi.dao.repository.UserRepository;
 import com.gengzi.enums.FileProcessStatusEnum;
 import com.gengzi.request.AddDocumentByS3;
 import com.gengzi.request.KnowledgebaseCreateReq;
+import com.gengzi.response.KnowledgeBasePulldownResponse;
 import com.gengzi.response.KnowledgebaseResponse;
 import com.gengzi.s3.S3ClientUtils;
 import com.gengzi.security.UserPrincipal;
@@ -222,5 +223,22 @@ public class KnowledgeServiceImpl implements KnowledgeService {
                 e.printStackTrace();
             }
         }
+    }
+
+    /**
+     * @return
+     */
+    @Override
+    public List<KnowledgeBasePulldownResponse> knowledgeBaseAll() {
+        List<Knowledgebase> knowledgebases = knowledgebaseRepository.findAll();
+        if (knowledgebases != null && !knowledgebases.isEmpty()) {
+            return knowledgebases.stream().map(knowledgebase -> {
+                KnowledgeBasePulldownResponse knowledgeBasePulldownResponse = new KnowledgeBasePulldownResponse();
+                knowledgeBasePulldownResponse.setKbId(knowledgebase.getId());
+                knowledgeBasePulldownResponse.setKbName(knowledgebase.getName());
+                return knowledgeBasePulldownResponse;
+            }).toList();
+        }
+        return List.of();
     }
 }

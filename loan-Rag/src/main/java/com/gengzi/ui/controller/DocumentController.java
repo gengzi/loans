@@ -19,7 +19,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -54,8 +53,6 @@ public class DocumentController {
     }
 
     /**
-     * 根据登录用户获取所有的知识库
-     *
      * @return
      */
     @PostMapping("/api/knowledge-base/create")
@@ -173,7 +170,6 @@ public class DocumentController {
     }
 
 
-
     /**
      * 获取文档解析后的分块详情信息
      */
@@ -196,6 +192,17 @@ public class DocumentController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "失败"));
         }
+    }
+
+    /**
+     * 根据登录用户获取所有的知识库
+     *
+     * @return
+     */
+    @GetMapping("/api/knowledge/all")
+    public Result<List<KnowledgeBasePulldownResponse>> knowledgeBaseAll() {
+        List<KnowledgeBasePulldownResponse> knowledgeBaseAll = knowledgeService.knowledgeBaseAll();
+        return Result.success(knowledgeBaseAll);
     }
 
 

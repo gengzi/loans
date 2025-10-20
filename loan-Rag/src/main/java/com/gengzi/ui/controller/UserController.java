@@ -1,16 +1,16 @@
 package com.gengzi.ui.controller;
 
 
+import com.gengzi.request.UserAddReq;
 import com.gengzi.request.UserLoginReq;
 import com.gengzi.response.JwtResponse;
 import com.gengzi.response.Result;
 import com.gengzi.ui.service.UserService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
 
@@ -28,6 +28,26 @@ public class UserController {
         JwtResponse login = userService.login(loginRequest);
         return Result.success(login);
     }
+
+
+    /**
+     * 用户管理-添加用户
+     */
+    @PostMapping("/user/add")
+    @ResponseBody
+    public Result<?> addUser(@RequestBody UserAddReq userAddReq) {
+        userService.addUser(userAddReq);
+        return Result.success(true);
+    }
+
+    @GetMapping("/list")
+    @ResponseBody
+    public Result<?> list(@RequestParam(required = false) String username,
+                          @PageableDefault(page = 0, size = 10) Pageable pageable) {
+        return Result.success(userService.list(username, pageable));
+    }
+
+
 
 
 }

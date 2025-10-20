@@ -22,4 +22,8 @@ public class IdUtils {
     public static String generateDocumentId() {
         return "d_" + IdUtil.simpleUUID();
     }
+
+    public static String userId() {
+        return "u_" + IdUtil.simpleUUID();
+    }
 }

@@ -34,7 +34,9 @@ public class UserPrincipal implements UserDetails {
     public static UserPrincipal create(User user) {
         // 这里简化处理，实际应用中可能需要添加角色信息
         Collection<GrantedAuthority> authorities = Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"));
-
+        if (user.getIsSuperuser()) {
+            authorities = Collections.singletonList(new SimpleGrantedAuthority("ROLE_ADMIN"));
+        }
         return new UserPrincipal(
                 user.getId(),
                 user.getUsername(),
