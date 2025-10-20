@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from 'next/navigation';
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -24,8 +24,129 @@ import remarkMath from 'remark-math';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeRaw from 'rehype-raw';
 import rehypeKatex from 'rehype-katex';
+import { Copy, Check } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import 'highlight.js/styles/github.css';
 import 'katex/dist/katex.min.css';
+
+// 自定义表格组件来确保正确的边框样式
+const CustomTable = ({ children, ...props }: any) => (
+  <table 
+    {...props} 
+    className="border border-gray-300 border-collapse w-full"
+  >
+    {children}
+  </table>
+);
+
+const CustomThead = ({ children, ...props }: any) => (
+  <thead {...props}>
+    {children}
+  </thead>
+);
+
+const CustomTr = ({ children, ...props }: any) => (
+  <tr {...props}>
+    {children}
+  </tr>
+);
+
+const CustomTh = ({ children, ...props }: any) => (
+  <th 
+    {...props} 
+    className="border border-gray-300 px-4 py-2 bg-gray-50 font-semibold text-left"
+  >
+    {children}
+  </th>
+);
+
+const CustomTd = ({ children, ...props }: any) => (
+  <td 
+    {...props} 
+    className="border border-gray-300 px-4 py-2"
+  >
+    {children}
+  </td>
+);
+
+// 代码组件实现，兼容ReactMarkdown
+const Code = ({ className, children, ...props }: any) => {
+  // 检查是否是代码块（有language-前缀的类名）
+  const isCodeBlock = className && className.includes('language-');
+  
+  if (isCodeBlock) {
+    const [copied, setCopied] = useState(false);
+    const codeRef = useRef<HTMLPreElement>(null);
+    
+    // 提取语言
+    const language = className.replace(/language-/, '') || 'code';
+    
+    // 复制代码
+    const handleCopy = () => {
+      if (codeRef.current) {
+        const text = codeRef.current.textContent || '';
+        navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    };
+    
+    // 创建行号
+    const text = String(children).trim();
+    const lines = text.split('\n').length;
+    const lineNumbers = Array.from({ length: lines }, (_, i) => i + 1);
+    
+    return (
+      <div className="my-4 rounded-md overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm">
+        {/* 代码块头部 */}
+        <div className="bg-gray-50 dark:bg-gray-800 px-4 py-2 flex justify-between items-center">
+          <div className="flex items-center space-x-2">
+            <div className="w-3 h-3 rounded-full bg-red-500"></div>
+            <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+            <div className="w-3 h-3 rounded-full bg-green-500"></div>
+            <span className="ml-2 text-xs font-medium text-gray-600 dark:text-gray-300">{language}</span>
+          </div>
+          <button 
+            onClick={handleCopy}
+            className="p-1.5 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+            aria-label="复制代码"
+          >
+            {copied ? <Check size={16} className="text-green-500" /> : <Copy size={16} />}
+          </button>
+        </div>
+        {/* 代码内容和行号 */}
+        <div className="bg-white dark:bg-gray-900 flex">
+          {/* 行号列 */}
+          <div className="bg-gray-50 dark:bg-gray-800 text-right pr-1.5 pl-1.5 py-1 border-r border-gray-200 dark:border-gray-700 select-none">
+            {lineNumbers.map(num => (
+              <div key={num} className="text-gray-500 dark:text-gray-400 font-mono leading-none" style={{ fontSize: '14px',padding:'1px' }}>
+                {num}
+              </div>
+            ))}
+          </div>
+          {/* 代码内容 */}
+          <pre 
+            ref={codeRef}
+            className="flex-1 p-1 overflow-x-auto font-mono text-gray-800 dark:text-gray-300"
+            style={{ lineHeight: '1.1', margin: 0, padding: '4px', fontSize: '14px' }}
+          >
+            <code className={className} style={{ lineHeight: '1.1', margin: 0, padding: 0, fontSize: '14px' }}>{children}</code>
+          </pre>
+        </div>
+      </div>
+    );
+  }
+  
+  // 内联代码样式
+  return (
+    <code 
+      className="bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded-md text-sm font-mono text-gray-800 dark:text-gray-200"
+      {...props}
+    >
+      {children}
+    </code>
+  );
+};
 
 export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -398,10 +519,18 @@ export default function Home() {
                         </div>
                       )}
                       {aiSummary && (
-                        <div className="prose dark:prose-invert prose-headings:text-gray-800 dark:prose-headings:text-gray-200 prose-p:text-gray-700 dark:prose-p:text-gray-300 prose-strong:text-gray-900 dark:prose-strong:text-white prose-code:bg-gray-100 dark:prose-code:bg-gray-800 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-purple-700 dark:prose-code:text-purple-400 prose-code:before:content-[''] prose-code:after:content-['']">
+                        <div className="prose prose-sm max-w-none text-accent-foreground prose-headings:font-medium prose-headings:text-base prose-p:my-2 prose-li:my-1 prose-code:bg-muted/50 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-ol:pl-5 prose-ul:pl-5 break-words">
                           <ReactMarkdown 
                             remarkPlugins={[remarkGfm, remarkMath]} 
                             rehypePlugins={[rehypeRaw, rehypeHighlight, rehypeKatex]}
+                            components={{
+                              table: CustomTable,
+                              thead: CustomThead,
+                              tr: CustomTr,
+                              th: CustomTh,
+                              td: CustomTd,
+                              code: Code
+                            }}
                           >
                             {aiSummary}
                           </ReactMarkdown>
