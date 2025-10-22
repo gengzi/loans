@@ -314,8 +314,8 @@ export default function RAGEvaluationPage() {
           const subjectData: any = { subject, fullMark: 100 };
           
           // 为每个批次添加对应指标的值
-          recentBatches.forEach((batch: any, index: number) => {
-            const batchKey = `batch_${recentBatches.length - index - 1}`;
+          recentBatches.forEach((batch: any) => {
+            const batchKey = `batch_${batch.batchNum}`;
             let value = 0;
             
             switch(subject) {
@@ -348,9 +348,15 @@ export default function RAGEvaluationPage() {
         setRadarChartData(newRadarData);
       }
       
-      // 设置优化建议
-      if (responseData.length > 0 && responseData[0].directionImprovement) {
-        setOptimizationAdvice(responseData[0].directionImprovement);
+      // 设置优化建议 - 显示最新时间批次的内容
+      if (responseData.length > 0) {
+        // 按创建时间排序，获取最新的批次
+        const sortedByTime = [...responseData].sort((a, b) => 
+          new Date(b.createTime).getTime() - new Date(a.createTime).getTime()
+        );
+        if (sortedByTime[0].directionImprovement) {
+          setOptimizationAdvice(sortedByTime[0].directionImprovement);
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : '获取数据时发生错误');
@@ -754,12 +760,14 @@ export default function RAGEvaluationPage() {
                         if (key !== 'subject' && key !== 'fullMark') {
                           // 为不同批次设置不同颜色
                           const colors = ['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088fe'];
-                          const batchIndex = parseInt(key.split('_')[1]);
-                          const color = colors[batchIndex % colors.length];
+                          const batchNum = key.split('_')[1];
+                          // 使用批次号的最后一位来选择颜色，确保不同批次有不同颜色
+                          const colorIndex = parseInt(batchNum.slice(-1)) % colors.length;
+                          const color = colors[colorIndex];
                           return (
                             <Radar 
                               key={key} 
-                              name={`批次${batchIndex + 1}`} 
+                              name={`批次${batchNum}`} 
                               dataKey={key} 
                               stroke={color} 
                               fill={color} 
