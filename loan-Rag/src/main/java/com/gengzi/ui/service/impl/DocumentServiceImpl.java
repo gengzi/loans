@@ -14,6 +14,7 @@ import com.gengzi.config.S3Properties;
 import com.gengzi.dao.Document;
 import com.gengzi.dao.repository.DocumentRepository;
 import com.gengzi.embedding.load.pdf.OcrPdfReader;
+import com.gengzi.embedding.load.word.WordConvertByMarkItDownReader;
 import com.gengzi.enums.FileProcessStatusEnum;
 import com.gengzi.enums.S3FileType;
 import com.gengzi.request.DocumentSearchReq;
@@ -46,6 +47,8 @@ public class DocumentServiceImpl implements DocumentService {
     private OcrPdfReader reader;
     @Autowired
     private ElasticsearchClient elasticsearchClient;
+    @Autowired
+    private WordConvertByMarkItDownReader wordConvertByMarkItDownReader;
 
     @Value("${esVectorstore.index-name}")
     private String indexName;
@@ -74,13 +77,17 @@ public class DocumentServiceImpl implements DocumentService {
         switch (s3FileType) {
             case PDF:
                 // 处理pdf的解析流程
-                reader.pdfParse(file, documentId);
-                documentRepository.updateStatusById(documentId, String.valueOf(FileProcessStatusEnum.PROCESSING.getCode()));
+                reader.pdfParse(file, document);
+                break;
+            case DOC, DOCX:
+                // 处理word的解析流程
+                wordConvertByMarkItDownReader.wordParse(file, document);
                 break;
             case UNKNOWN:
                 break;
             // 不需要default，因为枚举已覆盖所有可能
         }
+        documentRepository.updateStatusById(documentId, String.valueOf(FileProcessStatusEnum.PROCESSING.getCode()));
     }
 
     /**

@@ -23,6 +23,7 @@ import software.amazon.awssdk.transfer.s3.model.UploadRequest;
 
 import java.io.IOException;
 import java.net.URL;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -74,7 +75,7 @@ public class S3ClientUtils {
     }
 
     public void putObjectByContentBytes(String bucketName, String key, byte[] bytes, String contentType) {
-        logger.info("putObjectByLocalFile bucketName:{},key:{}", bucketName, key);
+        logger.info("putObjectByContentBytes bucketName:{},key:{}", bucketName, key);
         try (S3TransferManager s3TransferManager = S3TransferManager.builder().s3Client(this.s3Client).build()) {
             CompletableFuture<CompletedUpload> completedUploadCompletableFuture = s3TransferManager.upload(
                     UploadRequest.builder()
@@ -83,6 +84,23 @@ public class S3ClientUtils {
                                     .key(key)
                                     .contentType(contentType)) // 根据内容类型调整
                             .requestBody(AsyncRequestBody.fromBytes(bytes))
+                            .build()
+            ).completionFuture();
+            // 会阻塞当前线程，直到异步任务执行完成
+            completedUploadCompletableFuture.join();
+        }
+    }
+
+    public void putObjectByTempFile(String bucketName, String key, Path tempFile,String contentType) {
+        logger.info("putObjectByTempFile bucketName:{},key:{}", bucketName, key);
+        try (S3TransferManager s3TransferManager = S3TransferManager.builder().s3Client(this.s3Client).build()) {
+            CompletableFuture<CompletedUpload> completedUploadCompletableFuture = s3TransferManager.upload(
+                    UploadRequest.builder()
+                            .putObjectRequest(req -> req
+                                    .bucket(bucketName)
+                                    .key(key)
+                                    .contentType(contentType)) // 根据内容类型调整
+                            .requestBody(AsyncRequestBody.fromFile(tempFile))
                             .build()
             ).completionFuture();
             // 会阻塞当前线程，直到异步任务执行完成

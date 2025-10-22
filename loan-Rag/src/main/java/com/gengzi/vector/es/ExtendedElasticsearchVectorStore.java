@@ -251,7 +251,7 @@ public class ExtendedElasticsearchVectorStore extends AbstractObservationVectorS
                             .query(q -> q
                                     .multiMatch(mm -> mm
                                             .query(queryText)
-                                            .fields("title_tks^2", "content_ltks")  // 可根据实际字段调整
+                                            .fields("title_tks", "content_ltks^2")  // 可根据实际字段调整
                                             .type(TextQueryType.BestFields)
                                     )
                             )

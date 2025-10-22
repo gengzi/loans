@@ -86,7 +86,18 @@ public class DocumentMetadataMap {
      */
     public static final String FILE_ID = "fileId";
 
+    /**
+     * 知识库ID
+     */
+    public static final String KB_ID = "kbId";
+
     // ============================= 元数据字段 =============================
+
+    /**
+     * 知识库id
+     */
+    private String kbId;
+
     /**
      * 原始文档唯一标识，自动生成UUID
      * 作用：关联同一文档的所有分割块，支持按文档筛选
@@ -197,7 +208,8 @@ public class DocumentMetadataMap {
      * @param contentType 文档格式类型
      * @param isValid     内容是否有效
      */
-    public DocumentMetadataMap(String documentName, String documentId, String fileId, String contentType, boolean isValid, String pageRange) {
+    public DocumentMetadataMap(String documentName, String documentId, String fileId, String contentType,
+                               boolean isValid, String pageRange, String kbId) {
         this.documentName = documentName;
         this.fileId = fileId;
         this.documentId = documentId; //
@@ -205,6 +217,7 @@ public class DocumentMetadataMap {
         this.contentType = contentType;
         this.isValid = isValid;
         this.pageRange = pageRange;
+        this.kbId = kbId;
     }
 
     // ============================= Map转换方法 =============================
@@ -218,7 +231,7 @@ public class DocumentMetadataMap {
      */
     public static DocumentMetadataMap fromMap(Map<String, Object> metadataMap) {
         // 验证必选字段是否存在，确保元数据完整性
-        if ( !metadataMap.containsKey(FILE_ID) ||
+        if (!metadataMap.containsKey(FILE_ID) || !metadataMap.containsKey(KB_ID) ||
                 !metadataMap.containsKey(DOCUMENT_NAME) || !metadataMap.containsKey(DOCUMENT_ID) ||
                 !metadataMap.containsKey(CONTENT_TYPE) || !metadataMap.containsKey(IS_VALID) ||
                 !metadataMap.containsKey(PAGE_RANGE)) {
@@ -232,7 +245,8 @@ public class DocumentMetadataMap {
                 (String) metadataMap.get(FILE_ID),
                 (String) metadataMap.get(CONTENT_TYPE),
                 (Boolean) metadataMap.get(IS_VALID),
-                (String) metadataMap.get(PAGE_RANGE)
+                (String) metadataMap.get(PAGE_RANGE),
+                (String) metadataMap.get(KB_ID)
         );
 
         // 覆盖自动生成的字段（如果Map中存在）
@@ -275,6 +289,7 @@ public class DocumentMetadataMap {
         metadataMap.put(PAGE_RANGE, pageRange);
         metadataMap.put(IS_VALID, isValid);
         metadataMap.put(FILE_ID, fileId);
+        metadataMap.put(KB_ID, kbId);
 
         if (source != null) {
             metadataMap.put(SOURCE, source);

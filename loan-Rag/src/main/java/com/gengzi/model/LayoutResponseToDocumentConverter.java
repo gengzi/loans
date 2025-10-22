@@ -137,7 +137,7 @@ public class LayoutResponseToDocumentConverter {
             if (StrUtil.isBlankIfStr(md.get())) {
                 // 拼接下一页的md文件信息，判断是否有图片，进行图片内容的替换
                 DocumentMetadataMap documentMetadataMap = new DocumentMetadataMap(fileContext.getFileName(), documentId, fileContext.getFileId(), ContentType.APPLICATION_PDF.getMimeType(),
-                        true, String.valueOf(pageNumber));
+                        true, String.valueOf(pageNumber), fileContext.getKbId());
                 pageMetadataMap.put(pageNumber, new Document(md.get(), documentMetadataMap.toMap()));
                 continue;
             } else {
@@ -155,7 +155,7 @@ public class LayoutResponseToDocumentConverter {
                     }
                 });
                 DocumentMetadataMap currentDocumentMetadataMap = new DocumentMetadataMap(fileContext.getFileName(), documentId, fileContext.getFileId(), ContentType.APPLICATION_PDF.getMimeType(),
-                        true, String.valueOf(pageNumber));
+                        true, String.valueOf(pageNumber), fileContext.getKbId());
 
                 // 两种截断方式：第一种判断当前页结尾是否end就划分完成
                 boolean isEnd = ((pageNumber < pageItems.size() - 1) && layoutParsingPageItem.getMarkdown().getIsEnd());
@@ -256,8 +256,8 @@ public class LayoutResponseToDocumentConverter {
     /**
      * 构建单页Document的元数据（存储额外信息，便于后续处理）
      */
-    private Map<String, Object> buildMetadata(String fileName, String documentId, String fileId, int pageNum) {
-        DocumentMetadataMap documentMetadataMap = new DocumentMetadataMap(fileName, documentId, fileId, ContentType.APPLICATION_PDF.getMimeType(), true, String.valueOf(pageNum));
+    private Map<String, Object> buildMetadata(String fileName, String documentId, String fileId, int pageNum, String kbId) {
+        DocumentMetadataMap documentMetadataMap = new DocumentMetadataMap(fileName, documentId, fileId, ContentType.APPLICATION_PDF.getMimeType(), true, String.valueOf(pageNum), kbId);
         documentMetadataMap.setPageRange(String.valueOf(pageNum));
         return documentMetadataMap.toMap();
 

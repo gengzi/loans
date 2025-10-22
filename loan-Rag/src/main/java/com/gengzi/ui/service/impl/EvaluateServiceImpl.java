@@ -52,6 +52,10 @@ public class EvaluateServiceImpl implements EvaluateService {
     @Qualifier("openAiChatModel")
     private ChatModel chatModel;
 
+//    @Autowired
+//    @Qualifier("openAiChatModelOutPutJson")
+//    private ChatModel chatModelOutPutJson;
+
     @Autowired
     private EvaluateDatumRepository evaluateDatumRepository;
 
@@ -147,6 +151,7 @@ public class EvaluateServiceImpl implements EvaluateService {
             ragChatReq.setConversationId(coonversationId);
             ChatAnswerResponse chatAnswerResponse = chatRagService.chatRagEvaluate(ragChatReq);
             llmAnswerSave(evaluateDatum, chatAnswerResponse);
+
         });
     }
 
@@ -161,6 +166,7 @@ public class EvaluateServiceImpl implements EvaluateService {
         String coonversationId = chatRagService.createEvaluateConversation(kbId);
         asyncExec(batchNum, coonversationId);
         evaluateCalculate(batchNum);
+        evaluateStatistics(batchNum);
     }
 
 
@@ -936,7 +942,7 @@ public class EvaluateServiceImpl implements EvaluateService {
         SearchRequest searchRequest = SearchRequest.of(sr -> sr
                 .index("rag_store_new")
                 .query(q -> q.term(eq -> eq.field("metadata.documentId").value(targetDocumentId)))
-                .size(100)
+                .size(1000)
         );
 
         // 3. 执行查询

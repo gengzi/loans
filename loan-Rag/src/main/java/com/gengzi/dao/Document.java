@@ -81,9 +81,9 @@ public class Document {
     /**
      * 文档内容类型（如：文本、表格、图片、混合类型等）
      */
-    @Size(max = 32)
+    @Size(max = 256)
     @NotNull
-    @Column(name = "type", nullable = false, length = 32)
+    @Column(name = "type", nullable = false, length = 256)
     private String type;
 
     /**

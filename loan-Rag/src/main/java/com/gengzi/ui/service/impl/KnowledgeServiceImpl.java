@@ -19,6 +19,8 @@ import com.gengzi.ui.service.KnowledgeService;
 import com.gengzi.utils.IdUtils;
 import com.gengzi.utils.UserDetails;
 import jakarta.persistence.criteria.Predicate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -36,7 +38,7 @@ import java.util.stream.Collectors;
 @Service
 public class KnowledgeServiceImpl implements KnowledgeService {
 
-
+    private static final Logger logger = LoggerFactory.getLogger(KnowledgeServiceImpl.class);
     @Autowired
     private UserRepository userRepository;
 
@@ -167,37 +169,41 @@ public class KnowledgeServiceImpl implements KnowledgeService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void documentCreate(AddDocumentByS3 addDocumentByS3) {
-        HeadObjectResponse headObjectResponse = s3ClientUtils.headObject(addDocumentByS3.getBucket(), addDocumentByS3.getKey());
-
-        if (headObjectResponse != null) {
-            // 入库
-            Document document = new Document();
-            document.setId(IdUtils.generateDocumentId());
-            document.setKbId(addDocumentByS3.getKbId());
-            document.setName(addDocumentByS3.getKey().substring(addDocumentByS3.getKey().lastIndexOf("/") + 1));
-            document.setLocation(addDocumentByS3.getKey());
-            document.setSize(headObjectResponse.contentLength());
-            document.setType(headObjectResponse.contentType());
-            document.setStatus(String.valueOf(FileProcessStatusEnum.UN_PROCESSED.getCode()));
-            document.setRun("1");
-            document.setCreateTime(System.currentTimeMillis());
-            document.setCreateDate(Instant.now());
-            document.setUpdateTime(System.currentTimeMillis());
-            document.setUpdateDate(Instant.now());
-            document.setSuffix(addDocumentByS3.getKey().substring(addDocumentByS3.getKey().lastIndexOf(".") + 1));
-            document.setTokenNum(0);
-            document.setChunkNum(0);
-            document.setProgress(0.0f);
-            document.setProgressMsg("");
-            document.setProcessBeginAt(Instant.now());
-            document.setProcessDuration(0.0f);
-            document.setMetaFields("");
-            document.setThumbnail("");
-            document.setCreatedBy(UserDetails.getUser().getId());
-            documentRepository.save(document);
-            Knowledgebase knowledgebase = knowledgebaseRepository.findById(addDocumentByS3.getKbId()).get();
-            knowledgebase.setDocNum(knowledgebase.getDocNum() + 1);
-            knowledgebaseRepository.save(knowledgebase);
+        try {
+            HeadObjectResponse headObjectResponse = s3ClientUtils.headObject(addDocumentByS3.getBucket(), addDocumentByS3.getKey());
+            if (headObjectResponse != null) {
+                // 入库
+                Document document = new Document();
+                document.setId(IdUtils.generateDocumentId());
+                document.setKbId(addDocumentByS3.getKbId());
+                document.setName(addDocumentByS3.getKey().substring(addDocumentByS3.getKey().lastIndexOf("/") + 1));
+                document.setLocation(addDocumentByS3.getKey());
+                document.setSize(headObjectResponse.contentLength());
+                document.setType(headObjectResponse.contentType());
+                document.setStatus(String.valueOf(FileProcessStatusEnum.UN_PROCESSED.getCode()));
+                document.setRun("1");
+                document.setCreateTime(System.currentTimeMillis());
+                document.setCreateDate(Instant.now());
+                document.setUpdateTime(System.currentTimeMillis());
+                document.setUpdateDate(Instant.now());
+                document.setSuffix(addDocumentByS3.getKey().substring(addDocumentByS3.getKey().lastIndexOf(".") + 1));
+                document.setTokenNum(0);
+                document.setChunkNum(0);
+                document.setProgress(0.0f);
+                document.setProgressMsg("");
+                document.setProcessBeginAt(Instant.now());
+                document.setProcessDuration(0.0f);
+                document.setMetaFields("");
+                document.setThumbnail("");
+                document.setCreatedBy(UserDetails.getUser().getId());
+                documentRepository.save(document);
+                Knowledgebase knowledgebase = knowledgebaseRepository.findById(addDocumentByS3.getKbId()).get();
+                knowledgebase.setDocNum(knowledgebase.getDocNum() + 1);
+                knowledgebaseRepository.save(knowledgebase);
+            }
+        } catch (Exception e) {
+            logger.error("文档信息入库失败:{} ", e.getMessage(), e);
+            throw new RuntimeException("文档信息入库失败");
         }
     }
 
@@ -208,7 +214,6 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     @Override
     public void uploadFile(String knowledgeId, MultipartFile[] files) {
         // 2. 批量处理文件上传
-        List<String> fileUrls = new ArrayList<>();
         for (MultipartFile file : files) {
             // 2.1 单个文件校验：文件大小、类型
             if (file.isEmpty()) {

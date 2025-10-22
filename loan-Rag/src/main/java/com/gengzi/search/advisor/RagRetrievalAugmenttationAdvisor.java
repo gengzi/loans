@@ -12,6 +12,7 @@ import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.rag.advisor.RetrievalAugmentationAdvisor;
 import org.springframework.ai.rag.generation.augmentation.ContextualQueryAugmenter;
+import org.springframework.ai.rag.preretrieval.query.transformation.CompressionQueryTransformer;
 import org.springframework.ai.rag.retrieval.search.VectorStoreDocumentRetriever;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,6 +52,10 @@ public class RagRetrievalAugmenttationAdvisor {
 
         RewriteQueryTransformerWithHistory rewriteQueryTransformerWithHistory = RewriteQueryTransformerWithHistory.builder()
                 .chatClientBuilder(ChatClient.builder(chatModel)).build();
+        // 查询压缩，将之前的历史对话和当前问题压缩为一个独立的查询
+        CompressionQueryTransformer compressionQueryTransformer =
+                CompressionQueryTransformer.builder().chatClientBuilder(ChatClient.builder(chatModel)).build();
+
 
 
         Advisor retrievalAugmentationAdvisor = RetrievalAugmentationAdvisor.builder()

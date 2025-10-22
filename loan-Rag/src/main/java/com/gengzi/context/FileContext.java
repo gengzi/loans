@@ -23,11 +23,12 @@ public class FileContext {
     private String fileId;
     private URL fileUrl;
     private String documentId;
+    private String kbId;
 
     private FileContext(String eTag, long contentLength, String contentType,
                         Instant lastModified, String versionId, String storageClass,
                         Map<String, String> userMetadata, boolean isDeleteMarker,
-                        String bucketName, String key, String documentId) {
+                        String bucketName, String key, String documentId, String kbId) {
         this.eTag = eTag;
         this.contentLength = contentLength;
         this.contentType = contentType;
@@ -39,12 +40,13 @@ public class FileContext {
         this.bucketName = bucketName;
         this.key = key;
         this.documentId = documentId;
+        this.kbId = kbId;
     }
 
     /**
      * 从HeadObjectResponse构建元数据对象
      */
-    public static FileContext from(HeadObjectResponse headResponse, String bucketName, String key, String documentId) {
+    public static FileContext from(HeadObjectResponse headResponse, String bucketName, String key, String documentId, String kbId) {
         return new FileContext(
                 headResponse.eTag(),
                 headResponse.contentLength(),
@@ -56,8 +58,17 @@ public class FileContext {
                 headResponse.deleteMarker() == null ? false : true,
                 bucketName,
                 key,
-                documentId
+                documentId,
+                kbId
         );
+    }
+
+    public String getKbId() {
+        return kbId;
+    }
+
+    public void setKbId(String kbId) {
+        this.kbId = kbId;
     }
 
     public String getDocumentId() {
@@ -158,6 +169,8 @@ public class FileContext {
                 ", storageClass='" + storageClass + '\'' +
                 ", isDeleteMarker=" + isDeleteMarker +
                 ", fileUrl=" + fileUrl +
+                ", documentId='" + documentId + '\'' +
+                ", kbId='" + kbId + '\'' +
                 '}';
     }
 

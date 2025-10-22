@@ -19,7 +19,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -132,7 +131,7 @@ public class PPStructureV3Tool {
      * @return CompletableFuture<LayoutParsingResponse> 异步结果对象
      * 可通过 thenAccept()/thenApply() 处理成功结果，exceptionally() 处理异常
      */
-    @Async("asyncTaskExecutor") // 核心注解：标记该方法为异步执行，由Spring线程池调度
+    //@Async("asyncTaskExecutor") // 核心注解：标记该方法为异步执行，由Spring线程池调度
     public CompletableFuture<LayoutParsingResponse> asyncCallLayoutApi(LayoutParsingRequest request) {
         try {
             // 1. 构建请求头（JSON格式）
@@ -147,7 +146,7 @@ public class PPStructureV3Tool {
             return CompletableFuture.supplyAsync(() -> {
                 // 底层仍用RestTemplate同步调用，但执行在异步线程池
                 return restTemplate.postForObject(url, httpEntity, LayoutParsingResponse.class);
-            });
+            }, threadPoolTaskExecutor);
         } catch (RestClientException e) {
             // 捕获请求前的异常（如参数序列化失败），返回异常的CompletableFuture
             CompletableFuture<LayoutParsingResponse> future = new CompletableFuture<>();
