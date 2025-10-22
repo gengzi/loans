@@ -33,6 +33,8 @@ dependencies {
     implementation 'org.springframework.ai:spring-ai-starter-model-ollama'
 //    implementation 'org.springframework.ai:spring-ai-starter-vector-store-milvus'
     implementation 'org.springframework.ai:spring-ai-advisors-vector-store'
+    // https://mvnrepository.com/artifact/org.springframework.ai/spring-ai-markdown-document-reader
+    implementation "org.springframework.ai:spring-ai-markdown-document-reader:1.0.3"
     implementation 'org.springframework.ai:spring-ai-pdf-document-reader'
     // es
 //    implementation 'org.springframework.ai:spring-ai-starter-vector-store-elasticsearch'
@@ -41,6 +43,8 @@ dependencies {
     // security
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0")
     implementation 'org.springframework.boot:spring-boot-starter-security'
+    // mcp
+    implementation 'org.springframework.ai:spring-ai-starter-mcp-client-webflux'
 
 //    implementation 'org.springdoc:springdoc-openapi-ui:1.7.0' // 包含UI界面
 //    implementation 'org.springdoc:springdoc-openapi-security:1.7.0' // 若有Spring Security需添加
@@ -72,6 +76,9 @@ dependencies {
     // https://mvnrepository.com/artifact/com.alibaba/transmittable-thread-local
     implementation("com.alibaba:transmittable-thread-local:2.14.5")
 
+    // 解析markdown
+    implementation 'org.commonmark:commonmark-ext-gfm-tables:0.22.0'
+    implementation 'org.commonmark:commonmark-ext-image-attributes:0.22.0'
 
     testImplementation platform('org.junit:junit-bom:5.10.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
