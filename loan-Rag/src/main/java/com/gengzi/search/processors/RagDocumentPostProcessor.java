@@ -35,7 +35,7 @@ public class RagDocumentPostProcessor implements DocumentPostProcessor {
 
     @Override
     public List<Document> process(Query query, List<Document> documents) {
-        if(documents.size() <= 0){
+        if (documents.size() <= 0) {
             return documents;
         }
         // 查询父文档内容，将相关的内容都塞给大模型
@@ -48,14 +48,15 @@ public class RagDocumentPostProcessor implements DocumentPostProcessor {
 
         List<RerankModelResult> results = call.getResults();
         logger.info("rerankerModelResponse:{}", call);
-        for (RerankModelResult result : results){
+        for (RerankModelResult result : results) {
             RerankResultData output = result.getOutput();
             Double relevanceScore = output.getRelevanceScore();
             Integer index = output.getIndex();
-            if(relevanceScore > 0.5){
+            if (relevanceScore > 0.3) {
+                logger.debug("分数:{},相关的文档:{}", relevanceScore, documents.get(index).getText());
                 sortedDocuments.add(documents.get(index));
-            }else {
-                logger.info("排除不相关的文档:{}",documents.get(index).getText());
+            } else {
+                logger.info("分数:{},排除不相关的文档:{}", relevanceScore, documents.get(index).getText());
             }
         }
         return sortedDocuments;

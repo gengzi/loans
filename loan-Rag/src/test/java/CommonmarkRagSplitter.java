@@ -1,10 +1,7 @@
 import com.knuddels.jtokkit.Encodings;
 import com.knuddels.jtokkit.api.Encoding;
-import com.knuddels.jtokkit.api.IntArrayList;
 import com.knuddels.jtokkit.api.ModelType;
 import org.commonmark.ext.gfm.tables.TableBlock;
-import org.commonmark.ext.gfm.tables.TableCell;
-import org.commonmark.ext.gfm.tables.TableRow;
 import org.commonmark.ext.gfm.tables.TablesExtension;
 import org.commonmark.node.*;
 import org.commonmark.parser.Parser;
@@ -47,117 +44,198 @@ public class CommonmarkRagSplitter {
     // ------------------------------ 测试示例 ------------------------------
     public static void main(String[] args) {
         String testMd = """
-                # 测试
+                本文档涵盖 Markdown 常用元素，可直接复制使用，帮助快速掌握各类格式的编写方法。
                 
-                💡 字多 ≠ 有价值
+                ------
                 
-                周报不是为了表现工作量，而是给团队提供最基本的“信息透明”。尽量挑选重要信息来写。
+                ## 一、标题层级
                 
-                汇报人：...
+                Markdown 支持 6 级标题，通过 `#` 数量区分，`#` 越多级别越低。
                 
-                日期：2022-01-20
+                - `# 一级标题` → 对应 HTML 的 `<h1>`
+                - `## 二级标题` → 对应 HTML 的 `<h2>`
+                - `### 三级标题` → 对应 HTML 的 `<h3>`
+                - `#### 四级标题` → 对应 HTML 的 `<h4>`
+                - `##### 五级标题` → 对应 HTML 的 `<h5>`
+                - `###### 六级标题` → 对应 HTML 的 `<h6>`
                 
-                ## 本周重点
+                ------
                 
-                ### 1.任务进展
+                ## 二、文本格式
                 
-                import org.springframework.beans.factory.annotation.Autowired;
-                import org.springframework.stereotype.Service;
-                import org.springframework.web.reactive.function.client.WebClient;
-                import reactor.core.publisher.Mono;
+                用于突出或区分文本内容，常见格式如下：
                 
-                @Service
-                public class MarkItDownMcpReactiveService {
-                 private static final String MCP\\_CONVERT\\_PATH = "/mcp";
+                - **加粗文本**：用 `**` 包裹，例如 `**这是加粗文本**`
+                - *斜体文本*：用 `*` 包裹，例如 `*这是斜体文本*`
+                - ***加粗斜体文本***：用 `***` 包裹，例如 `***这是加粗斜体文本***`
+                - ~~删除线文本~~：用 `~~` 包裹，例如 `~~这是删除线文本~~`
+                - 下划线文本：用 `<u>` 标签包裹，例如 `<u>这是下划线文本</u>`
+                - `行内代码`：用 ``` 包裹，例如 ``print("Hello World")``
                 
-                 @Autowired
-                 private WebClient webClient;
+                ------
                 
-                 /\\*\\*
-                 \\* 异步调用MCP服务转换文档
-                 \\* @param resourceUri 资源URI
-                 \\* @return 异步结果（Mono）
-                 \\*/
-                 public Mono<String> convertToMarkdownAsync(String resourceUri) {
-                 // 构造请求体
-                 McpConvertRequest request = new McpConvertRequest();
-                 request.setTool("convert\\_to\\_markdown");
-                 McpConvertRequest.McpConvertParams params = new McpConvertRequest.McpConvertParams();
-                 params.setUri(resourceUri);
-                 request.setParameters(params);
+                ## 三、引用
                 
-                 // 发送异步POST请求
-                 return webClient.post()
-                 .uri(MCP\\_CONVERT\\_PATH)
-                 .bodyValue(request)
-                 .retrieve()
-                 .bodyToMono(McpConvertResponse.class)
-                 .flatMap(response -> {
-                 if ("failed".equals(response.getStatus())) {
-                 return Mono.error(new RuntimeException("转换失败：" + response.getError()));
-                 }
-                 return Mono.just(response.getMarkdown());
-                 });
-                 }
-                }
+                用于引用外部内容或强调特定段落，支持嵌套。
                 
-                本周完成了哪些任务、整体进度如何。
+                1. 基础引用：用 `>` 开头
                 
-                本周完成了XXX需求开发，已经提测。项目整体进度比预期延迟1d，预计下周三可以开始正式测试。
+                > 这是一级引用，常用于引用他人观点或文献内容。
                 
-                ![11](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA+gAAAQ8CAYAAA)
+                1. 嵌套引用：在一级引用内加 `>>`
                 
-                ### 2.相关数据
+                > 这是一级引用
+                >
+                >\s
+                >
+                > > 这是二级嵌套引用
+                > >
+                > >\s
+                > >
+                > > > 这是三级嵌套引用
                 
-                呈现相关数据以及背后的原因（如有）。
+                ------
                 
-                本周日均 UV 3000，同比上周上涨20%。原因是周二投放的运营活动生效，吸引了部分新用户。
+                ## 四、列表
                 
-                |             |              |
-                | ----------- | ------------ |
-                | 本周日均 UV | 3000（↑20%） |
-                | 上周日均 UV | 2500         |
+                分为有序列表和无序列表，支持嵌套使用。
                 
-                具体详见「数据接口」
+                ### 1. 无序列表
                 
-                ### 3.风险同步
+                用 `-`、`+` 或 `*` 开头，三者效果一致。
                 
-                存在哪些风险、对应的对策是什么。
+                - 无序列表项 1
+                - 无序列表项 2
+                  - 嵌套无序列表项 2.1
+                  - 嵌套无序列表项 2.2
+                - 无序列表项 3
                 
-                由于需要调用外网数据，需要在预发环境搭建代理，接下来需要考虑代理的通用性，在其他需要外网数据配合的需求中可以直接使用。
+                ### 2. 有序列表
                 
-                以下是截至2023年全球十大富豪的财富情况：
+                用数字 + `.` 开头，数字顺序不影响显示结果（最终会自动排序）。
                 
-                |                                                              |                                 |      |                               |                    |
-                | ------------------------------------------------------------ | ------------------------------- | ---- | ----------------------------- | ------------------ |
-                | 排名                                                         | 姓名                            | 国籍 | 财富来源                      | 财富净值（亿美元） |
-                | 1                                                            | 埃隆·马斯克 (Elon Musk)         | 美国 | 特斯拉、SpaceX、推特等        | 2,190              |
-                | 2                                                            | 杰夫·贝佐斯 (Jeff Bezos)        | 美国 | 亚马逊、蓝色起源等            | 1,670              |
-                | 3                                                            | 伯纳德·阿诺特 (Bernard Arnault) | 法国 | 路威酩轩集团 (LVMH)           | 1,500              |
-                | 4                                                            | 拉里·埃利森 (Larry Ellison)     | 美国 | 甲骨文公司 (Oracle)           | 1,130              |
-                | 5                                                            | 比尔·盖茨 (Bill Gates)          | 美国 | 微软、比尔及梅琳达·盖茨基金会 | 1,080              |
-                | 6                                                            | 史蒂夫·鲍尔默 (Steve Ballmer)   | 美国 | 微软、洛杉矶快船队等          | 1,030              |
-                | 7                                                            | 沃伦·巴菲特 (Warren Buffett)    | 美国 | 伯克希尔·哈撒韦公司           | 1,020              |
-                | 8                                                            | 劳伦斯·埃利森 (Larry Ellison)   | 美国 | 甲骨文公司 (Oracle)           | 1,000              |
-                | 9                                                            | 马克·扎克伯格 (Mark Zuckerberg) | 美国 | Facebook、Meta Platforms      | 920                |
-                | 10                                                           | 瑞·达利欧 (Ray Dalio)           | 美国 | 桥水投资公司                  | 840                |
-                | 注：以上数据仅供参考，实际财富净值可能会因市场波动、投资变化等因素而有所变动。如需获取最新数据，请参考权威财经媒体或相关报告。 |                                 |      |                               |                    |
+                1. 有序列表项 1
+                2. 有序列表项 2
+                   1. 嵌套有序列表项 2.1
+                   2. 嵌套有序列表项 2.2
+                3. 有序列表项 3
                 
-                ## 下周计划
+                ------
                 
-                接下来要做什么、是否需要其他协助。
+                ## 五、代码块
                 
-                下周开始主要投入XXX、XXX等功能点开发，依赖于中台团队提供接口，下周一和中台团队的xxx沟通确认。
+                用于展示多行代码，支持指定编程语言以实现语法高亮。
                 
-                ## 思考
+                ### 1. 基础代码块
                 
-                有什么想法或心得体会，都可以拿出来分享下。
+                用 3 个 ``` 包裹，不指定语言时无语法高亮。
+                
+                ```plaintext
+                # 这是基础代码块，无语法高亮
+                def hello():
+                    print("Hello Markdown")
+                hello()
+                ```
+                
+                ### 2. 带语法高亮的代码块
+                
+                在开头的 3 个 ``` 后指定编程语言（如 `python`、`java`、`html`）。
+                
+                ```python
+                # 这是 Python 语法高亮代码块
+                def calculate_sum(a: int, b: int) -> int:
+                    ""\"计算两个整数的和""\"
+                    return a + b
+                
+                result = calculate_sum(5, 3)
+                print(f"结果：{result}")  # 输出：结果：8
+                ```
+                
+                ------
+                
+                ## 六、链接
+                
+                分为普通链接、锚点链接和图片链接三类。
+                
+                ### 1. 普通链接
+                
+                格式：`[链接文本](链接地址 "可选的提示文本")`
+                
+                - [Markdown 官方文档](https://daringfireball.net/projects/markdown/)
+                - [GitHub](https://github.com/)
+                
+                ### 2. 锚点链接
+                
+                用于跳转到文档内指定标题，格式：`[链接文本](#标题内容)`（标题内容需与目标标题完全一致，不区分大小写）。
+                
+                - [跳转到 “表格” 部分](https://www.doubao.com/chat/25769966519370242#七、表格)
+                - [跳转到 “分割线” 部分](https://www.doubao.com/chat/25769966519370242#八、分割线)
+                
+                ### 3. 图片链接
+                
+                格式：`![图片加载失败时的提示文本](图片地址 "鼠标悬停时的提示文本")`
+                
+                - 本地图片：`![示例图片](./images/sample.jpg "本地示例图片")`
+                
+                - 网络图片：
+                
+                  ![img](data:image/svg+xml,%3csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20version=%271.1%27%20width=%27400%27%20height=%27256%27/%3e)
+                
+                  ![image](https://github.githubassets.com/images/guide/logo_text.svg)
+                
+                 \s
+                
+                ------
+                
+                ## 七、表格
+                
+                支持表头、对齐方式设置，用 `|` 分隔列，`-` 分隔表头与内容。
+                
+                ### 1. 基础表格
+                
+                | 姓名 | 年龄 | 职业     |
+                | ---- | ---- | -------- |
+                | 张三 | 25   | 程序员   |
+                | 李四 | 30   | 产品经理 |
+                
+                ### 2. 带对齐方式的表格
+                
+                在 `-` 后加 `:` 控制对齐，`:` 在左侧为左对齐，右侧为右对齐，两侧都有为居中对齐。
+                
+                | 左对齐列 | 居中对齐列 | 右对齐列 |
+                | -------- | ---------- | -------- |
+                | 内容 1   | 内容 A     | 100      |
+                | 内容 2   | 内容 B     | 200      |
+                
+                ------
+                
+                ## 八、分割线
+                
+                用 3 个及以上的 `-`、`*` 或 `_` 实现，单独占一行，前后需空行。
+                
+                ------
+                
+                ------
+                
+                ------
+                
+                ------
+                
+                ## 九、任务列表
+                
+                用 `- [ ]` 表示未完成，`- [x]` 表示已完成，支持嵌套。
+                
+                -  完成 Markdown 基础元素学习
+                -  编写示例文档
+                -  练习表格与代码块使用
+                  -  完成基础表格练习
+                  -  完成语法高亮代码块练习
                 """;
 
         CommonmarkRagSplitter commonmarkRagSplitter = new CommonmarkRagSplitter(300, 10);
         List<Chunk> split = commonmarkRagSplitter.split(testMd);
         for (Chunk chunk : split) {
-            System.out.println("分块："+  chunk.getType() + ": " + chunk.getContent() +"\n\n");
+            System.out.println("分块：" + chunk.getType() + ": " + chunk.getContent() + "\n\n");
             System.out.println("---------------------------------------------------");
         }
 
@@ -173,49 +251,86 @@ public class CommonmarkRagSplitter {
         // 预处理：统一换行符，重置临时状态
         String content = markdownContent.replace("\r\n", "\n").replace("\r", "\n");
         resetTempState();
-
         // 解析为 AST
         Node document = markdownParser.parse(content);
 
+
+
         // 遍历 AST 节点，按语法边界分块
         document.accept(new AbstractVisitor() {
-            @Override
-            public void visit(Heading heading) {
-                handleHeading(heading);
-                super.visit(heading);
-            }
+//            /**
+//             * 针对标题节点的处理
+//             * @param heading
+//             */
+//            @Override
+//            public void visit(Heading heading) {
+//                handleHeading(heading);
+//                super.visit(heading);
+//            }
 
+            /**
+             * 针对围栏代码块
+             * 围栏代码块是 Markdown 中用于表示多行代码的语法，通常用 3 个反引号（```） 或 3 个波浪线（~~~） 作为开始和结束标记
+             * @param codeBlock
+             */
             @Override
             public void visit(FencedCodeBlock codeBlock) {
                 handleCodeBlock(codeBlock);
                 super.visit(codeBlock);
             }
 
+            /**
+             * 针对表格的处理
+             * @param table
+             */
             @Override
             public void visit(CustomBlock table) {
-                if(table instanceof TableBlock){
+                if (table instanceof TableBlock) {
                     handleTable((TableBlock) table);
                 }
                 super.visit(table);
             }
 
+
+//            /**
+//             * 针对行内代码的处理
+//             * @param code
+//             */
+//            @Override
+//            public void visit(Code code) {
+//                handleCode(code);
+//                super.visit(code);
+//            }
+
+            /**
+             * 针对image 的处理
+             * @param image
+             */
             @Override
             public void visit(Image image) {
                 handleImage(image);
                 super.visit(image);
             }
 
-            @Override
-            public void visit(Paragraph paragraph) {
-                handleParagraph(paragraph);
-                super.visit(paragraph);
-            }
+//            /**
+//             * 针对段落的处理
+//             * @param paragraph
+//             */
+//            @Override
+//            public void visit(Paragraph paragraph) {
+//                handleParagraph(paragraph);
+//                super.visit(paragraph);
+//            }
 
-            @Override
-            public void visit(ListItem listItem) {
-                handleListItem(listItem);
-                super.visit(listItem);
-            }
+//            /**
+//             * 针对无序或者有序列表
+//             * @param listItem
+//             */
+//            @Override
+//            public void visit(ListItem listItem) {
+//                handleListItem(listItem);
+//                super.visit(listItem);
+//            }
         });
 
         // 保存最后一段临时内容
@@ -288,6 +403,14 @@ public class CommonmarkRagSplitter {
         splitIfOverLength(); // 检查是否超长
     }
 
+    /**
+     * 处理段落：临时拼接，后续长度控制
+     */
+    private void handleCode(Code code) {
+        String literal = code.getLiteral();
+        tempContent.append(literal);
+    }
+
 
     // ------------------------------ 辅助方法 ------------------------------
 
@@ -336,7 +459,7 @@ public class CommonmarkRagSplitter {
 
             @Override
             public void visit(CustomBlock table) {
-                if(table instanceof TableBlock){
+                if (table instanceof TableBlock) {
                     TableBlock tableBlock = (TableBlock) table;
                     // 特殊处理表格：遍历行和单元格
                     TableBlockTextExtractor tableBlockTextExtractor = new TableBlockTextExtractor();

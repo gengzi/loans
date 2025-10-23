@@ -91,6 +91,16 @@ public class DocumentMetadataMap {
      */
     public static final String KB_ID = "kbId";
 
+    /**
+     * md 解析格式独有的字段，块内容类型，用于拆分chunk时作为属性使用，不放入metadata基础字段中，只作为md格式独有元数据信息
+     */
+    public static final String CHUNK_CONTENT_TYPE = "chunkContentType";
+
+    /**
+     * 原始文档内容
+     */
+    public static final String ORIGINAL_CONTENT = "originalContent";
+
     // ============================= 元数据字段 =============================
 
     /**
@@ -200,6 +210,19 @@ public class DocumentMetadataMap {
      */
     private String fileId;
 
+
+    /**
+     * md 解析格式独有的字段，块内容类型，用于拆分chunk时作为属性使用，不放入metadata基础字段中，只作为md格式独有元数据信息
+     */
+    private String chunkContentType;
+
+    /**
+     * 原始文档内容
+     */
+    private String originalContent;
+
+
+
     // ============================= 构造方法 =============================
 
     /**
@@ -259,6 +282,12 @@ public class DocumentMetadataMap {
         if (metadataMap.containsKey(CREATED_AT)) {
             metadata.createdAt = (String) metadataMap.get(CREATED_AT);
         }
+        if (metadataMap.containsKey(CHUNK_CONTENT_TYPE)) {
+            metadata.chunkContentType = (String) metadataMap.get(CHUNK_CONTENT_TYPE);
+        }
+        if (metadataMap.containsKey(ORIGINAL_CONTENT)){
+            metadata.originalContent = (String) metadataMap.get(ORIGINAL_CONTENT);
+        }
 
         // 设置可选字段
         metadata.accessLevel = (String) metadataMap.get(ACCESS_LEVEL);
@@ -290,6 +319,13 @@ public class DocumentMetadataMap {
         metadataMap.put(IS_VALID, isValid);
         metadataMap.put(FILE_ID, fileId);
         metadataMap.put(KB_ID, kbId);
+
+        if (chunkContentType != null) {
+            metadataMap.put(CHUNK_CONTENT_TYPE, chunkContentType);
+        }
+        if (originalContent != null) {
+            metadataMap.put(ORIGINAL_CONTENT, originalContent);
+        }
 
         if (source != null) {
             metadataMap.put(SOURCE, source);

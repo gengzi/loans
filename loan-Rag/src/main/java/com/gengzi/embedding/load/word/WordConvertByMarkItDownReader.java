@@ -6,14 +6,24 @@ import com.gengzi.context.DocumentMetadataMap;
 import com.gengzi.context.FileContext;
 import com.gengzi.dao.Document;
 import com.gengzi.dao.repository.DocumentRepository;
+import com.gengzi.embedding.split.RAGMarkdownSplitter;
 import com.gengzi.embedding.split.TextSplitterTool;
+import com.gengzi.enums.BlockType;
 import com.gengzi.enums.FileProcessStatusEnum;
 import com.gengzi.request.MarkItDownRequest;
 import com.gengzi.s3.S3ClientUtils;
 import com.gengzi.utils.FileIdGenerator;
+import com.gengzi.utils.MdImageRegexExtractor;
 import com.gengzi.vector.es.EsVectorDocumentConverter;
+import com.knuddels.jtokkit.Encodings;
+import com.knuddels.jtokkit.api.Encoding;
+import com.knuddels.jtokkit.api.EncodingRegistry;
+import com.knuddels.jtokkit.api.EncodingType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.ai.chat.messages.SystemMessage;
+import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.reader.markdown.MarkdownDocumentReader;
 import org.springframework.ai.reader.markdown.config.MarkdownDocumentReaderConfig;
 import org.springframework.ai.vectorstore.VectorStore;
@@ -39,7 +49,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -52,6 +64,8 @@ public class WordConvertByMarkItDownReader {
 
     public static final String WORD_MIMETYPE = "application/msword";
     private static final Logger logger = LoggerFactory.getLogger(WordConvertByMarkItDownReader.class);
+    private final EncodingRegistry registry = Encodings.newLazyEncodingRegistry();
+    private final Encoding encoding = this.registry.getEncoding(EncodingType.CL100K_BASE);
     @Autowired
     private S3Properties s3Properties;
     @Autowired
@@ -69,6 +83,9 @@ public class WordConvertByMarkItDownReader {
     private ThreadPoolTaskExecutor threadPoolTaskExecutor;
     @Autowired
     private DocumentRepository documentRepository;
+    @Autowired
+    @Qualifier("openAiChatModel")
+    private ChatModel chatModel;
 
     public void wordParse(String filePath, Document document) {
         // 调用markItDown api服务，将word转为markdown
@@ -126,13 +143,11 @@ public class WordConvertByMarkItDownReader {
                     // 将转换后的markdown进行分块处理
                     List<org.springframework.ai.document.Document> convert = convert(ragWord, fileContext);
                     logger.info("转换后的第一个Document：{}", convert.get(0).getText());
-                    // 进行文本分割
-                    List<org.springframework.ai.document.Document> splitDocuments = textSplitterTool.splitCustomized(convert, 500, 200, 100, 10000, false);
                     // 丰富存入向量库内容
-                    List<org.springframework.ai.document.Document> convert1 = EsVectorDocumentConverter.convert(splitDocuments, fileContext);
+                    List<org.springframework.ai.document.Document> convert1 = EsVectorDocumentConverter.convert(convert, fileContext);
                     vectorStore.add(convert1);
                     // 将文档标记为已处理
-                    documentRepository.updateChunkNumAndStatusById(fileContext.getDocumentId(), splitDocuments.size(), String.valueOf(FileProcessStatusEnum.PROCESS_SUCCESS.getCode()));
+                    documentRepository.updateChunkNumAndStatusById(fileContext.getDocumentId(), convert.size(), String.valueOf(FileProcessStatusEnum.PROCESS_SUCCESS.getCode()));
 
                     // 移除临时文件
                     try {
@@ -153,20 +168,22 @@ public class WordConvertByMarkItDownReader {
 
 
     public List<org.springframework.ai.document.Document> convert(Path path, FileContext fileContext) {
-        return loadMarkdown(path, fileContext);
+        try {
+            return loadMarkdownV2(path, fileContext);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**
      * TODO对这个切分保持谨慎，需要测试看效果？？？ 我觉得不合适重新实现下
-     *
+     * <p>
      * 切的方式不太一样，它把标题（#） 这种元素都切进了 metadata 中，除非你的系统能检测出 用户问题包含这些关键字，才能进行过滤和检索
      * 现在我更倾向于 。在块中包含 标题（#） 等这些信息，如果检索到将上下文给llm ，llm能自动的了解当前上下文的一个层次关系
-     *
+     * <p>
      * 针对md 的图片，需要通过视觉模型进行图片理解，再将图片理解文本，进行embedding
      * 针对md 的代码部分，要尽量保证一个完整的代码片段 （代码片段上方或者下方一般也有解释说明，其实这块信息也应该放在一个块中比较合适）
      * 针对md 的表格，要尽量保证一个完整的表格 （表格上方或者下方一般都有解释说明，其实这块信息放在一个块中，是比较合适的。甚至可以让llm 输出一个 Summary(概要) 在语义检索时，能更精准的匹配，并且把概要和 表格内容，都在上下文中出现，让llm 生成的结果就包含了表格信息）
-     *
-     *
      *
      * @param path
      * @param fileContext
@@ -193,18 +210,65 @@ public class WordConvertByMarkItDownReader {
         return mdDocuments;
     }
 
+
     /**
      * 先按 标题拆分
      * 遇到代码 ，单拆，并包含包裹代码块的文本描述
      * 遇到表格 ，单拆，并包含包裹表格的文本描述
      * 遇到图片 ，单拆，将图片进行视觉模型的识别，并包含图片的描述
+     *
      * @param path
      * @param fileContext
      * @return
      */
-    public List<org.springframework.ai.document.Document> loadMarkdownV2(Path path, FileContext fileContext) {
+    public List<org.springframework.ai.document.Document> loadMarkdownV2(Path path, FileContext fileContext) throws IOException {
+        RAGMarkdownSplitter ragMarkdownSplitter = new RAGMarkdownSplitter(fileContext);
+        List<org.springframework.ai.document.Document> documents = ragMarkdownSplitter.splitForRAG(Files.readString(path, StandardCharsets.UTF_8));
+        LinkedList<org.springframework.ai.document.Document> documentLinkedList = new LinkedList<>();
+        for (int chunkNum = 0; chunkNum < documents.size(); chunkNum++) {
+            org.springframework.ai.document.Document document = documents.get(chunkNum);
+            String chunkContentType = (String) document.getMetadata().get(DocumentMetadataMap.CHUNK_CONTENT_TYPE);
+            if (BlockType.TEXT.getType().equals(chunkContentType)) {
+                LinkedList<org.springframework.ai.document.Document> convert = new LinkedList<>();
+                convert.add(document);
+                // 进行文本分割
+                List<org.springframework.ai.document.Document> splitDocuments = textSplitterTool.splitCustomized(convert, 500, 200, 100, 10000, false);
+                documentLinkedList.addAll(splitDocuments);
+                continue;
+            }else if(BlockType.IMAGE.getType().equals(chunkContentType)){
+                // TODO 针对img，需要调用视觉模型获取图片描述
+                // 抽取图片内容是 url ，还是 base64 或者相对路径（处理不了）
+                List<String> images = MdImageRegexExtractor.extractImages(document.getText());
+                for (String image : images) {
+                    // 看是否能获取图片资源，上传到s3中，元数据记录图片路径信息
+                    String imageDescription = "";
+                }
+//                documentLinkedList.add(document);
+            } else {
+                // TODO 针对过于大的块，需要处理内容, 提取概要信息，将原始内容存放入元数据
+                List<Integer> boxed = encoding.encode(document.getText()).boxed();
+                if (boxed.size() > 3000) {
+                    SystemMessage systemMessage = new SystemMessage("你是一名概要总结大师，你需要根据用户提供的内容（表格、代码块或图片描述），生成一份精准简洁的概要信息。请遵循以下规则：\n" +
+                            "先明确内容类型：判断是表格、代码块还是图片，并给出主题定位（如 “产品价格对比表”“Java 字符串处理代码”“季度销售额折线图”）。\n" +
+                            "提取核心信息：\n" +
+                            "表格：提炼关键表头，总结数据核心结论（无需罗列全部数据）；\n" +
+                            "代码块：说明开发语言、核心逻辑及关键输入输出；\n" +
+                            "图片：若为图表，说明数据维度与趋势；若为示意图，描述核心元素与关系。\n" +
+                            "格式要求：分 2 段呈现（第一段：类型与主题；第二段：核心信息与结论），总字数≤300 字，语言通俗，避免冗余术语");
+                    UserMessage userMessage = new UserMessage("请基于你收到的规则，对以下内容生成概要：\n"+document.getText());
+                    String response = chatModel.call(systemMessage,userMessage);
+                    Map<String, Object> metadata = document.getMetadata();
+                    metadata.put(DocumentMetadataMap.ORIGINAL_CONTENT, response);
+                    document.mutate().text(response).metadata(metadata);
+                    documentLinkedList.add(document);
+                }else{
+                    documentLinkedList.add(document);
+                }
+            }
 
-        return null;
+        }
+
+        return documentLinkedList;
     }
 
 
