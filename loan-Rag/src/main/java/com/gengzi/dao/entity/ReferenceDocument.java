@@ -46,5 +46,9 @@ public class ReferenceDocument {
      */
     private String contentType;
 
+    /**
+     * 图片链接
+     */
+    private String imageUrl;
 
 }

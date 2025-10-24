@@ -172,6 +172,7 @@ public class DocumentController {
 
     /**
      * 获取文档解析后的分块详情信息
+     * 知识库，点击查看分块后调用
      */
     @GetMapping("/document/chunks/details")
     @ResponseBody
@@ -203,6 +204,22 @@ public class DocumentController {
     public Result<List<KnowledgeBasePulldownResponse>> knowledgeBaseAll() {
         List<KnowledgeBasePulldownResponse> knowledgeBaseAll = knowledgeService.knowledgeBaseAll();
         return Result.success(knowledgeBaseAll);
+    }
+
+
+    @GetMapping("/image/{image}/{fileId}")
+    public ResponseEntity<?> documentImgPreview(@PathVariable String image, @PathVariable String fileId) {
+        try {
+            String imgkey = fileId + "/" + image + ".png";
+            ImagePreviewResponse imagePreviewResponse = documentService.documentImgPreview(imgkey);
+            return ResponseEntity.ok(imagePreviewResponse);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "失败"));
+        }
     }
 
 

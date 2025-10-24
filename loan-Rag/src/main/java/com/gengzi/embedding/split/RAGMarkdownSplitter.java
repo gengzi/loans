@@ -346,7 +346,7 @@ public class RAGMarkdownSplitter {
                 if (!before.isBlank() && !beforeContent.contains(removeEmptyLines(before.trim()))) {
                     DocumentMetadataMap documentMetadataMap = new DocumentMetadataMap(fileContext.getFileName(), fileContext.getDocumentId(),
                             fileContext.getFileId(), fileContext.getContentType(),
-                            true, String.valueOf(1), fileContext.getKbId());
+                            true, String.valueOf(0), fileContext.getKbId());
                     documentMetadataMap.setChunkContentType(BlockType.TEXT.getType());
                     Document document = new Document(before.trim(), documentMetadataMap.toMap());
 //                    chunks.add(new Chunk(before.trim(), "TEXT", positionCounter++));
@@ -358,7 +358,7 @@ public class RAGMarkdownSplitter {
                 String chunkContent = String.join("\n", beforeContent, content, afterContent).trim();
                 DocumentMetadataMap documentMetadataMap = new DocumentMetadataMap(fileContext.getFileName(), fileContext.getDocumentId(),
                         fileContext.getFileId(), fileContext.getContentType(),
-                        true, String.valueOf(1), fileContext.getKbId());
+                        true, String.valueOf(0), fileContext.getKbId());
                 documentMetadataMap.setChunkContentType(markTypeMap.get(mark));
                 Document document = new Document(chunkContent, documentMetadataMap.toMap());
                 chunks.add(document);
@@ -366,6 +366,14 @@ public class RAGMarkdownSplitter {
             }
 
             marked = marked.substring(originalEnd);
+        }
+        if (!marked.isEmpty()) {
+            DocumentMetadataMap documentMetadataMap = new DocumentMetadataMap(fileContext.getFileName(), fileContext.getDocumentId(),
+                    fileContext.getFileId(), fileContext.getContentType(),
+                    true, String.valueOf(0), fileContext.getKbId());
+            documentMetadataMap.setChunkContentType(BlockType.TEXT.getType());
+            Document document = new Document(marked.trim(), documentMetadataMap.toMap());
+            chunks.add(document);
         }
     }
 

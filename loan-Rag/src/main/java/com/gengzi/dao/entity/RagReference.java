@@ -45,6 +45,12 @@ public class RagReference {
             referenceDocument.setContentType((String) document.getMetadata().get(DocumentMetadataMap.CONTENT_TYPE));
             // 根据documentId 获取文档的url
             referenceDocument.setDocumentUrl("/document/" + document.getMetadata().get(DocumentMetadataMap.DOCUMENT_ID));
+            // 判断当前块是否是包含图片id，包含也返回图片的url
+            if (document.getMetadata().containsKey(DocumentMetadataMap.IMAGE_RESOURCE)) {
+                String image = (String) document.getMetadata().get(DocumentMetadataMap.IMAGE_RESOURCE);
+                String fileId = (String) document.getMetadata().get(DocumentMetadataMap.FILE_ID);
+                referenceDocument.setImageUrl("/image/" + image + "/" + fileId);
+            }
             return referenceDocument;
         }).toList());
         return ragReference;

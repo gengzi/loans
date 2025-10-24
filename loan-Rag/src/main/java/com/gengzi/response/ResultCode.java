@@ -30,7 +30,8 @@ public enum ResultCode {
     CONFIG_NOT_EXIST(1006, "配置不存在"),
     CONFIG_IN_USE(1007, "当前配置正在使用中"),
     FILE_UPLOAD_EMPTY(1008, "上传文件为空"),
-    FILE_UPLOAD_ERROR(1009, "上传文件失败");
+    FILE_UPLOAD_ERROR(1009, "上传文件失败"),
+    USER_DEL_NOT_ALLOW(1010, "不允许删除超级管理员");
 
     private final Integer code;
     private final String message;

@@ -61,7 +61,7 @@ public class RagRetrievalAugmenttationAdvisor {
         Advisor retrievalAugmentationAdvisor = RetrievalAugmentationAdvisor.builder()
                 // 用于转换输入查询，使得更有效的执行检索
 //                .queryTransformers(toolsRagTransformer, rewriteQueryTransformerWithHistory)
-                .queryTransformers(toolsRagTransformer, rewriteQueryTransformerWithHistory)
+                .queryTransformers(rewriteQueryTransformerWithHistory)
                 // 检索器
                 .documentRetriever(VectorStoreDocumentRetriever.builder()
                         // 相似度

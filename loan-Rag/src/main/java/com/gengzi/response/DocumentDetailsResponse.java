@@ -29,6 +29,11 @@ public class DocumentDetailsResponse {
      */
     private Long size;
 
+    /**
+     * 文件类型
+     */
+    private String contentType;
+
 
     /**
      * 文档拆分数量

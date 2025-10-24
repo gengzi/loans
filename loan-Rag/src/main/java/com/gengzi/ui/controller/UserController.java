@@ -2,6 +2,8 @@ package com.gengzi.ui.controller;
 
 
 import com.gengzi.request.UserAddReq;
+import com.gengzi.request.UserDelReq;
+import com.gengzi.request.UserEditReq;
 import com.gengzi.request.UserLoginReq;
 import com.gengzi.response.JwtResponse;
 import com.gengzi.response.Result;
@@ -48,6 +50,25 @@ public class UserController {
     }
 
 
+    /**
+     * 用户管理-添加用户
+     */
+    @PostMapping("/user/edit")
+    @ResponseBody
+    public Result<?> editUser(@RequestBody UserEditReq userEditReq) {
+        userService.editUser(userEditReq);
+        return Result.success(true);
+    }
+
+    /**
+     * 用户管理-添加用户
+     */
+    @PostMapping("/user/del")
+    @ResponseBody
+    public Result<?> delUser(@RequestBody UserDelReq userDelReq) {
+        userService.delUser(userDelReq);
+        return Result.success(true);
+    }
 
 
 }

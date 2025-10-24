@@ -1,10 +1,13 @@
 package com.gengzi.ui.service.impl;
 
+import cn.hutool.core.util.StrUtil;
 import com.gengzi.dao.Knowledgebase;
 import com.gengzi.dao.User;
 import com.gengzi.dao.repository.KnowledgebaseRepository;
 import com.gengzi.dao.repository.UserRepository;
 import com.gengzi.request.UserAddReq;
+import com.gengzi.request.UserDelReq;
+import com.gengzi.request.UserEditReq;
 import com.gengzi.request.UserLoginReq;
 import com.gengzi.response.JwtResponse;
 import com.gengzi.response.ResultCode;
@@ -26,10 +29,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -114,5 +114,43 @@ public class UserServiceImpl implements UserService {
             user.setKnowledgeIds(kbNames);
         }
         return all;
+    }
+
+    /**
+     * @param userEditReq
+     */
+    @Override
+    public void editUser(UserEditReq userEditReq) {
+        Optional<User> byId = userRepository.findById(userEditReq.getId());
+        if (!byId.isPresent()) {
+            throw new BusinessException(ResultCode.USER_NOT_EXIST);
+        }
+        User user = byId.get();
+        user.setNickname(userEditReq.getNickname());
+        // 判断如果密码为空写入，就不修改密码
+        if(StrUtil.isNotBlank(userEditReq.getPassword())){
+            user.setPassword(PasswordEncoderUtil.encodePassword(userEditReq.getPassword()));
+        }
+        user.setIsSuperuser(userEditReq.getIsSuperuser());
+        user.setKnowledgeIds(userEditReq.getKnowledgeIds().stream().collect(Collectors.joining(",")));
+        userRepository.save(user);
+    }
+
+    /**
+     * @param userDelReq
+     */
+    @Override
+    public void delUser(UserDelReq userDelReq) {
+        // 如果是管理员，不允许删除
+        Optional<User> byId = userRepository.findById(userDelReq.getId());
+        if (!byId.isPresent()) {
+            throw new BusinessException(ResultCode.USER_NOT_EXIST);
+        }
+        User user = byId.get();
+        if (user.getIsSuperuser()) {
+            throw new BusinessException(ResultCode.USER_DEL_NOT_ALLOW);
+        }
+        userRepository.deleteById(userDelReq.getId());
+
     }
 }

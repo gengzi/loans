@@ -52,7 +52,7 @@ public class RagDocumentPostProcessor implements DocumentPostProcessor {
             RerankResultData output = result.getOutput();
             Double relevanceScore = output.getRelevanceScore();
             Integer index = output.getIndex();
-            if (relevanceScore > 0.3) {
+            if (relevanceScore > 0.1) {
                 logger.debug("分数:{},相关的文档:{}", relevanceScore, documents.get(index).getText());
                 sortedDocuments.add(documents.get(index));
             } else {

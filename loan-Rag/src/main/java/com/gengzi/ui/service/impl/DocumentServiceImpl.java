@@ -150,6 +150,7 @@ public class DocumentServiceImpl implements DocumentService {
         documentDetailsResponse.setCreateTime(document.getCreateTime());
         documentDetailsResponse.setSize(document.getSize());
         documentDetailsResponse.setChunkNum(document.getChunkNum());
+        documentDetailsResponse.setContentType(document.getType());
         // 返回分块详情
         List<ChunkDetails> chunkDetailsLinkedList = new LinkedList<>();
         SearchRequest searchRequest = SearchRequest.of(sr -> sr
