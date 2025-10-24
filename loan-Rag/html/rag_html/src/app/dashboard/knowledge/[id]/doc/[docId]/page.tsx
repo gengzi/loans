@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { ChevronLeft, FileText, Share2, Download, Info, Search, AlertCircle } from "lucide-react";
+import DocumentPreview from "@/components/file-preview/document-preview";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -27,6 +28,7 @@ interface DocumentDetail {
   pages?: number;
   totalChunks?: number;
   updateTime?: string;
+  contentType?: string;
 }
 
 interface ApiChunkDetail {
@@ -47,6 +49,7 @@ interface ApiDocumentResponse {
     size: number;
     chunkNum: number;
     chunkDetails: ApiChunkDetail[];
+    contentType: string;
   };
 }
 
@@ -268,7 +271,8 @@ export default function DocumentDetailPage() {
               chunks: chunks,
               pages: Math.max(0, ...(chunks.map(c => c.metadata.pageNumbers).flat().filter((num): num is number => typeof num === 'number'))),
               totalChunks: data.chunkNum,
-              updateTime: formatDate(data.createTime)
+              updateTime: formatDate(data.createTime),
+              contentType: data.contentType
             };
             
             setDocument(documentDetail);
@@ -464,243 +468,13 @@ export default function DocumentDetailPage() {
                     </div>
                   </div>
                   <div className="h-[calc(100vh-280px)] overflow-auto">
-                    {/* 原文档内容区域 - 根据文档预览数据显示内容 */}
+                    {/* 使用文档预览组件 */}
                     <div className="min-h-full p-4 bg-muted/30">
-                      {documentPreview ? (
-                        // 使用API返回的预览数据
-                        <div className="w-full h-full">
-                          {/* PDF内容预览 */}
-                          {documentPreview.contentType === 'application/pdf' && (
-                            <div className="w-full h-full">
-                              <div className="bg-white h-full w-full rounded-lg shadow-sm overflow-hidden flex flex-col">
-                                {/* 标题栏 */}
-                                <div className="px-4 py-2 border-b bg-muted/10 flex justify-between items-center">
-                                  <div className="text-lg font-medium">PDF 文档预览</div>
-                                </div>
-                                {/* 使用iframe加载PDF预览URL */}
-                                <iframe 
-                                  src={documentPreview.url}
-                                  className="w-full h-[calc(100vh-320px)]"
-                                  title="PDF 文档预览"
-                                  frameBorder="0"
-                                />
-                              </div>
-                            </div>
-                          )}
-                          
-                          {/* Word文档预览 */}
-                          {['application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'].includes(documentPreview.contentType) && (
-                            <div className="w-full h-full">
-                              <div className="bg-white h-full w-full rounded-lg shadow-sm overflow-hidden flex flex-col">
-                                {/* 标题栏 */}
-                                <div className="px-4 py-2 border-b bg-muted/10 flex justify-between items-center">
-                                  <div className="text-lg font-medium">Word 文档预览</div>
-                                </div>
-                                {/* Word预览区域 */}
-                                <div className="flex-1 flex items-center justify-center p-6">
-                                  <div className="text-center max-w-md">
-                                    <FileText className="h-16 w-16 mx-auto text-blue-500 mb-4" />
-                                    <h4 className="font-medium mb-2">Word 文档</h4>
-                                    <p className="text-sm text-muted-foreground mb-6">
-                                      由于浏览器安全限制，Word文档需要在新窗口打开预览
-                                    </p>
-                                    <Button 
-                                      variant="default"
-                                      onClick={() => window.open(documentPreview.url, '_blank')}
-                                    >
-                                      <Share2 className="h-4 w-4 mr-2" />
-                                      在新窗口打开预览
-                                    </Button>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                          
-                          {/* Excel文档预览 */}
-                          {['application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'].includes(documentPreview.contentType) && (
-                            <div className="w-full h-full">
-                              <div className="bg-white h-full w-full rounded-lg shadow-sm overflow-hidden flex flex-col">
-                                {/* 标题栏 */}
-                                <div className="px-4 py-2 border-b bg-muted/10 flex justify-between items-center">
-                                  <div className="text-lg font-medium">Excel 文档预览</div>
-                                </div>
-                                {/* Excel预览区域 */}
-                                <div className="flex-1 flex items-center justify-center p-6">
-                                  <div className="text-center max-w-md">
-                                    <FileText className="h-16 w-16 mx-auto text-green-500 mb-4" />
-                                    <h4 className="font-medium mb-2">Excel 文档</h4>
-                                    <p className="text-sm text-muted-foreground mb-6">
-                                      由于浏览器安全限制，Excel文档需要在新窗口打开预览
-                                    </p>
-                                    <Button 
-                                      variant="default"
-                                      onClick={() => window.open(documentPreview.url, '_blank')}
-                                    >
-                                      <Share2 className="h-4 w-4 mr-2" />
-                                      在新窗口打开预览
-                                    </Button>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                          
-                          {/* PowerPoint文档预览 */}
-                          {['application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation'].includes(documentPreview.contentType) && (
-                            <div className="w-full h-full">
-                              <div className="bg-white h-full w-full rounded-lg shadow-sm overflow-hidden flex flex-col">
-                                {/* 标题栏 */}
-                                <div className="px-4 py-2 border-b bg-muted/10 flex justify-between items-center">
-                                  <div className="text-lg font-medium">PowerPoint 文档预览</div>
-                                </div>
-                                {/* PowerPoint预览区域 */}
-                                <div className="flex-1 flex items-center justify-center p-6">
-                                  <div className="text-center max-w-md">
-                                    <FileText className="h-16 w-16 mx-auto text-orange-500 mb-4" />
-                                    <h4 className="font-medium mb-2">PowerPoint 文档</h4>
-                                    <p className="text-sm text-muted-foreground mb-6">
-                                      由于浏览器安全限制，PowerPoint文档需要在新窗口打开预览
-                                    </p>
-                                    <Button 
-                                      variant="default"
-                                      onClick={() => window.open(documentPreview.url, '_blank')}
-                                    >
-                                      <Share2 className="h-4 w-4 mr-2" />
-                                      在新窗口打开预览
-                                    </Button>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                          
-                          {/* 图片预览 */}
-                          {documentPreview.contentType.startsWith('image/') && (
-                            <div className="w-full h-full">
-                              <div className="bg-white h-full w-full rounded-lg shadow-sm overflow-hidden flex flex-col">
-                                {/* 标题栏 */}
-                                <div className="px-4 py-2 border-b bg-muted/10 flex justify-between items-center">
-                                  <div className="text-lg font-medium">图片预览</div>
-                                </div>
-                                {/* 图片预览区域 */}
-                                <div className="flex-1 flex items-center justify-center p-4">
-                                  <img 
-                                    src={documentPreview.url} 
-                                    alt="文档预览" 
-                                    className="max-w-full max-h-full object-contain"
-                                    onClick={() => window.open(documentPreview.url, '_blank')}
-                                    style={{ cursor: 'pointer' }}
-                                  />
-                                </div>
-                                <div className="px-4 py-2 border-t text-xs text-muted-foreground text-center">
-                                  点击图片查看大图
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                          
-                          {/* Markdown内容预览 */}
-                          {documentPreview.contentType === 'text/markdown' && (
-                            <div className="w-full h-full">
-                              <div className="bg-white h-full w-full rounded-lg shadow-sm overflow-hidden flex flex-col">
-                                {/* 标题栏 */}
-                                <div className="px-4 py-2 border-b bg-muted/10 flex justify-between items-center">
-                                  <div className="text-lg font-medium">Markdown 文档预览</div>
-                                </div>
-                                {/* 内容区域 */}
-                                <div className="flex-1 overflow-auto p-4">
-                                  <div className="whitespace-pre-wrap leading-relaxed">
-                                    {filteredChunks.map((chunk, index) => (
-                                      <div key={chunk.id} className={`mb-6 ${index > 0 ? 'border-t pt-6' : ''}`}>
-                                        <div className="whitespace-pre-wrap">
-                                          {chunk.content}
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                          
-                          {/* 文本预览 */}
-                          {documentPreview.contentType.startsWith('text/') && (
-                            <div className="w-full h-full">
-                              <div className="bg-white h-full w-full rounded-lg shadow-sm overflow-hidden flex flex-col">
-                                {/* 标题栏 */}
-                                <div className="px-4 py-2 border-b bg-muted/10 flex justify-between items-center">
-                                  <div className="text-lg font-medium">文本预览</div>
-                                </div>
-                                {/* 内容区域 */}
-                                <div className="flex-1 overflow-auto p-4">
-                                  <div className="whitespace-pre-wrap leading-relaxed font-mono text-sm">
-                                    {filteredChunks.map((chunk, index) => (
-                                      <div key={chunk.id} className={`mb-4 ${index > 0 ? 'border-t pt-4' : ''}`}>
-                                        <div className="whitespace-pre-wrap">
-                                          {chunk.content}
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                          
-                          {/* 其他文件类型的预览 */}
-                          {!['application/pdf', 'text/markdown'].includes(documentPreview.contentType) && 
-                           !documentPreview.contentType.startsWith('image/') && 
-                           !documentPreview.contentType.startsWith('text/') &&
-                           !['application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                             'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                             'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation'].includes(documentPreview.contentType) && (
-                            <div className="w-full h-full">
-                              <div className="bg-white h-full w-full rounded-lg shadow-sm overflow-hidden flex flex-col">
-                                {/* 标题栏 */}
-                                <div className="px-4 py-2 border-b bg-muted/10 flex justify-between items-center">
-                                  <div className="text-lg font-medium">文档预览</div>
-                                </div>
-                                {/* 内容区域 */}
-                                <div className="flex-1 flex flex-col justify-center items-center p-6">
-                                  <div className="text-center mb-4">
-                                    <Badge variant="outline">{documentPreview.contentType}</Badge>
-                                  </div>
-                                  <FileText className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-                                  <div className="text-sm text-muted-foreground mb-6 max-w-lg text-center">
-                                    此文件类型无法在浏览器中直接预览
-                                  </div>
-                                  <div className="flex gap-4">
-                                    <Button 
-                                      variant="default" 
-                                      onClick={() => window.open(documentPreview.url, '_blank')}
-                                    >
-                                      <Share2 className="h-4 w-4 mr-2" />
-                                      在新窗口打开
-                                    </Button>
-                                    <Button 
-                                      variant="default" 
-                                      onClick={() => window.open(documentPreview.url, '_self')}
-                                    >
-                                      <Download className="h-4 w-4 mr-2" />
-                                      下载文件
-                                    </Button>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        // 没有预览数据时显示提示信息
-                        <div className="w-full h-full flex items-center justify-center">
-                          <div className="text-center">
-                            <Info className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                            <h3 className="text-lg font-medium mb-2">无法预览文档</h3>
-                            <p className="text-muted-foreground">文档预览数据暂不可用</p>
-                          </div>
-                        </div>
-                      )}
+                      <DocumentPreview 
+                        previewData={documentPreview}
+                        fileName={document.name}
+                        filteredChunks={filteredChunks}
+                      />
                     </div>
                   </div>
                 </CardContent>
@@ -736,31 +510,33 @@ export default function DocumentDetailPage() {
                       <div className="p-2">
                         {filteredChunks.map((chunk) => (
                           <div key={chunk.id} className="mb-4 border rounded-lg overflow-hidden">
-                            {/* 切片图片和内容 - 左右布局 */}
-                            <div className="flex">
-                              {/* 图片预览区域 - 支持多个图片显示 */}
-                              <div className="w-1/3 bg-muted/30 p-2">
-                                {chunk.imgUrls && chunk.imgUrls.length > 0 ? (
-                                  <div className="w-full h-full space-y-2 overflow-auto">
-                                    {chunk.imgUrls.map((imgUrl, idx) => (
-                                      <ImageWithAuth
-                                        key={idx}
-                                        imgKey={imgUrl}
-                                        pageNumber={chunk.metadata.pageNumber}
-                                        index={idx}
-                                        totalImages={chunk.imgUrls.length}
-                                      />
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <div className="w-full h-full flex flex-col items-center justify-center">
-                                    <FileText className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                                    <span className="text-xs text-muted-foreground">第 {chunk.metadata.pageNumber} 页</span>
-                                  </div>
-                                )}
-                              </div>
-                              {/* 内容信息区域 */}
-                              <div className="w-2/3 p-3">
+                            {/* 根据文档类型决定是否显示图片预览 */}
+                            <div className={document?.contentType === 'application/pdf' ? 'flex' : ''}>
+                              {/* 仅在PDF类型时显示图片预览区域 */}
+                              {document?.contentType === 'application/pdf' && (
+                                <div className="w-1/3 bg-muted/30 p-2">
+                                  {chunk.imgUrls && chunk.imgUrls.length > 0 ? (
+                                    <div className="w-full h-full space-y-2 overflow-auto">
+                                      {chunk.imgUrls.map((imgUrl, idx) => (
+                                        <ImageWithAuth
+                                          key={idx}
+                                          imgKey={imgUrl}
+                                          pageNumber={chunk.metadata.pageNumber}
+                                          index={idx}
+                                          totalImages={chunk.imgUrls.length}
+                                        />
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <div className="w-full h-full flex flex-col items-center justify-center">
+                                      <FileText className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                                      <span className="text-xs text-muted-foreground">第 {chunk.metadata.pageNumber} 页</span>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                              {/* 内容信息区域 - 非PDF类型时占满整行 */}
+                              <div className={document?.contentType === 'application/pdf' ? 'w-2/3 p-3' : 'w-full p-3'}>
                                 <div className="flex justify-between items-center text-xs text-muted-foreground mb-2">
                                   <span>切片 {chunk.index + 1}</span>
                                   <span>
