@@ -5,13 +5,12 @@ import com.gengzi.search.processors.RagDocumentPostProcessor;
 import com.gengzi.search.query.QueryTranslation;
 import com.gengzi.search.query.RagContextualQueryAugmenter;
 import com.gengzi.search.query.RewriteQueryTransformerWithHistory;
+import com.gengzi.search.query.ToolsRagTransformer;
 import com.gengzi.search.template.RagPromptTemplate;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.api.Advisor;
-import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.rag.advisor.RetrievalAugmentationAdvisor;
-import org.springframework.ai.rag.generation.augmentation.ContextualQueryAugmenter;
 import org.springframework.ai.rag.preretrieval.query.transformation.CompressionQueryTransformer;
 import org.springframework.ai.rag.retrieval.search.VectorStoreDocumentRetriever;
 import org.springframework.ai.vectorstore.VectorStore;
@@ -46,6 +45,9 @@ public class RagRetrievalAugmenttationAdvisor {
     @Qualifier("openAiChatModel")
     private OpenAiChatModel chatModel;
 
+    @Autowired
+    private ToolsRagTransformer toolsRagTransformer;
+
 
     @Bean("ragAdvisor")
     public Advisor createAdvisor() {
@@ -56,11 +58,9 @@ public class RagRetrievalAugmenttationAdvisor {
         CompressionQueryTransformer compressionQueryTransformer =
                 CompressionQueryTransformer.builder().chatClientBuilder(ChatClient.builder(chatModel)).build();
 
-
-
         Advisor retrievalAugmentationAdvisor = RetrievalAugmentationAdvisor.builder()
                 // 用于转换输入查询，使得更有效的执行检索
-                .queryTransformers(rewriteQueryTransformerWithHistory)
+                .queryTransformers(toolsRagTransformer, rewriteQueryTransformerWithHistory)
                 // 检索器
                 .documentRetriever(VectorStoreDocumentRetriever.builder()
                         // 相似度

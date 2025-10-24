@@ -55,6 +55,11 @@ public class ChatClientConfig {
         return ChatClient.builder(chatModel).defaultAdvisors(advisor).build();
     }
 
+    @Bean
+    public ChatClient deepseekChatClientNoRag(OpenAiChatModel chatModel) {
+        return ChatClient.builder(chatModel).build();
+    }
+
     /**
      * 不执行rag流程
      *
