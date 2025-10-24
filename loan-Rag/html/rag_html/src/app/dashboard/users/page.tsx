@@ -12,7 +12,6 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
-import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { api } from '@/lib/api';
 import API_CONFIG from '@/lib/config';
@@ -451,7 +450,7 @@ export default function UsersPage() {
                     required
                   >
                     <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder="选择权限" required />
+                      <SelectValue placeholder="选择权限" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="false">普通用户</SelectItem>
@@ -533,7 +532,7 @@ export default function UsersPage() {
                           </Badge>
                         </td>
                         <td className="px-6 py-4">
-                          {user.knowledgeIds && user.knowledgeIds !== '' ? (
+                          {user.knowledgeIds && user.knowledgeIds.length > 0 ? (
                             <div className="flex flex-wrap gap-1">
                               {Array.isArray(user.knowledgeIds) ? (
                                 user.knowledgeIds.map((kbId, index) => {
@@ -699,7 +698,7 @@ export default function UsersPage() {
                     required
                   >
                     <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder="选择权限" required />
+                      <SelectValue placeholder="选择权限" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="false">普通用户</SelectItem>

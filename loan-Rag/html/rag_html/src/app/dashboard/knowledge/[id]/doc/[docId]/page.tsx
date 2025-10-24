@@ -247,13 +247,13 @@ export default function DocumentDetailPage() {
           const data = chunksData;
             
             // 转换为文档详情格式
-             const chunks: DocumentChunk[] = data.chunkDetails.map((chunkDetail, index) => ({
+             const chunks: DocumentChunk[] = data.chunkDetails.map((chunkDetail: any, index: number) => ({
                id: chunkDetail.id,
                content: chunkDetail.content,
                index: index, // 添加index属性以匹配接口定义
                metadata: {
                  pageNumber: chunkDetail.pageNumInt ? parseInt(chunkDetail.pageNumInt.split(',')[0]) + 1 : index + 1,
-                 pageNumbers: chunkDetail.pageNumInt.split(',').map(p => parseInt(p) + 1),
+                 pageNumbers: chunkDetail.pageNumInt.split(',').map((p: string) => parseInt(p) + 1),
                  chunkNumber: index + 1
                },
                embedding: [], // 添加空的embedding数组以匹配接口定义
@@ -521,9 +521,9 @@ export default function DocumentDetailPage() {
                                         <ImageWithAuth
                                           key={idx}
                                           imgKey={imgUrl}
-                                          pageNumber={chunk.metadata.pageNumber}
+                                          pageNumber={chunk.metadata.pageNumber ?? 1}
                                           index={idx}
-                                          totalImages={chunk.imgUrls.length}
+                                          totalImages={chunk.imgUrls?.length ?? 0}
                                         />
                                       ))}
                                     </div>

@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { FileText, Share2, Download, Info } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { FileText, Share2, Download, Info, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { renderAsync } from "docx-preview";  // Word文档预览
+import * as XLSX from "xlsx";  // Excel文档预览
 
 interface DocumentPreviewProps {
   previewData: {
@@ -77,24 +79,17 @@ const DocumentPreview = ({ previewData, fileName, filteredChunks = [] }: Documen
             {/* 标题栏 */}
             <div className="px-4 py-2 border-b bg-muted/10 flex justify-between items-center">
               <div className="text-lg font-medium">Word 文档预览</div>
+              <Button 
+                variant="default"
+                size="sm"
+                onClick={() => window.open(previewData.url, '_blank')}
+              >
+                <Share2 className="h-4 w-4 mr-2" />
+                在新窗口打开
+              </Button>
             </div>
             {/* Word预览区域 */}
-            <div className="flex-1 flex items-center justify-center p-6">
-              <div className="text-center max-w-md">
-                <FileText className="h-16 w-16 mx-auto text-blue-500 mb-4" />
-                <h4 className="font-medium mb-2">Word 文档</h4>
-                <p className="text-sm text-muted-foreground mb-6">
-                  由于浏览器安全限制，Word文档需要在新窗口打开预览
-                </p>
-                <Button 
-                  variant="default"
-                  onClick={() => window.open(previewData.url, '_blank')}
-                >
-                  <Share2 className="h-4 w-4 mr-2" />
-                  在新窗口打开预览
-                </Button>
-              </div>
-            </div>
+            <WordPreview url={previewData.url} />
           </div>
         </div>
       )}
@@ -106,24 +101,17 @@ const DocumentPreview = ({ previewData, fileName, filteredChunks = [] }: Documen
             {/* 标题栏 */}
             <div className="px-4 py-2 border-b bg-muted/10 flex justify-between items-center">
               <div className="text-lg font-medium">Excel 文档预览</div>
+              <Button 
+                variant="default"
+                size="sm"
+                onClick={() => window.open(previewData.url, '_blank')}
+              >
+                <Share2 className="h-4 w-4 mr-2" />
+                在新窗口打开
+              </Button>
             </div>
             {/* Excel预览区域 */}
-            <div className="flex-1 flex items-center justify-center p-6">
-              <div className="text-center max-w-md">
-                <FileText className="h-16 w-16 mx-auto text-green-500 mb-4" />
-                <h4 className="font-medium mb-2">Excel 文档</h4>
-                <p className="text-sm text-muted-foreground mb-6">
-                  由于浏览器安全限制，Excel文档需要在新窗口打开预览
-                </p>
-                <Button 
-                  variant="default"
-                  onClick={() => window.open(previewData.url, '_blank')}
-                >
-                  <Share2 className="h-4 w-4 mr-2" />
-                  在新窗口打开预览
-                </Button>
-              </div>
-            </div>
+            <ExcelPreview url={previewData.url} />
           </div>
         </div>
       )}
@@ -135,24 +123,22 @@ const DocumentPreview = ({ previewData, fileName, filteredChunks = [] }: Documen
             {/* 标题栏 */}
             <div className="px-4 py-2 border-b bg-muted/10 flex justify-between items-center">
               <div className="text-lg font-medium">PowerPoint 文档预览</div>
+              <Button 
+                variant="default"
+                size="sm"
+                onClick={() => window.open(previewData.url, '_blank')}
+              >
+                <Share2 className="h-4 w-4 mr-2" />
+                在新窗口打开
+              </Button>
             </div>
-            {/* PowerPoint预览区域 */}
-            <div className="flex-1 flex items-center justify-center p-6">
-              <div className="text-center max-w-md">
-                <FileText className="h-16 w-16 mx-auto text-orange-500 mb-4" />
-                <h4 className="font-medium mb-2">PowerPoint 文档</h4>
-                <p className="text-sm text-muted-foreground mb-6">
-                  由于浏览器安全限制，PowerPoint文档需要在新窗口打开预览
-                </p>
-                <Button 
-                  variant="default"
-                  onClick={() => window.open(previewData.url, '_blank')}
-                >
-                  <Share2 className="h-4 w-4 mr-2" />
-                  在新窗口打开预览
-                </Button>
-              </div>
-            </div>
+            {/* 使用iframe加载PowerPoint预览 */}
+            <iframe 
+              src={previewData.url}
+              className="w-full flex-1"
+              title="PowerPoint 文档预览"
+              frameBorder="0"
+            />
           </div>
         </div>
       )}
@@ -272,6 +258,173 @@ const DocumentPreview = ({ previewData, fileName, filteredChunks = [] }: Documen
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+// Word文档预览组件
+const WordPreview = ({ url }: { url: string }) => {
+  const previewContainerRef = useRef<HTMLDivElement>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadDocument = async () => {
+      if (!previewContainerRef.current) return;
+
+      try {
+        setLoading(true);
+        setError(null);
+
+        // 清除之前的预览内容
+        previewContainerRef.current.innerHTML = '';
+        
+        // 设置容器样式
+        previewContainerRef.current.className = 'docx-preview w-full p-4';
+
+        // 获取文档数据
+        const response = await fetch(url);
+        const arrayBuffer = await response.arrayBuffer();
+        const blob = new Blob([arrayBuffer]);
+
+        // 渲染Word文档 - 修复参数问题
+        // 根据错误信息，这里简化实现
+        await renderAsync(blob, previewContainerRef.current);
+        
+        // 添加一些基本样式
+        const style = document.createElement('style');
+        style.textContent = `
+          .docx-preview {
+            padding: 20px;
+            max-width: 100%;
+            overflow-x: auto;
+            background-color: #ffffff;
+          }
+          .docx-preview * {
+            max-width: 100%;
+          }
+        `;
+        document.head.appendChild(style);
+      } catch (err) {
+        console.error('Word文档预览失败:', err);
+        setError('文档加载失败，请尝试在新窗口打开');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDocument();
+  }, [url]);
+
+  return (
+    <div className="flex-1 overflow-auto">
+      {loading && (
+        <div className="w-full h-full flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <span className="ml-2 text-muted-foreground">加载文档中...</span>
+        </div>
+      )}
+      {error && (
+        <div className="w-full h-full flex items-center justify-center">
+          <div className="text-center text-muted-foreground">{error}</div>
+        </div>
+      )}
+      <div
+        ref={previewContainerRef}
+        className="w-full min-h-full p-4"
+        style={{ backgroundColor: '#ffffff' }}
+      />
+    </div>
+  );
+};
+
+// Excel文档预览组件
+const ExcelPreview = ({ url }: { url: string }) => {
+  const previewContainerRef = useRef<HTMLDivElement>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadSpreadsheet = async () => {
+      if (!previewContainerRef.current) return;
+
+      try {
+        setLoading(true);
+        setError(null);
+
+        // 清除之前的预览内容
+        previewContainerRef.current.innerHTML = '';
+
+        // 获取文档数据
+        const response = await fetch(url);
+        const arrayBuffer = await response.arrayBuffer();
+
+        // 使用XLSX库解析Excel文件
+        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+        
+        // 渲染每个工作表
+        workbook.SheetNames.forEach((sheetName, index) => {
+          const worksheet = workbook.Sheets[sheetName];
+          const html = XLSX.utils.sheet_to_html(worksheet, {
+            header: `<tr><th colspan="${Object.keys(worksheet).filter(k => k[0] !== '!').length}" style="text-align:center;">${sheetName}</th></tr>`,
+            id: `sheet-${index}`,
+            editable: false
+          });
+
+          const sheetContainer = document.createElement('div');
+          sheetContainer.className = 'mb-8 border rounded-lg overflow-hidden';
+          sheetContainer.innerHTML = html;
+          
+          // 添加样式
+          const style = document.createElement('style');
+          style.textContent = `
+            table {
+              border-collapse: collapse;
+              width: 100%;
+              font-size: 14px;
+            }
+            th, td {
+              padding: 8px;
+              border: 1px solid #e5e7eb;
+              text-align: left;
+            }
+            th {
+              background-color: #f9fafb;
+            }
+          `;
+          sheetContainer.appendChild(style);
+          
+          previewContainerRef.current?.appendChild(sheetContainer);
+        });
+      } catch (err) {
+        console.error('Excel文档预览失败:', err);
+        setError('文档加载失败，请尝试在新窗口打开');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSpreadsheet();
+  }, [url]);
+
+  return (
+    <div className="flex-1 overflow-auto">
+      {loading && (
+        <div className="w-full h-full flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <span className="ml-2 text-muted-foreground">加载文档中...</span>
+        </div>
+      )}
+      {error && (
+        <div className="w-full h-full flex items-center justify-center">
+          <div className="text-center text-muted-foreground">{error}</div>
+        </div>
+      )}
+      <div
+        ref={previewContainerRef}
+        className="w-full min-h-full p-4"
+        style={{ backgroundColor: '#ffffff' }}
+      />
     </div>
   );
 };
