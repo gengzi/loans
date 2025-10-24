@@ -226,78 +226,7 @@ export default function DocumentDetailPage() {
     });
   };
   
-  // 模拟数据 - 文档信息
-  const mockDocument = {
-    id: documentId,
-    name: "02_快速入门.pdf",
-    size: 2097152,
-    suffix: "pdf",
-    createDate: "2024-01-15T10:30:00Z",
-    updateTime: "2024-01-15T10:35:00Z",
-    status: "completed",
-    pages: 25,
-    totalChunks: 48
-  };
-  
-  // 模拟数据 - 文档块
-  const mockChunks = [
-    {
-      id: "chunk-1",
-      content: "容器虚拟化技术和自动化部署\n\n随着云计算和DevOps的发展，容器技术已经成为现代应用部署的重要基础设施。Docker作为最流行的容器技术，提供了轻量级的虚拟化解决方案。\n\n本文将介绍容器虚拟化的基本概念、Docker的核心组件以及如何使用Jenkins和GitLab实现自动化部署流程。\n\n主要内容包括：\n1. 容器基础概念\n2. Docker核心组件\n3. Kubernetes入门\n4. CI/CD自动化部署\n5. 最佳实践与案例分析",
-      index: 0,
-      metadata: {
-        pageNumber: 1,
-        section: "引言",
-        chunkIndex: 0
-      }
-    },
-    {
-      id: "chunk-2",
-      content: "Kubernetes快速入门之命令行\n\n1. Namespace介绍\n\nNamespace是Kubernetes中的资源隔离机制，它允许在一个物理集群上创建多个虚拟集群。在多租户环境中，Namespace可以很好地隔离不同团队或项目的资源。\n\n默认情况下，Kubernetes会创建一个名为default的命名空间。实际上，还有几个系统命名空间：\n- kube-system: 用于存放系统组件\n- kube-public: 公共资源\n- kube-node-lease: 节点租约信息\n\n命名空间可以通过标签(Label)进行管理，例如：\n```bash\nkubectl create namespace myproject\nkubectl get namespaces\nkubectl label namespace myproject env=development\n```",
-      index: 1,
-      metadata: {
-        pageNumber: 2,
-        section: "Kubernetes基础",
-        chunkIndex: 1
-      }
-    },
-    {
-      id: "chunk-3",
-      content: "Pod与Deployment管理\n\nPod是Kubernetes中最小的部署单元，通常包含一个或多个容器。Deployment则提供了Pod的声明式更新能力。\n\n创建Deployment的基本命令：\n```bash\nkubectl create deployment nginx-deployment --image=nginx:latest\nkubectl get deployments\nkubectl get pods\n```\n\n查看Pod详细信息：\n```bash\nkubectl describe pod [pod-name]\nkubectl logs [pod-name]\n```\n\n扩缩容操作：\n```bash\nkubectl scale deployment nginx-deployment --replicas=3\n```",
-      index: 2,
-      metadata: {
-        pageNumber: 3,
-        section: "Pod管理",
-        chunkIndex: 2
-      }
-    },
-    {
-      id: "chunk-4",
-      content: "Service与Ingress\n\nService为Pod提供稳定的网络访问方式，而Ingress则管理外部访问。\n\n创建Service：\n```bash\nkubectl expose deployment nginx-deployment --port=80 --type=NodePort\nkubectl get services\n```\n\nIngress配置示例：\n```yaml\napiVersion: networking.k8s.io/v1\nkind: Ingress\nmetadata:\n  name: nginx-ingress\nspec:\n  rules:\n  - host: example.com\n    http:\n      paths:\n      - path: /\n        pathType: Prefix\n        backend:\n          service:\n            name: nginx-service\n            port:\n              number: 80\n```",
-      index: 3,
-      metadata: {
-        pageNumber: 4,
-        section: "网络配置",
-        chunkIndex: 3
-      }
-    },
-    {
-      id: "chunk-5",
-      content: "存储管理与配置\n\nKubernetes提供了多种存储方案，包括EmptyDir、HostPath、PersistentVolume等。\n\n创建PersistentVolumeClaim：\n```yaml\napiVersion: v1\nkind: PersistentVolumeClaim\nmetadata:\n  name: mysql-pvc\nspec:\n  accessModes:\n    - ReadWriteOnce\n  resources:\n    requests:\n      storage: 10Gi\n```\n\n在Pod中使用存储：\n```yaml\nvolumes:\n- name: mysql-data\n  persistentVolumeClaim:\n    claimName: mysql-pvc\n```\n\n配置管理通过ConfigMap和Secret实现：\n```bash\nkubectl create configmap app-config --from-literal=APP_ENV=production\nkubectl create secret generic db-secret --from-literal=DB_PASSWORD=securepass\n```",
-      index: 4,
-      metadata: {
-        pageNumber: 5,
-        section: "存储与配置",
-        chunkIndex: 4
-      }
-    }
-  ];
-
-  const mockKnowledgeBase = {
-    id: knowledgeBaseId,
-    name: "技术文档库",
-    description: "存放各类技术文档和教程的知识库"
-  };
+  // 移除模拟数据，以接口返回数据为准
 
   useEffect(() => {
     const fetchData = async () => {
@@ -344,14 +273,13 @@ export default function DocumentDetailPage() {
             
             setDocument(documentDetail);
             
-            // 仍使用模拟的知识库数据
-            setKnowledgeBase(mockKnowledgeBase);
+            // 从API响应中获取知识库信息，这里暂时保留空值，实际应从API获取
+            setKnowledgeBase({ id: knowledgeBaseId, name: documentDetail.name, description: '' });
         } catch (chunksError) {
           console.error("获取分块数据失败:", chunksError);
-          // 失败时使用模拟数据作为备用
-          setDocument({...mockDocument, chunks: mockChunks});
-          setKnowledgeBase(mockKnowledgeBase);
-          toast({ variant: "destructive", title: "警告", description: "无法获取真实分块数据，已使用模拟数据" });
+          // 失败时设置错误状态，不再使用模拟数据
+          setError("获取文档分块数据失败");
+          toast({ variant: "destructive", title: "错误", description: "无法获取文档分块数据" });
         }
         
         // 获取文档预览URL和内容类型
@@ -366,9 +294,7 @@ export default function DocumentDetailPage() {
       } catch (err) {
         console.error("获取数据失败:", err);
         setError("获取数据失败，请稍后重试");
-        // 最后使用模拟数据作为兜底
-        setDocument({...mockDocument, chunks: mockChunks});
-        setKnowledgeBase(mockKnowledgeBase);
+        // 不再使用模拟数据作为兜底
       } finally {
         setLoading(false);
       }
@@ -548,9 +474,9 @@ export default function DocumentDetailPage() {
                             <div className="w-full h-full">
                               <div className="bg-white h-full w-full rounded-lg shadow-sm overflow-hidden flex flex-col">
                                 {/* 标题栏 */}
-                                {/* <div className="px-4 py-2 border-b bg-muted/10 flex justify-between items-center">
+                                <div className="px-4 py-2 border-b bg-muted/10 flex justify-between items-center">
                                   <div className="text-lg font-medium">PDF 文档预览</div>
-                                </div> */}
+                                </div>
                                 {/* 使用iframe加载PDF预览URL */}
                                 <iframe 
                                   src={documentPreview.url}
@@ -558,6 +484,118 @@ export default function DocumentDetailPage() {
                                   title="PDF 文档预览"
                                   frameBorder="0"
                                 />
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Word文档预览 */}
+                          {['application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'].includes(documentPreview.contentType) && (
+                            <div className="w-full h-full">
+                              <div className="bg-white h-full w-full rounded-lg shadow-sm overflow-hidden flex flex-col">
+                                {/* 标题栏 */}
+                                <div className="px-4 py-2 border-b bg-muted/10 flex justify-between items-center">
+                                  <div className="text-lg font-medium">Word 文档预览</div>
+                                </div>
+                                {/* Word预览区域 */}
+                                <div className="flex-1 flex items-center justify-center p-6">
+                                  <div className="text-center max-w-md">
+                                    <FileText className="h-16 w-16 mx-auto text-blue-500 mb-4" />
+                                    <h4 className="font-medium mb-2">Word 文档</h4>
+                                    <p className="text-sm text-muted-foreground mb-6">
+                                      由于浏览器安全限制，Word文档需要在新窗口打开预览
+                                    </p>
+                                    <Button 
+                                      variant="default"
+                                      onClick={() => window.open(documentPreview.url, '_blank')}
+                                    >
+                                      <Share2 className="h-4 w-4 mr-2" />
+                                      在新窗口打开预览
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Excel文档预览 */}
+                          {['application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'].includes(documentPreview.contentType) && (
+                            <div className="w-full h-full">
+                              <div className="bg-white h-full w-full rounded-lg shadow-sm overflow-hidden flex flex-col">
+                                {/* 标题栏 */}
+                                <div className="px-4 py-2 border-b bg-muted/10 flex justify-between items-center">
+                                  <div className="text-lg font-medium">Excel 文档预览</div>
+                                </div>
+                                {/* Excel预览区域 */}
+                                <div className="flex-1 flex items-center justify-center p-6">
+                                  <div className="text-center max-w-md">
+                                    <FileText className="h-16 w-16 mx-auto text-green-500 mb-4" />
+                                    <h4 className="font-medium mb-2">Excel 文档</h4>
+                                    <p className="text-sm text-muted-foreground mb-6">
+                                      由于浏览器安全限制，Excel文档需要在新窗口打开预览
+                                    </p>
+                                    <Button 
+                                      variant="default"
+                                      onClick={() => window.open(documentPreview.url, '_blank')}
+                                    >
+                                      <Share2 className="h-4 w-4 mr-2" />
+                                      在新窗口打开预览
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* PowerPoint文档预览 */}
+                          {['application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation'].includes(documentPreview.contentType) && (
+                            <div className="w-full h-full">
+                              <div className="bg-white h-full w-full rounded-lg shadow-sm overflow-hidden flex flex-col">
+                                {/* 标题栏 */}
+                                <div className="px-4 py-2 border-b bg-muted/10 flex justify-between items-center">
+                                  <div className="text-lg font-medium">PowerPoint 文档预览</div>
+                                </div>
+                                {/* PowerPoint预览区域 */}
+                                <div className="flex-1 flex items-center justify-center p-6">
+                                  <div className="text-center max-w-md">
+                                    <FileText className="h-16 w-16 mx-auto text-orange-500 mb-4" />
+                                    <h4 className="font-medium mb-2">PowerPoint 文档</h4>
+                                    <p className="text-sm text-muted-foreground mb-6">
+                                      由于浏览器安全限制，PowerPoint文档需要在新窗口打开预览
+                                    </p>
+                                    <Button 
+                                      variant="default"
+                                      onClick={() => window.open(documentPreview.url, '_blank')}
+                                    >
+                                      <Share2 className="h-4 w-4 mr-2" />
+                                      在新窗口打开预览
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* 图片预览 */}
+                          {documentPreview.contentType.startsWith('image/') && (
+                            <div className="w-full h-full">
+                              <div className="bg-white h-full w-full rounded-lg shadow-sm overflow-hidden flex flex-col">
+                                {/* 标题栏 */}
+                                <div className="px-4 py-2 border-b bg-muted/10 flex justify-between items-center">
+                                  <div className="text-lg font-medium">图片预览</div>
+                                </div>
+                                {/* 图片预览区域 */}
+                                <div className="flex-1 flex items-center justify-center p-4">
+                                  <img 
+                                    src={documentPreview.url} 
+                                    alt="文档预览" 
+                                    className="max-w-full max-h-full object-contain"
+                                    onClick={() => window.open(documentPreview.url, '_blank')}
+                                    style={{ cursor: 'pointer' }}
+                                  />
+                                </div>
+                                <div className="px-4 py-2 border-t text-xs text-muted-foreground text-center">
+                                  点击图片查看大图
+                                </div>
                               </div>
                             </div>
                           )}
@@ -586,8 +624,37 @@ export default function DocumentDetailPage() {
                             </div>
                           )}
                           
+                          {/* 文本预览 */}
+                          {documentPreview.contentType.startsWith('text/') && (
+                            <div className="w-full h-full">
+                              <div className="bg-white h-full w-full rounded-lg shadow-sm overflow-hidden flex flex-col">
+                                {/* 标题栏 */}
+                                <div className="px-4 py-2 border-b bg-muted/10 flex justify-between items-center">
+                                  <div className="text-lg font-medium">文本预览</div>
+                                </div>
+                                {/* 内容区域 */}
+                                <div className="flex-1 overflow-auto p-4">
+                                  <div className="whitespace-pre-wrap leading-relaxed font-mono text-sm">
+                                    {filteredChunks.map((chunk, index) => (
+                                      <div key={chunk.id} className={`mb-4 ${index > 0 ? 'border-t pt-4' : ''}`}>
+                                        <div className="whitespace-pre-wrap">
+                                          {chunk.content}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          
                           {/* 其他文件类型的预览 */}
-                          {!['application/pdf', 'text/markdown'].includes(documentPreview.contentType) && (
+                          {!['application/pdf', 'text/markdown'].includes(documentPreview.contentType) && 
+                           !documentPreview.contentType.startsWith('image/') && 
+                           !documentPreview.contentType.startsWith('text/') &&
+                           !['application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                             'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                             'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation'].includes(documentPreview.contentType) && (
                             <div className="w-full h-full">
                               <div className="bg-white h-full w-full rounded-lg shadow-sm overflow-hidden flex flex-col">
                                 {/* 标题栏 */}
@@ -599,49 +666,38 @@ export default function DocumentDetailPage() {
                                   <div className="text-center mb-4">
                                     <Badge variant="outline">{documentPreview.contentType}</Badge>
                                   </div>
+                                  <FileText className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
                                   <div className="text-sm text-muted-foreground mb-6 max-w-lg text-center">
-                                    文件URL: {documentPreview.url}
+                                    此文件类型无法在浏览器中直接预览
                                   </div>
-                                  <Button 
-                                    variant="default" 
-                                    className="w-64"
-                                    onClick={() => window.open(documentPreview.url, '_blank')}
-                                  >
-                                    <FileText className="h-4 w-4 mr-2" />
-                                    在新窗口打开文档
-                                  </Button>
+                                  <div className="flex gap-4">
+                                    <Button 
+                                      variant="default" 
+                                      onClick={() => window.open(documentPreview.url, '_blank')}
+                                    >
+                                      <Share2 className="h-4 w-4 mr-2" />
+                                      在新窗口打开
+                                    </Button>
+                                    <Button 
+                                      variant="default" 
+                                      onClick={() => window.open(documentPreview.url, '_self')}
+                                    >
+                                      <Download className="h-4 w-4 mr-2" />
+                                      下载文件
+                                    </Button>
+                                  </div>
                                 </div>
                               </div>
                             </div>
                           )}
                         </div>
                       ) : (
-                        // 回退到模拟数据预览
-                        <div className="w-full h-full">
-                          <div className="bg-white h-full w-full rounded-lg shadow-sm overflow-hidden flex flex-col">
-                            {/* 标题栏 */}
-                            <div className="px-4 py-2 border-b bg-muted/10 flex justify-between items-center">
-                              <div className="text-lg font-medium">
-                                {document.suffix.toLowerCase() === 'pdf' && "PDF 预览"}
-                                {document.suffix.toLowerCase() === 'md' && "Markdown 预览"}
-                                {!['pdf', 'md'].includes(document.suffix.toLowerCase()) && "文档预览"}
-                              </div>
-                            </div>
-                            {/* 内容区域 */}
-                            <div className="flex-1 overflow-auto p-4">
-                              {filteredChunks.map((chunk) => (
-                                <div key={chunk.id} className="mb-6">
-                                  {chunk.metadata.pageNumber && (
-                                    <div className="flex justify-between items-center text-sm text-muted-foreground mb-2">
-                                      <span>第 {chunk.metadata.pageNumber} 页</span>
-                                    </div>
-                                  )}
-                                  <div className="whitespace-pre-wrap leading-relaxed">
-                                    {chunk.content}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
+                        // 没有预览数据时显示提示信息
+                        <div className="w-full h-full flex items-center justify-center">
+                          <div className="text-center">
+                            <Info className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                            <h3 className="text-lg font-medium mb-2">无法预览文档</h3>
+                            <p className="text-muted-foreground">文档预览数据暂不可用</p>
                           </div>
                         </div>
                       )}
