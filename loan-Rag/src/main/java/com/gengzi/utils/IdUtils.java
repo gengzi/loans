@@ -26,4 +26,8 @@ public class IdUtils {
     public static String userId() {
         return "u_" + IdUtil.simpleUUID();
     }
+
+    public static String generateChunkImagId() {
+        return "c_img" + IdUtil.simpleUUID();
+    }
 }

@@ -10,10 +10,10 @@ import com.gengzi.embedding.split.RAGMarkdownSplitter;
 import com.gengzi.embedding.split.TextSplitterTool;
 import com.gengzi.enums.BlockType;
 import com.gengzi.enums.FileProcessStatusEnum;
+import com.gengzi.enums.S3FileType;
 import com.gengzi.request.MarkItDownRequest;
 import com.gengzi.s3.S3ClientUtils;
-import com.gengzi.utils.FileIdGenerator;
-import com.gengzi.utils.MdImageRegexExtractor;
+import com.gengzi.utils.*;
 import com.gengzi.vector.es.EsVectorDocumentConverter;
 import com.knuddels.jtokkit.Encodings;
 import com.knuddels.jtokkit.api.Encoding;
@@ -21,6 +21,7 @@ import com.knuddels.jtokkit.api.EncodingRegistry;
 import com.knuddels.jtokkit.api.EncodingType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
@@ -30,11 +31,15 @@ import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 import org.springframework.http.MediaType;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.MimeTypeUtils;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
@@ -86,6 +91,9 @@ public class WordConvertByMarkItDownReader {
     @Autowired
     @Qualifier("openAiChatModel")
     private ChatModel chatModel;
+
+    @Autowired
+    private ChatClient chatClientImage;
 
     public void wordParse(String filePath, Document document) {
         // 调用markItDown api服务，将word转为markdown
@@ -235,15 +243,40 @@ public class WordConvertByMarkItDownReader {
                 List<org.springframework.ai.document.Document> splitDocuments = textSplitterTool.splitCustomized(convert, 500, 200, 100, 10000, false);
                 documentLinkedList.addAll(splitDocuments);
                 continue;
-            }else if(BlockType.IMAGE.getType().equals(chunkContentType)){
+            } else if (BlockType.IMAGE.getType().equals(chunkContentType)) {
                 // TODO 针对img，需要调用视觉模型获取图片描述
                 // 抽取图片内容是 url ，还是 base64 或者相对路径（处理不了）
                 List<String> images = MdImageRegexExtractor.extractImages(document.getText());
                 for (String image : images) {
-                    // 看是否能获取图片资源，上传到s3中，元数据记录图片路径信息
-                    String imageDescription = "";
+                    if (image.startsWith("http") || image.startsWith("data:image")) {
+                        Resource resource;
+                        if (image.startsWith("data:image")) {
+                            resource = Base64ImageToResourceUtil.convert(image);
+                        } else {
+                            UrlResource from = UrlResource.from(image);
+                            byte[] contentAsByteArray = from.getContentAsByteArray();
+                            resource = new ByteArrayResource(contentAsByteArray);
+                        }
+                        try {
+                            String content = chatClientImage.prompt().user(u -> u.text("解释该图片描述的信息").media(MimeTypeUtils.IMAGE_JPEG, resource)).call().content();
+                            // 将图片资源上传到s3中，元数据记录图片路径信息
+                            String imagId = IdUtils.generateChunkImagId();
+                            s3ClientUtils.putObjectByContentBytes(s3Properties.getDefaultBucketName(),
+                                    fileContext.getFileId() + "/" + imagId + ".png",
+                                    resource.getInputStream().readAllBytes(),
+                                    S3FileType.JPEG.getMimeType());
+                            document.getMetadata().put(DocumentMetadataMap.IMAGE_RESOURCE, imagId);
+                            String textNew = MarkdownAllImageReplacer.replaceAllImages(document.getText(), "此处为图片信息，它的概要内容如下\n:" + content + "\n");
+                            org.springframework.ai.document.Document documentNew = document.mutate().text(textNew).build();
+                            documentLinkedList.add(documentNew);
+                        } catch (Exception e) {
+                            logger.error("图片处理异常:{}", e.getMessage(), e);
+                            documentLinkedList.add(document);
+                        }
+                    }
                 }
-//                documentLinkedList.add(document);
+
+
             } else {
                 // TODO 针对过于大的块，需要处理内容, 提取概要信息，将原始内容存放入元数据
                 List<Integer> boxed = encoding.encode(document.getText()).boxed();
@@ -255,13 +288,13 @@ public class WordConvertByMarkItDownReader {
                             "代码块：说明开发语言、核心逻辑及关键输入输出；\n" +
                             "图片：若为图表，说明数据维度与趋势；若为示意图，描述核心元素与关系。\n" +
                             "格式要求：分 2 段呈现（第一段：类型与主题；第二段：核心信息与结论），总字数≤300 字，语言通俗，避免冗余术语");
-                    UserMessage userMessage = new UserMessage("请基于你收到的规则，对以下内容生成概要：\n"+document.getText());
-                    String response = chatModel.call(systemMessage,userMessage);
+                    UserMessage userMessage = new UserMessage("请基于你收到的规则，对以下内容生成概要：\n" + document.getText());
+                    String response = chatModel.call(systemMessage, userMessage);
                     Map<String, Object> metadata = document.getMetadata();
                     metadata.put(DocumentMetadataMap.ORIGINAL_CONTENT, response);
                     document.mutate().text(response).metadata(metadata);
                     documentLinkedList.add(document);
-                }else{
+                } else {
                     documentLinkedList.add(document);
                 }
             }

@@ -32,6 +32,9 @@ public class ChatClientConfig {
     @Qualifier("ragPromptAdvisor")
     private Advisor ragPromptChatMemoryAdvisor;
 
+    @Autowired
+    private ChatModelConfig chatModelConfig;
+
     /**
      * 执行rag流程
      * <p>
@@ -59,6 +62,18 @@ public class ChatClientConfig {
     public ChatClient deepseekChatClientNoRag(OpenAiChatModel chatModel) {
         return ChatClient.builder(chatModel).build();
     }
+
+
+    /**
+     * 多模态模型- 比如对图片进行语义的识别
+     *
+     * @return
+     */
+    @Bean
+    public ChatClient chatClientImage() {
+        return ChatClient.builder(chatModelConfig.openAiChatModelImage()).build();
+    }
+
 
     /**
      * 不执行rag流程

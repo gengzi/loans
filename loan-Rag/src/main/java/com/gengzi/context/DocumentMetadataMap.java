@@ -101,6 +101,11 @@ public class DocumentMetadataMap {
      */
     public static final String ORIGINAL_CONTENT = "originalContent";
 
+    /**
+     * 图片资源信息
+     */
+    public static final String IMAGE_RESOURCE = "image_resource";
+
     // ============================= 元数据字段 =============================
 
     /**
@@ -221,6 +226,10 @@ public class DocumentMetadataMap {
      */
     private String originalContent;
 
+    /**
+     * 图片资源信息
+     */
+    private String imageResource;
 
 
     // ============================= 构造方法 =============================
@@ -285,8 +294,11 @@ public class DocumentMetadataMap {
         if (metadataMap.containsKey(CHUNK_CONTENT_TYPE)) {
             metadata.chunkContentType = (String) metadataMap.get(CHUNK_CONTENT_TYPE);
         }
-        if (metadataMap.containsKey(ORIGINAL_CONTENT)){
+        if (metadataMap.containsKey(ORIGINAL_CONTENT)) {
             metadata.originalContent = (String) metadataMap.get(ORIGINAL_CONTENT);
+        }
+        if (metadataMap.containsKey(IMAGE_RESOURCE)) {
+            metadata.imageResource = (String) metadataMap.get(IMAGE_RESOURCE);
         }
 
         // 设置可选字段
@@ -325,6 +337,9 @@ public class DocumentMetadataMap {
         }
         if (originalContent != null) {
             metadataMap.put(ORIGINAL_CONTENT, originalContent);
+        }
+        if (imageResource != null) {
+            metadataMap.put(IMAGE_RESOURCE, imageResource);
         }
 
         if (source != null) {

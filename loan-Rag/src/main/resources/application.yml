@@ -105,6 +105,11 @@ rerankermodel:
   baseUrl: https://api.siliconflow.cn
   model: Qwen/Qwen3-Reranker-4B
 
+multimodel:
+  apiKey: sk-ltrjtwcekfkowwmdqghjzgfkjhylcocxibuuviorbnfzvqqj
+  baseUrl: https://api.siliconflow.cn
+  model: zai-org/GLM-4.5V
+
 
 ## 各项指标
 weight-of-basic-indicators:

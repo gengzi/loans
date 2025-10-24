@@ -4,7 +4,6 @@ import com.gengzi.reranker.DefaultRerankModel;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.api.OpenAiApi;
-import org.springframework.ai.openai.api.ResponseFormat;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
@@ -15,7 +14,7 @@ import org.springframework.context.annotation.Configuration;
  * 自定义构建对话模型配置
  */
 @Configuration
-public class ChatModeConfig {
+public class ChatModelConfig {
 
 
     @Autowired
@@ -23,6 +22,9 @@ public class ChatModeConfig {
 
     @Autowired
     private RerankerParamsConfig rerankerParamsConfig;
+
+    @Autowired
+    private MultiParamsConfig multiParamsConfig;
 
     @Bean
     @Qualifier("openAiChatModel")
@@ -43,6 +45,20 @@ public class ChatModeConfig {
     public DefaultRerankModel defaultRerankModel() {
         return new DefaultRerankModel(rerankerParamsConfig.getApiKey(), rerankerParamsConfig.getBaseUrl(), rerankerParamsConfig.getModel());
     }
+
+
+    public OpenAiChatModel openAiChatModelImage() {
+        OpenAiApi openApi = OpenAiApi.builder().apiKey(multiParamsConfig.getApiKey())
+                .baseUrl(multiParamsConfig.getBaseUrl()).build();
+        return OpenAiChatModel.builder()
+                .openAiApi(openApi)
+                .defaultOptions(OpenAiChatOptions.builder()
+                        .model(multiParamsConfig.getModel())
+                        .build())
+                .build();
+    }
+
+
 
 
 //    @Bean("openAiChatModelOutPutJson")
