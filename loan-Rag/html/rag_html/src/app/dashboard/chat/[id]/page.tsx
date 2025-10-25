@@ -161,6 +161,10 @@ export default function ChatPage({ params }: { params: { id: string } }) {
                   const citations: Citation[] = [];
                   const ragReference = parsedData.reference?.reference || [];
                   
+                  // 添加调试日志，检查原始引用数据
+                  console.log('Original ragReference data:', ragReference);
+                  console.log('References with imageUrl:', ragReference.filter((ref: any) => ref.imageUrl));
+                  
                   // 如果有引用信息，转换为所需格式
                   if (Array.isArray(ragReference) && ragReference.length > 0) {
                     ragReference.forEach((ref, index) => {
@@ -173,6 +177,8 @@ export default function ChatPage({ params }: { params: { id: string } }) {
                           page: ref.pageRange,
                           url: ref.documentUrl,
                           documentId: ref.documentId,
+                          // 直接从ref对象中获取imageUrl字段
+                          imageUrl: ref.imageUrl,
                           // 保留原始metadata中的其他字段
                           ...(ref.metadata || {})
                         }
@@ -320,14 +326,31 @@ export default function ChatPage({ params }: { params: { id: string } }) {
         
         // 转换聊天历史为自定义Message类型格式
         if (responseData?.message && responseData.message.length > 0) {
-          const formattedMessages = responseData.message.map((msg: any) => ({
-            id: msg.id || `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            content: msg.content,
-            role: msg.role === 'USER' ? 'user' : 'assistant',
-            createdAt: new Date(msg.createdAt),
-            citations: msg.citations,
-            ragReference: msg.ragReference,
-          }));
+          console.log('Processing historical messages:', responseData.message);
+          const formattedMessages = responseData.message.map((msg: any) => {
+            // 处理citations，确保imageUrl字段被正确包含
+            let processedCitations = msg.citations;
+            if (msg.citations && Array.isArray(msg.citations)) {
+              processedCitations = msg.citations.map((citation: any) => ({
+                ...citation,
+                metadata: {
+                  ...(citation.metadata || {}),
+                  // 确保imageUrl字段存在
+                  imageUrl: citation.metadata?.imageUrl || citation.imageUrl
+                }
+              }));
+              console.log('Processed citations for historical message:', processedCitations);
+            }
+            
+            return {
+              id: msg.id || `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              content: msg.content,
+              role: msg.role === 'USER' ? 'user' : 'assistant',
+              createdAt: new Date(msg.createdAt),
+              citations: processedCitations,
+              ragReference: msg.ragReference,
+            };
+          });
           setMessages(formattedMessages);
         } else {
           // 如果没有历史消息，添加欢迎消息
