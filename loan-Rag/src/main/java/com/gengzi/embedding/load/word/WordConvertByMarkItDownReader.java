@@ -266,7 +266,7 @@ public class WordConvertByMarkItDownReader {
                                     resource.getInputStream().readAllBytes(),
                                     S3FileType.JPEG.getMimeType());
                             document.getMetadata().put(DocumentMetadataMap.IMAGE_RESOURCE, imagId);
-                            String textNew = MarkdownAllImageReplacer.replaceAllImages(document.getText(), "此处为图片信息，它的概要内容如下\n:" + content + "\n");
+                            String textNew = MarkdownAllImageReplacer.replaceAllImages(document.getText(), "图片:[\n:" + content + "]\n");
                             org.springframework.ai.document.Document documentNew = document.mutate().text(textNew).build();
                             documentLinkedList.add(documentNew);
                         } catch (Exception e) {
