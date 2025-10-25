@@ -292,7 +292,7 @@ const Answer: React.FC<AnswerProps> = ({ content, citations, ragReference, isStr
   // 在组件外部预加载图片
   useEffect(() => {
     const citations = getCitations();
-    citations.forEach(citation => {
+    citations.forEach((citation: Citation) => {
       if (citation.metadata && citation.metadata.imageUrl) {
         const imageUrl = citation.metadata.imageUrl;
         if (!imageUrlCacheRef.current[imageUrl]) {
