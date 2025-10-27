@@ -37,6 +37,9 @@
 - 多个知识库权限隔离，在metadata中添加知识库id ，在检索时进行过滤（当前用户支持检索的知识库id下的文档分块）
 
 
+- 发现rerank 效果不理想，应该评分很高的内容，给出的分数比较低
+解决：尝试了多种模型，发现有些模型存在较大差异。更换模型，结果更准确
+
 
 
 
@@ -75,4 +78,16 @@ mcp 的能力能否加上
 ```angular2html
 SET SQL_SAFE_UPDATES = 0;
 SET SQL_SAFE_UPDATES = 1;
+```
+
+```shell
+查找端口 1601 对应的进程 ID（PID）：
+netstat -ano | findstr :1601
+若端口被占用，会输出类似以下内容：
+TCP    0.0.0.0:1601           0.0.0.0:0              LISTENING       1234
+
+输入以下命令查询对应的进程名称
+tasklist | findstr 1234
+关闭服务
+
 ```

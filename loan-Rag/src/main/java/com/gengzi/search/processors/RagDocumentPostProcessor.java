@@ -1,6 +1,7 @@
 package com.gengzi.search.processors;
 
 
+import com.gengzi.config.chat.RerankerParamsConfig;
 import com.gengzi.reranker.RerankerModel;
 import com.gengzi.reranker.request.RerankInstructions;
 import com.gengzi.reranker.request.RerankModelRequest;
@@ -33,6 +34,10 @@ public class RagDocumentPostProcessor implements DocumentPostProcessor {
     @Qualifier("defaultRerankModel")
     private RerankerModel rerankerModel;
 
+    @Autowired
+    private RerankerParamsConfig rerankerParamsConfig;
+
+
     @Override
     public List<Document> process(Query query, List<Document> documents) {
         if (documents.size() <= 0) {
@@ -43,6 +48,9 @@ public class RagDocumentPostProcessor implements DocumentPostProcessor {
         RerankInstructions rerankInstructions = new RerankInstructions();
         rerankInstructions.setQuery(query.text());
         rerankInstructions.setDocuments(documents.stream().map(Document::getText).collect(Collectors.toList()));
+//        rerankInstructions.setDocuments(documents.stream().map(d -> MarkdownCleaner.clean(d.getText())).collect(Collectors.toList()));
+        //  rerank awen 支持说明，建议使用英文，会提升性能1%-5%。增加此参数
+        rerankInstructions.setInstruction(rerankerParamsConfig.getInstruction());
         RerankerModelResponse call = rerankerModel.call(new RerankModelRequest(rerankInstructions, null));
         LinkedList<Document> sortedDocuments = new LinkedList<>();
 

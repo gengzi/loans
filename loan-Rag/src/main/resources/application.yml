@@ -103,7 +103,20 @@ chatmodel:
 rerankermodel:
   apiKey: sk-ltrjtwcekfkowwmdqghjzgfkjhylcocxibuuviorbnfzvqqj
   baseUrl: https://api.siliconflow.cn
-  model: Qwen/Qwen3-Reranker-4B
+  model: BAAI/bge-reranker-v2-m3
+  instruction: "Please rerank the documents based on the query."
+#  instruction: "Given a user's query and a Markdown (md) document chunk retrieved by the RAG system, determine the relevance of the document chunk to answering the query. The md chunk may contain format symbols such as # (headings), * (bold/italic), - (lists), ``` (code blocks), or | (tables) — focus on the core content wrapped by these symbols, not the symbols themselves.
+#
+#Relevance is defined as:
+#1. The chunk contains direct information that answers the query (e.g., facts, explanations, step-by-step guides).
+#2. The chunk contains indirect information that helps infer the answer (e.g., background context, related concepts necessary to understand the answer).
+#3. The chunk is topically aligned and provides supplementary details that enrich the answer (even if not strictly required).
+#
+#Notes:
+#- Ignore irrelevant content in the chunk; only check if any part of the chunk meets the above criteria.
+#- Treat synonyms, abbreviations, and domain-specific terms as equivalent (e.g., 'AI' = 'artificial intelligence', 'risk control' = 'risk management').
+#- Bold text (marked with **) or heading text (marked with #) in the md chunk often indicates key information — prioritize evaluating these parts.
+#"
 
 multimodel:
   apiKey: sk-ltrjtwcekfkowwmdqghjzgfkjhylcocxibuuviorbnfzvqqj

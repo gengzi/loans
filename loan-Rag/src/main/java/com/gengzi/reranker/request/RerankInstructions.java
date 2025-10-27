@@ -11,5 +11,7 @@ public class RerankInstructions {
     private String model;
     private String query;
     private List<String> documents;
+    private String instruction;
+
 
 }
