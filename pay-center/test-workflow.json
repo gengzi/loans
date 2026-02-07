@@ -1,0 +1,81 @@
+{
+  "nodes": [
+    {
+      "id": "node1",
+      "type": "HTTP",
+      "config": {
+        "url": "https://httpbin.org/get",
+        "method": "GET",
+        "headers": {
+          "User-Agent": "DAG-Workflow-Engine/1.0"
+        }
+      },
+      "nextNodes": ["node2", "node3"],
+      "loopPolicy": "NONE",
+      "joinMode": "ALL",
+      "description": "Initial GET request to httpbin"
+    },
+    {
+      "id": "node2",
+      "type": "HTTP",
+      "config": {
+        "url": "https://httpbin.org/delay/1",
+        "method": "GET"
+      },
+      "nextNodes": ["node4"],
+      "loopPolicy": "FIXED_COUNT",
+      "loopConfig": {
+        "maxRetries": 2,
+        "intervalMs": 1000
+      },
+      "joinMode": "ALL",
+      "description": "Parallel branch 1 with fixed count loop"
+    },
+    {
+      "id": "node3",
+      "type": "HTTP",
+      "config": {
+        "url": "https://httpbin.org/status/200",
+        "method": "GET"
+      },
+      "nextNodes": ["node4"],
+      "loopPolicy": "NONE",
+      "joinMode": "ALL",
+      "description": "Parallel branch 2"
+    },
+    {
+      "id": "node4",
+      "type": "HTTP",
+      "config": {
+        "url": "https://httpbin.org/post",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"message\": \"Final node\", \"timestamp\": \"2026-02-07\"}"
+      },
+      "nextNodes": [],
+      "loopPolicy": "NONE",
+      "joinMode": "ALL",
+      "description": "Final POST request (waits for both node2 and node3)"
+    }
+  ],
+  "edges": [
+    {
+      "fromNodeId": "node1",
+      "toNodeId": "node2"
+    },
+    {
+      "fromNodeId": "node1",
+      "toNodeId": "node3"
+    },
+    {
+      "fromNodeId": "node2",
+      "toNodeId": "node4"
+    },
+    {
+      "fromNodeId": "node3",
+      "toNodeId": "node4"
+    }
+  ]
+}

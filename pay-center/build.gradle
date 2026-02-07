@@ -1,19 +1,49 @@
 plugins {
     id 'java'
+//    id 'org.springframework.boot' version '3.2.2'
+//    id 'io.spring.dependency-management' version '1.1.4'
 }
 
 group = 'com.gengzi.pay'
 version = '1.0-SNAPSHOT'
+
+java {
+    sourceCompatibility = '17'
+}
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
 
 repositories {
     mavenCentral()
 }
 
 dependencies {
+    // Spring Boot
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    
+    // HTTP Client
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    
+    // JSON Processing (included in spring-boot-starter-web)
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+    
+    // Lombok
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    
+    // Original dependencies
     implementation 'org.apache.flink:flink-java:1.7.2'
     implementation 'org.apache.flink:flink-streaming-java_2.12:1.7.2'
+    
+    // Testing
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation platform('org.junit:junit-bom:5.10.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'com.squareup.okhttp3:mockwebserver:4.12.0'
 }
 
 test {

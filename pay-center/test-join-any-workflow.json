@@ -1,0 +1,81 @@
+{
+    "nodes": [
+        {
+            "id": "start",
+            "type": "HTTP",
+            "config": {
+                "url": "https://httpbin.org/get",
+                "method": "GET"
+            },
+            "nextNodes": [
+                "race_a",
+                "race_b"
+            ],
+            "loopPolicy": "NONE",
+            "joinMode": "ALL",
+            "description": "Start node triggering two parallel branches"
+        },
+        {
+            "id": "race_a",
+            "type": "HTTP",
+            "config": {
+                "url": "https://httpbin.org/delay/1",
+                "method": "GET"
+            },
+            "nextNodes": [
+                "join_any_node"
+            ],
+            "loopPolicy": "NONE",
+            "joinMode": "ALL",
+            "description": "Race branch A (slower, 1s delay)"
+        },
+        {
+            "id": "race_b",
+            "type": "HTTP",
+            "config": {
+                "url": "https://httpbin.org/get",
+                "method": "GET"
+            },
+            "nextNodes": [
+                "join_any_node"
+            ],
+            "loopPolicy": "NONE",
+            "joinMode": "ALL",
+            "description": "Race branch B (faster, no delay)"
+        },
+        {
+            "id": "join_any_node",
+            "type": "HTTP",
+            "config": {
+                "url": "https://httpbin.org/post",
+                "method": "POST",
+                "headers": {
+                    "Content-Type": "application/json"
+                },
+                "body": "{\"message\": \"Triggered by first completing parent\"}"
+            },
+            "nextNodes": [],
+            "loopPolicy": "NONE",
+            "joinMode": "ANY",
+            "description": "JOIN_ANY node - executes when ANY parent completes"
+        }
+    ],
+    "edges": [
+        {
+            "fromNodeId": "start",
+            "toNodeId": "race_a"
+        },
+        {
+            "fromNodeId": "start",
+            "toNodeId": "race_b"
+        },
+        {
+            "fromNodeId": "race_a",
+            "toNodeId": "join_any_node"
+        },
+        {
+            "fromNodeId": "race_b",
+            "toNodeId": "join_any_node"
+        }
+    ]
+}

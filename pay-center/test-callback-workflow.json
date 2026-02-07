@@ -1,0 +1,53 @@
+{
+    "nodes": [
+        {
+            "id": "trigger",
+            "type": "HTTP",
+            "config": {
+                "url": "https://httpbin.org/get",
+                "method": "GET"
+            },
+            "nextNodes": [
+                "callback_node"
+            ],
+            "loopPolicy": "NONE",
+            "joinMode": "ALL",
+            "description": "Initial trigger node"
+        },
+        {
+            "id": "callback_node",
+            "type": "CALLBACK",
+            "nextNodes": [
+                "final_node"
+            ],
+            "joinMode": "ALL",
+            "description": "Callback node waiting for external trigger"
+        },
+        {
+            "id": "final_node",
+            "type": "HTTP",
+            "config": {
+                "url": "https://httpbin.org/post",
+                "method": "POST",
+                "headers": {
+                    "Content-Type": "application/json"
+                },
+                "body": "{\"message\": \"Workflow resumed after callback\"}"
+            },
+            "nextNodes": [],
+            "loopPolicy": "NONE",
+            "joinMode": "ALL",
+            "description": "Final node after callback"
+        }
+    ],
+    "edges": [
+        {
+            "fromNodeId": "trigger",
+            "toNodeId": "callback_node"
+        },
+        {
+            "fromNodeId": "callback_node",
+            "toNodeId": "final_node"
+        }
+    ]
+}
